@@ -45,27 +45,58 @@
   *Delivered analytic first-order semantic tableau solver, tableau-to-dialogue transpiler, and synthetic seed corpus generator for cold-start replay buffer pretraining.*
 - [x] **#12 [`perf(bench): Build automated proof extraction and MCTS search throughput benchmarking suite`](https://github.com/tryggth/bourbakimesh/issues/12)**  
   *Delivered Rust Criterion micro-benchmarks across all crates and Python profiling CLI measuring neural dynamics latency, MCTS throughput (1000+ sims/sec), and Compute Simulation Equivalent (CSE).*
-
-### Active Roadmap Issues
-- [ ] **#13 [`docs(sync): periodic wiki, architecture, and project board synchronization (Cycle 2)`](https://github.com/tryggth/bourbakimesh/issues/13)** — *Rolling Documentation Maintenance*
-
----
-
-## 3. Summary of Changes in this Milestone
-
-1. **Rust Criterion Micro-Benchmark Harnesses:**
-   - **`crates/bourbaki-ir/benches/bench_ir.rs`**: Benchmarked P-view and O-view calculation latency across trace depths 10, 50, and 200.
-   - **`crates/bourbaki-kernel/benches/bench_kernel.rs`**: Benchmarked strategy compilation $\mathcal{E}(\sigma)$ and proof term decompilation.
-   - **`crates/bourbaki-mesh/benches/bench_mesh.rs`**: Benchmarked block content-address hashing (SHA-256) and ledger bulk insertion.
-2. **Python Neural & MCTS Benchmarking Engine ([`src/bourbakimesh/benchmarks/bench_engine.py`](file:///home/tryggth2009/bourbakimesh/src/bourbakimesh/benchmarks/bench_engine.py)):**
-   - Implemented `BenchmarkRunner` measuring representation $h_\theta$, dynamics $g_\theta$, and prediction $f_\theta$ p50 latency, MCTS search throughput (simulations/sec), and standardized Compute Simulation Equivalent (CSE) scoring.
-3. **Unified Benchmarking CLI ([`src/bourbakimesh/benchmarks/cli.py`](file:///home/tryggth2009/bourbakimesh/src/bourbakimesh/benchmarks/cli.py)):**
-   - Implemented CLI printing structured markdown tables and exporting timestamped JSON regression baselines to `benchmarks/reports/latest.json`.
-4. **PyTest Suite ([`tests/test_benchmarks.py`](file:///home/tryggth2009/bourbakimesh/tests/test_benchmarks.py)):**
-   - Added unit and CLI invocation tests verifying non-zero performance throughput and report generation.
+- [x] **#13 [`docs(sync): periodic wiki, architecture, and project board synchronization (Cycle 2)`](https://github.com/tryggth/bourbakimesh/issues/13)**  
+  *Synchronized complete specifications to the GitHub Wiki across all subsystems, including IPC bridge, tableau bootstrapping, Tier 2/3b soundness formalization, and CSE benchmarking.*
 
 ---
 
-## 4. Next Scheduled Milestone
+## 3. Monorepo Architecture Overview
 
-- **Milestone:** **Issue #13** (`docs(sync): periodic wiki, architecture, and project board synchronization (Cycle 2)`)
+```
+bourbakimesh/
+├── Cargo.toml                                 # Workspace manifest (Rust 2021)
+├── STATUS_REPORT.md                           # Verification & status matrix
+├── crates/
+│   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
+│   │   ├── src/{arena, moves, net, polarity, trace}.rs
+│   │   ├── tests/{arena_ir_tests, proptest_invariants}.rs
+│   │   └── benches/bench_ir.rs
+│   ├── bourbaki-kernel/                       # CIC AST & Strategy Extractor
+│   │   ├── src/{ast, decompiler, emitter, extractor, verifier}.rs
+│   │   ├── tests/{extraction_tests, lean_verification_tests, adversarial_and_roundtrip_tests}.rs
+│   │   └── benches/bench_kernel.rs
+│   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
+│       ├── src/{block, dag, ipc_server, ledger, node, protocol, rpc, worker}.rs
+│       ├── tests/{ipc_bridge_tests, mesh_protocol_tests}.rs
+│       └── benches/bench_mesh.rs
+├── src/bourbakimesh/                          # Python ML & Dynamics Engine
+│   ├── adversarial_hunt.py                    # Inconsistency Hunter (False)
+│   ├── ipc_client.py                          # Async Tokio/UDS Client
+│   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
+│   ├── models.py                              # BourbakiMuZero (h_θ, g_θ, f_θ)
+│   ├── self_play.py                           # Worker & Experience Replay
+│   ├── benchmarks/                            # Profiler & CSE Evaluator
+│   └── bootstrap/                             # Semantic Tableau Prover & Transpiler
+├── tests/                                     # PyTest Integration Suites
+│   ├── test_adversarial_hunt.py
+│   ├── test_benchmarks.py
+│   ├── test_bootstrap.py
+│   ├── test_latent_mcts.py
+│   ├── test_mesh_bridge.py
+│   └── test_smoke.py
+└── lean_target/                               # Zero-Trust Lean 4 Harness
+    ├── LeanTarget.lean
+    └── LeanTarget/
+        ├── Basic.lean
+        ├── Harness.lean
+        └── MetaTheory/
+            ├── Arena.lean
+            ├── CIC.lean
+            └── Soundness.lean
+```
+
+---
+
+## 4. Current Status
+
+- **All foundational, kernel, neural, distributed, empirical, and documentation milestones completed and certified.**
