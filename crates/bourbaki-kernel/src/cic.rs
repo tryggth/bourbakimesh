@@ -39,10 +39,7 @@ pub enum Term {
         body: Box<Term>,
     },
     /// Function application: (f arg).
-    App {
-        fun: Box<Term>,
-        arg: Box<Term>,
-    },
+    App { fun: Box<Term>, arg: Box<Term> },
     /// Let binding: let x : T := val in body.
     Let {
         binder_name: String,
@@ -80,7 +77,9 @@ mod tests {
         let prop = Term::Sort(Sort::Prop);
         let arrow = Term::arrow(prop.clone(), prop.clone());
         match arrow {
-            Term::Pi { binder_type, body, .. } => {
+            Term::Pi {
+                binder_type, body, ..
+            } => {
                 assert_eq!(*binder_type, Term::Sort(Sort::Prop));
                 assert_eq!(*body, Term::Sort(Sort::Prop));
             }

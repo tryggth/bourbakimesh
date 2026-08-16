@@ -1,148 +1,198 @@
-//! Game-semantic arena definitions and dialogue move sequences.
+//! Strategy DAG, Strategy Tree, and branched game representations.
 
+use crate::moves::Move;
 use crate::polarity::Polarity;
+use crate::trace::PlayTrace;
+use crate::validator::{verify_all, ArenaValidationError};
 use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use uuid::Uuid;
 
-/// Errors arising from invalid dialogue arena operations.
-#[derive(Debug, Error, PartialEq, Eq)]
-pub enum ArenaError {
-    #[error("Out-of-turn move: expected {expected:?}, got {actual:?}")]
-    OutOfTurn {
-        expected: Polarity,
-        actual: Polarity,
-    },
-
-    #[error("Invalid justification link: target move index {0} out of bounds")]
-    InvalidJustification(usize),
-
-    #[error("Empty dialogue arena has no moves")]
-    EmptyArena,
-}
-
-/// The kind of dialogue move being performed.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum MoveKind {
-    /// Question attacking a prior claim or requesting instantiation.
-    Question { tag: String },
-    /// Answer defending a prior question or making an assertion.
-    Answer { content: String },
-}
-
-/// A discrete move played in an arena dialogue.
+/// A node in a branched dialogue game strategy tree / DAG.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Move {
-    pub id: Uuid,
-    pub polarity: Polarity,
-    pub kind: MoveKind,
-    /// Optional index of the prior move justifying/attacked by this move.
-    pub justification_index: Option<usize>,
+pub struct StrategyNode {
+    /// Move played at this strategy node.
+    pub current_move: Move,
+    /// Branched response continuations.
+    pub children: Vec<StrategyNode>,
 }
 
-/// A game-semantic dialogue arena representing a game play trace.
+impl StrategyNode {
+    /// Create a new leaf strategy node.
+    pub fn new(current_move: Move) -> Self {
+        Self {
+            current_move,
+            children: Vec::new(),
+        }
+    }
+
+    /// Add a child continuation branch.
+    pub fn add_child(&mut self, child: StrategyNode) {
+        self.children.push(child);
+    }
+
+    /// Recursively count total nodes in this subtree.
+    pub fn count_nodes(&self) -> usize {
+        1 + self.children.iter().map(|c| c.count_nodes()).sum::<usize>()
+    }
+
+    /// Recursively collect all root-to-leaf play traces.
+    pub fn collect_traces(&self, current_prefix: &mut PlayTrace, traces: &mut Vec<PlayTrace>) {
+        let mut extended = current_prefix.clone();
+        extended.moves_mut().push(self.current_move.clone());
+
+        if self.children.is_empty() {
+            traces.push(extended);
+        } else {
+            for child in &self.children {
+                child.collect_traces(&mut extended, traces);
+            }
+        }
+    }
+}
+
+/// A complete branched strategy tree for a dialogue arena game.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StrategyTree {
+    /// Root node of the strategy (None if empty).
+    pub root: Option<StrategyNode>,
+}
+
+impl StrategyTree {
+    /// Create an empty strategy tree.
+    pub fn new() -> Self {
+        Self { root: None }
+    }
+
+    /// Create a strategy tree with an initial root move.
+    pub fn from_root(root_move: Move) -> Self {
+        Self {
+            root: Some(StrategyNode::new(root_move)),
+        }
+    }
+
+    /// Total number of moves / nodes across all strategy branches.
+    pub fn node_count(&self) -> usize {
+        self.root.as_ref().map_or(0, |r| r.count_nodes())
+    }
+
+    /// Extract all linear play traces from root to leaves.
+    pub fn extract_traces(&self) -> Vec<PlayTrace> {
+        let mut traces = Vec::new();
+        if let Some(ref root) = self.root {
+            let mut prefix = PlayTrace::new();
+            root.collect_traces(&mut prefix, &mut traces);
+        }
+        traces
+    }
+
+    /// Verify that every branch in the strategy tree is a valid, well-bracketed play trace.
+    pub fn verify_all_branches(&self) -> Result<(), ArenaValidationError> {
+        for trace in self.extract_traces() {
+            verify_all(&trace)?;
+        }
+        Ok(())
+    }
+}
+
+/// Legacy/Convenience alias for linear dialogue arenas.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ArenaDialogue {
-    moves: Vec<Move>,
+    trace: PlayTrace,
     expected_polarity: Option<Polarity>,
 }
 
 impl ArenaDialogue {
-    /// Create a new empty arena dialogue with initial expected polarity.
+    /// Create a new dialogue with initial expected polarity.
     pub fn new(initial_polarity: Polarity) -> Self {
         Self {
-            moves: Vec::new(),
+            trace: PlayTrace::new(),
             expected_polarity: Some(initial_polarity),
         }
     }
 
-    /// Number of moves in the play.
+    /// Number of moves in dialogue.
     pub fn len(&self) -> usize {
-        self.moves.len()
+        self.trace.len()
     }
 
-    /// True if no moves have been played.
+    /// True if no moves played.
     pub fn is_empty(&self) -> bool {
-        self.moves.is_empty()
+        self.trace.is_empty()
     }
 
-    /// Read-only access to moves.
+    /// Moves in the dialogue.
     pub fn moves(&self) -> &[Move] {
-        &self.moves
+        self.trace.moves()
     }
 
-    /// Current expected polarity.
+    /// Expected player polarity.
     pub fn expected_polarity(&self) -> Option<Polarity> {
         self.expected_polarity
     }
 
-    /// Append a move according to Lorenzen/Hyland-Ong alternation rules.
-    pub fn play_move(&mut self, m: Move) -> Result<(), ArenaError> {
-        if let Some(expected) = self.expected_polarity {
-            if m.polarity != expected {
-                return Err(ArenaError::OutOfTurn {
-                    expected,
-                    actual: m.polarity,
-                });
-            }
-        }
-
-        if let Some(target) = m.justification_index {
-            if target >= self.moves.len() {
-                return Err(ArenaError::InvalidJustification(target));
-            }
-        }
-
-        self.expected_polarity = Some(m.polarity.dual());
-        self.moves.push(m);
+    /// Play a move.
+    pub fn play_move(&mut self, m: Move) -> Result<(), ArenaValidationError> {
+        self.trace.push(m.clone())?;
+        self.expected_polarity = Some(m.player.dual());
         Ok(())
+    }
+
+    /// Inner trace reference.
+    pub fn trace(&self) -> &PlayTrace {
+        &self.trace
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::moves::LogicalPayload;
 
     #[test]
-    fn test_dialogue_alternation() {
-        let mut dialogue = ArenaDialogue::new(Polarity::Opponent);
-        assert_eq!(dialogue.expected_polarity(), Some(Polarity::Opponent));
+    fn test_strategy_tree_branching() {
+        let root_mv = Move::root_goal("A ∧ B");
+        let mut tree = StrategyTree::from_root(root_mv);
 
-        let m1 = Move {
-            id: Uuid::new_v4(),
-            polarity: Polarity::Opponent,
-            kind: MoveKind::Question {
-                tag: "Attack: Left conjunct".into(),
-            },
-            justification_index: None,
-        };
-        assert!(dialogue.play_move(m1).is_ok());
-        assert_eq!(dialogue.expected_polarity(), Some(Polarity::Proponent));
+        let root_node = tree.root.as_mut().unwrap();
 
-        // Invalid: same player tries to play again
-        let m2_bad = Move {
-            id: Uuid::new_v4(),
-            polarity: Polarity::Opponent,
-            kind: MoveKind::Answer {
-                content: "Invalid move".into(),
+        // Branch 1: Opponent attacks Left conjunct
+        let mut branch1 = StrategyNode::new(Move::question(
+            1,
+            Polarity::Opponent,
+            0,
+            LogicalPayload::AttackConjunction {
+                branch: crate::moves::ConjunctionBranch::Left,
             },
-            justification_index: None,
-        };
-        assert!(matches!(
-            dialogue.play_move(m2_bad),
-            Err(ArenaError::OutOfTurn { .. })
         ));
+        branch1.add_child(StrategyNode::new(Move::answer(
+            2,
+            Polarity::Proponent,
+            1,
+            LogicalPayload::AxiomDischarge { premise_id: 0 },
+        )));
 
-        // Valid: Proponent responds
-        let m2_good = Move {
-            id: Uuid::new_v4(),
-            polarity: Polarity::Proponent,
-            kind: MoveKind::Answer {
-                content: "Witness A".into(),
+        // Branch 2: Opponent attacks Right conjunct
+        let mut branch2 = StrategyNode::new(Move::question(
+            1,
+            Polarity::Opponent,
+            0,
+            LogicalPayload::AttackConjunction {
+                branch: crate::moves::ConjunctionBranch::Right,
             },
-            justification_index: Some(0),
-        };
-        assert!(dialogue.play_move(m2_good).is_ok());
-        assert_eq!(dialogue.len(), 2);
+        ));
+        branch2.add_child(StrategyNode::new(Move::answer(
+            2,
+            Polarity::Proponent,
+            1,
+            LogicalPayload::AxiomDischarge { premise_id: 1 },
+        )));
+
+        root_node.add_child(branch1);
+        root_node.add_child(branch2);
+
+        assert_eq!(tree.node_count(), 5);
+        let traces = tree.extract_traces();
+        assert_eq!(traces.len(), 2);
+        assert_eq!(traces[0].len(), 3);
+        assert_eq!(traces[1].len(), 3);
     }
 }

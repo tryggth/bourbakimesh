@@ -15,6 +15,9 @@ mod tests {
     #[test]
     fn test_smoke_mesh() {
         let worker = EdgeWorker::new();
-        assert_eq!(worker.handle_command(WorkerCommand::Ping), WorkerResponse::Pong);
+        assert_eq!(
+            worker.handle_command(WorkerCommand::Ping),
+            WorkerResponse::Pong
+        );
     }
 }
