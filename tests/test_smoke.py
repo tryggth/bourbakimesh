@@ -3,7 +3,8 @@
 import torch
 import networkx as nx
 import numpy as np
-from bourbakimesh.mcts.latent_mcts import LatentMCTS, MCTSConfig, SearchNode
+from bourbakimesh.models import ArenaEmbeddingConfig, BourbakiMuZero
+from bourbakimesh.latent_mcts import LatentMCTS, MCTSConfig
 from bourbakimesh.dynamics.arena_game import (
     ArenaState,
     DialogueMove,
@@ -51,9 +52,10 @@ def test_arena_state_and_graph():
 
 def test_latent_mcts_smoke():
     """Verify Latent MCTS returns valid probability distribution."""
-    config = MCTSConfig(num_simulations=50)
-    mcts = LatentMCTS(config)
-    state = torch.randn(1, 32)
-    action_dist = mcts.search(state, num_actions=5)
-    assert len(action_dist) == 5
+    config = ArenaEmbeddingConfig(feature_dim=16, latent_dim=32, action_space_size=8, hidden_dim=64)
+    model = BourbakiMuZero(config)
+    mcts = LatentMCTS(model, MCTSConfig(num_simulations=20))
+    state = torch.randn(16)
+    action_dist = mcts.search(state, current_player=1)
+    assert len(action_dist) == 8
     assert np.isclose(action_dist.sum(), 1.0, atol=1e-4)
