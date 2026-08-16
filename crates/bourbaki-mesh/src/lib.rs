@@ -2,6 +2,7 @@
 
 pub mod block;
 pub mod dag;
+pub mod ipc_server;
 pub mod ledger;
 pub mod node;
 pub mod protocol;
@@ -10,6 +11,7 @@ pub mod worker;
 
 pub use block::{BlockId, ProofBlock};
 pub use dag::{LedgerError, ProofLedger};
+pub use ipc_server::{IpcError, MeshIpcServer};
 pub use node::MeshCoordinator;
 pub use protocol::{WorkerCommand, WorkerResponse};
 pub use worker::EdgeWorker;

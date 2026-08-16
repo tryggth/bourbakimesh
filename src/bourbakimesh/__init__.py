@@ -10,6 +10,7 @@ from .models import (
 from .latent_mcts import LatentMCTS, MCTSConfig, Node
 from .self_play import GameTrajectory, ReplayBuffer, SelfPlayWorker
 from .adversarial_hunt import FalseInconsistencyHunter, HuntResult
+from .ipc_client import AsyncMeshClient
 
 __version__ = "0.1.0"
 
@@ -27,4 +28,5 @@ __all__ = [
     "ReplayBuffer",
     "FalseInconsistencyHunter",
     "HuntResult",
+    "AsyncMeshClient",
 ]
