@@ -1,12 +1,18 @@
-//! Bourbaki Mesh: Edge Worker Networking, RPC Interface, and Distributed Proof Ledger.
+//! Bourbaki Mesh: Distributed edge worker node, proof DAG ledger, and RPC interfaces.
 
+pub mod block;
+pub mod dag;
 pub mod ledger;
+pub mod node;
+pub mod protocol;
 pub mod rpc;
 pub mod worker;
 
-pub use ledger::{LedgerBlock, LedgerClient, ProofAttestation};
-pub use rpc::{WorkerCommand, WorkerResponse};
-pub use worker::{EdgeWorker, WorkerError};
+pub use block::{BlockId, ProofBlock};
+pub use dag::{LedgerError, ProofLedger};
+pub use node::MeshCoordinator;
+pub use protocol::{WorkerCommand, WorkerResponse};
+pub use worker::EdgeWorker;
 
 #[cfg(test)]
 mod tests {
@@ -14,10 +20,8 @@ mod tests {
 
     #[test]
     fn test_smoke_mesh() {
-        let worker = EdgeWorker::new();
-        assert_eq!(
-            worker.handle_command(WorkerCommand::Ping),
-            WorkerResponse::Pong
-        );
+        let genesis = ProofBlock::genesis("True");
+        assert_eq!(genesis.theorem_name, "Bourbaki.Genesis");
+        assert!(genesis.certified);
     }
 }

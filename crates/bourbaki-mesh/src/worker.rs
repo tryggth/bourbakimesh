@@ -1,6 +1,6 @@
 //! Edge worker node executing dialogue arena transformations and verification.
 
-use crate::rpc::{WorkerCommand, WorkerResponse};
+use crate::protocol::{WorkerCommand, WorkerResponse};
 use bourbaki_kernel::TermExtractor;
 use thiserror::Error;
 use uuid::Uuid;
@@ -29,11 +29,22 @@ impl EdgeWorker {
     pub fn handle_command(&self, cmd: WorkerCommand) -> WorkerResponse {
         match cmd {
             WorkerCommand::Ping => WorkerResponse::Pong,
+            WorkerCommand::Heartbeat { .. } => WorkerResponse::Acknowledged,
+            WorkerCommand::ClaimTask {
+                task_id,
+                goal_statement,
+                ..
+            } => WorkerResponse::TaskAssigned {
+                task_id,
+                goal_statement,
+            },
             WorkerCommand::StartSearch { task_id, .. } => WorkerResponse::SearchCompleted {
                 task_id,
                 success: true,
                 proof_term_json: Some(r#"{"Sort":"Prop"}"#.into()),
             },
+            WorkerCommand::SubmitProof { .. } => WorkerResponse::Acknowledged,
+            WorkerCommand::SubmitRefutation { .. } => WorkerResponse::Acknowledged,
             WorkerCommand::VerifyDialogue { task_id, dialogue } => {
                 match self.extractor.extract(&dialogue) {
                     Ok(_) => WorkerResponse::VerificationResult {

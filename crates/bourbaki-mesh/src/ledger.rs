@@ -1,5 +1,7 @@
 //! Distributed proof ledger client and block attestations.
 
+pub use crate::block::{BlockId, ProofBlock};
+pub use crate::dag::{LedgerError, ProofLedger};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

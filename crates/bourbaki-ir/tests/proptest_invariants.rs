@@ -5,8 +5,8 @@
 //! pointer bounds, and serialization invariance across millions of arbitrary inputs.
 
 use bourbaki_ir::{
-    verify_all, ArenaValidationError, ConjunctionBranch, LogicalPayload, Move, MoveKind,
-    PlayTrace, Polarity,
+    verify_all, ArenaValidationError, ConjunctionBranch, LogicalPayload, Move, MoveKind, PlayTrace,
+    Polarity,
 };
 use proptest::prelude::*;
 
@@ -23,7 +23,10 @@ fn arb_move_kind() -> impl Strategy<Value = MoveKind> {
 }
 
 fn arb_conjunction_branch() -> impl Strategy<Value = ConjunctionBranch> {
-    prop_oneof![Just(ConjunctionBranch::Left), Just(ConjunctionBranch::Right)]
+    prop_oneof![
+        Just(ConjunctionBranch::Left),
+        Just(ConjunctionBranch::Right)
+    ]
 }
 
 fn arb_logical_payload() -> impl Strategy<Value = LogicalPayload> {
@@ -33,9 +36,11 @@ fn arb_logical_payload() -> impl Strategy<Value = LogicalPayload> {
         arb_conjunction_branch().prop_map(|branch| LogicalPayload::AttackConjunction { branch }),
         Just(LogicalPayload::DemandWitness),
         "[a-zA-Z0-9_]{1,10}".prop_map(|term_repr| LogicalPayload::ProvideWitness { term_repr }),
-        "[a-zA-Z0-9_]{1,10}".prop_map(|term_repr| LogicalPayload::InstantiateUniversal { term_repr }),
+        "[a-zA-Z0-9_]{1,10}"
+            .prop_map(|term_repr| LogicalPayload::InstantiateUniversal { term_repr }),
         (0usize..100).prop_map(|premise_id| LogicalPayload::AxiomDischarge { premise_id }),
-        (0usize..10).prop_map(|constructor_idx| LogicalPayload::InductiveCaseDemand { constructor_idx }),
+        (0usize..10)
+            .prop_map(|constructor_idx| LogicalPayload::InductiveCaseDemand { constructor_idx }),
     ]
 }
 
