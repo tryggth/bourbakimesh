@@ -80,15 +80,17 @@ impl PlayTrace {
 
         let mut open_questions = Vec::new();
         for &idx in &view {
-            let m = &self.moves[idx];
-            match m.kind {
-                MoveKind::Question => {
-                    open_questions.push(idx);
-                }
-                MoveKind::Answer => {
-                    if let Some(target) = m.justifier {
-                        if let Some(pos) = open_questions.iter().rposition(|&q| q == target) {
-                            open_questions.remove(pos);
+            if idx < self.moves.len() {
+                let m = &self.moves[idx];
+                match m.kind {
+                    MoveKind::Question => {
+                        open_questions.push(idx);
+                    }
+                    MoveKind::Answer => {
+                        if let Some(target) = m.justifier {
+                            if let Some(pos) = open_questions.iter().rposition(|&q| q == target) {
+                                open_questions.remove(pos);
+                            }
                         }
                     }
                 }
@@ -105,7 +107,7 @@ impl PlayTrace {
 
 /// Recursive computation of the Proponent view (P-view).
 fn compute_p_view(moves: &[Move], prefix_len: usize) -> Vec<usize> {
-    if prefix_len == 0 {
+    if prefix_len == 0 || prefix_len > moves.len() {
         return Vec::new();
     }
     let last_idx = prefix_len - 1;
@@ -117,12 +119,12 @@ fn compute_p_view(moves: &[Move], prefix_len: usize) -> Vec<usize> {
             view
         }
         Polarity::Opponent => match last_mv.justifier {
-            Some(k) => {
+            Some(k) if k < last_idx => {
                 let mut view = compute_p_view(moves, k + 1);
                 view.push(last_idx);
                 view
             }
-            None => {
+            _ => {
                 vec![last_idx]
             }
         },
@@ -131,7 +133,7 @@ fn compute_p_view(moves: &[Move], prefix_len: usize) -> Vec<usize> {
 
 /// Recursive computation of the Opponent view (O-view).
 fn compute_o_view(moves: &[Move], prefix_len: usize) -> Vec<usize> {
-    if prefix_len == 0 {
+    if prefix_len == 0 || prefix_len > moves.len() {
         return Vec::new();
     }
     let last_idx = prefix_len - 1;
@@ -143,12 +145,12 @@ fn compute_o_view(moves: &[Move], prefix_len: usize) -> Vec<usize> {
             view
         }
         Polarity::Proponent => match last_mv.justifier {
-            Some(k) => {
+            Some(k) if k < last_idx => {
                 let mut view = compute_o_view(moves, k + 1);
                 view.push(last_idx);
                 view
             }
-            None => {
+            _ => {
                 vec![last_idx]
             }
         },
