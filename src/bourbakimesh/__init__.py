@@ -11,6 +11,18 @@ from .latent_mcts import LatentMCTS, MCTSConfig, Node
 from .self_play import GameTrajectory, ReplayBuffer, SelfPlayWorker
 from .adversarial_hunt import FalseInconsistencyHunter, HuntResult
 from .ipc_client import AsyncMeshClient
+from .bootstrap import (
+    Atom,
+    And,
+    Formula,
+    Implies,
+    Not,
+    Or,
+    SeedCorpusGenerator,
+    TableauNode,
+    TableauSolver,
+    TableauToDialogueTranspiler,
+)
 
 __version__ = "0.1.0"
 
@@ -29,4 +41,14 @@ __all__ = [
     "FalseInconsistencyHunter",
     "HuntResult",
     "AsyncMeshClient",
+    "Formula",
+    "Atom",
+    "Not",
+    "And",
+    "Or",
+    "Implies",
+    "TableauNode",
+    "TableauSolver",
+    "TableauToDialogueTranspiler",
+    "SeedCorpusGenerator",
 ]
