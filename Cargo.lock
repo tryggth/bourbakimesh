@@ -54,6 +54,7 @@ dependencies = [
 name = "bourbaki-kernel"
 version = "0.1.0"
 dependencies = [
+ "bincode",
  "bourbaki-ir",
  "serde",
  "serde_json",
