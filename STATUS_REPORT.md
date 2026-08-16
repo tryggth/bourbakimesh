@@ -62,47 +62,33 @@
 
 ---
 
-## 4. Monorepo Architecture Overview
+## 4. Community & Governance Scaffolding
+
+- **Contributor Guidelines:** [`CONTRIBUTING.md`](CONTRIBUTING.md) defines local developer workflows, quality gates, and commit standards.
+- **Architectural RFC Process:** [`rfcs/0000-template.md`](rfcs/0000-template.md) establishes standard RFC proposal mechanics.
+- **Issue & PR Templates:** `.github/ISSUE_TEMPLATE/` (`design_proposal.md`, `bug_report.md`, `feature_request.md`) and `.github/pull_request_template.md`.
+- **Knowledge Base:** [GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki) and [GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions).
+
+---
+
+## 5. Monorepo Architecture Overview
 
 ```
 bourbakimesh/
 ├── Cargo.toml                                 # Workspace manifest (Rust 2021)
+├── CONTRIBUTING.md                            # Contributor guidelines
+├── README.md                                  # System map & quickstart
 ├── STATUS_REPORT.md                           # Verification & status matrix
+├── .github/
+│   ├── ISSUE_TEMPLATE/                        # Design, bug, & feature templates
+│   └── pull_request_template.md               # PR verification checklist
+├── rfcs/
+│   └── 0000-template.md                       # Architectural RFC template
 ├── crates/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
-│   │   ├── src/{arena, moves, net, polarity, trace}.rs
-│   │   ├── tests/{arena_ir_tests, proptest_invariants}.rs
-│   │   └── benches/bench_ir.rs
 │   ├── bourbaki-kernel/                       # CIC AST & Strategy Extractor
-│   │   ├── src/{ast, decompiler, emitter, extractor, verifier}.rs
-│   │   ├── tests/{extraction_tests, lean_verification_tests, adversarial_and_roundtrip_tests}.rs
-│   │   └── benches/bench_kernel.rs
 │   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
-│       ├── src/{block, dag, ipc_server, ledger, node, protocol, rpc, worker}.rs
-│       ├── tests/{ipc_bridge_tests, mesh_protocol_tests}.rs
-│       └── benches/bench_mesh.rs
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
-│   ├── adversarial_hunt.py                    # Inconsistency Hunter (False)
-│   ├── ipc_client.py                          # Async Tokio/UDS Client
-│   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
-│   ├── models.py                              # BourbakiMuZero (h_θ, g_θ, f_θ)
-│   ├── self_play.py                           # Worker & Experience Replay
-│   ├── benchmarks/                            # Profiler & CSE Evaluator
-│   └── bootstrap/                             # Semantic Tableau Prover & Transpiler
 ├── tests/                                     # PyTest Integration Suites
-│   ├── test_adversarial_hunt.py
-│   ├── test_benchmarks.py
-│   ├── test_bootstrap.py
-│   ├── test_latent_mcts.py
-│   ├── test_mesh_bridge.py
-│   └── test_smoke.py
 └── lean_target/                               # Zero-Trust Lean 4 Harness
-    ├── LeanTarget.lean
-    └── LeanTarget/
-        ├── Basic.lean
-        ├── Harness.lean
-        └── MetaTheory/
-            ├── Arena.lean
-            ├── CIC.lean
-            └── Soundness.lean
 ```

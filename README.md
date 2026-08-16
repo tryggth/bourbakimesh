@@ -1,6 +1,6 @@
 # BourbakiMesh: Game-Semantic Dialogue Proving & Distributed Proof Ledger
 
-BourbakiMesh is a high-performance, polyglot proof generation and verification monorepo. It re-envisions interactive theorem proving and automated deduction by unifying **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, and a **distributed peer-to-peer proof ledger** targeting Calculus of Inductive Constructions (CIC) / Lean 4.
+BourbakiMesh is a high-performance, polyglot automated theorem proving and formal deduction ecosystem. It unifies **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Calculus of Inductive Constructions (CIC) proof-term extraction**, **PyTorch Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, and a **cryptographic peer-to-peer proof DAG ledger** targeting Lean 4.
 
 ---
 
@@ -10,91 +10,123 @@ BourbakiMesh is a high-performance, polyglot proof generation and verification m
 flowchart TD
     subgraph PythonML ["Python ML & Dynamics Subsystem (bourbakimesh)"]
         MCTS["Latent MCTS Self-Play Engine"]
-        PolValNet["Polarity-Aware Policy/Value Network"]
-        Dynamics["Dialogue Game Dynamics (Arena Graph)"]
-        FastAPI["Worker Coordination REST / gRPC API"]
-        MCTS --> Dynamics
-        PolValNet --> MCTS
-        FastAPI --> MCTS
+        MuZero["BourbakiMuZero (h_θ, g_θ, f_θ)"]
+        Tableau["Semantic Tableau Seed Generator"]
+        AsyncClient["AsyncMeshClient (TCP/UDS)"]
+        Bench["Profiling & CSE Benchmarking"]
+        
+        Tableau --> MCTS
+        MuZero --> MCTS
+        MCTS --> AsyncClient
+        MCTS --> Bench
     end
 
     subgraph RustCore ["Rust Core Subsystem (crates/)"]
-        IR["crates/bourbaki-ir<br/>Arena Data Structures & Interaction Nets"]
-        Kernel["crates/bourbaki-kernel<br/>CIC Translation & Term Extractor"]
-        Mesh["crates/bourbaki-mesh<br/>P2P Worker Mesh & Distributed Ledger Client"]
+        IPC["crates/bourbaki-mesh<br/>MeshIpcServer & Coordinator"]
+        IR["crates/bourbaki-ir<br/>Arena Data Structures & P-Views"]
+        Kernel["crates/bourbaki-kernel<br/>CIC Translation & Strategy Extractor"]
+        Ledger["ProofLedger & Content-Addressed DAG"]
+        
+        IPC --> IR
         IR --> Kernel
-        Kernel --> Mesh
+        Kernel --> Ledger
     end
 
     subgraph LeanTarget ["Lean 4 Verification Target (lean_target/)"]
-        Lake["Lake Harness & Mathlib Interface"]
-        KernelCheck["CIC Kernel Validation"]
+        Lake["Lake Harness Bridge (lake env lean)"]
+        KernelCheck["CIC Kernel Validation Gate"]
+        MetaTheory["LeanTarget.MetaTheory (Soundness Proof)"]
+        
         Lake --> KernelCheck
+        MetaTheory -. "Formal Soundness Guarantee" .-> KernelCheck
     end
 
-    PythonML -- "Dialogue Move Sequences" --> IR
-    Kernel -- "Extracted CIC Proof Terms" --> LeanTarget
-    Mesh -- "Consensus / Verified Blocks" --> DistributedLedger[("Bourbaki Proof Ledger")]
+    AsyncClient -- "Framed JSON-RPC" --> IPC
+    Kernel -- "Extracted Lean 4 Terms" --> LeanTarget
 ```
 
 ---
 
-## 📦 Monorepo Structure
+## 📦 Monorepo Subsystems
 
-- **`crates/bourbaki-ir`**: Core intermediate representation for game-semantic dialogue arenas, Hyland-Ong / Lorenzen play traces, polarities (Proponent `P` vs Opponent `O`), and interaction nets.
-- **`crates/bourbaki-kernel`**: Minimal, foundational CIC (Calculus of Inductive Constructions) translation layer and deterministic proof-term extractor.
-- **`crates/bourbaki-mesh`**: Distributed edge-worker node, RPC interfaces, cryptographic proof attestations, and ledger synchronization client.
-- **`src/bourbakimesh`**: Python package powering Latent MCTS self-play, neural value/policy dynamics, and the local worker API server.
-- **`lean_target/`**: Minimal Lean 4 / Lake verification package for validating extracted proof terms against the reference Lean 4 kernel.
-- **`GEMINI.md`**: Project governance rules and architectural invariants for automated agents.
+| Subsystem Path | Toolchain | Core Responsibility |
+| :--- | :--- | :--- |
+| **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Dialogue arena AST, Hyland-Ong / Lorenzen play traces, polarities ($P$ vs $O$), P-view/O-view calculation, and well-bracketing stack discipline. |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Minimal Calculus of Inductive Constructions (CIC) AST, Lean 4 term emitter, 5-rule strategy extraction compiler $\mathcal{E}(\sigma)$, and term decompiler. |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Content-addressed cryptographic proof DAG (`ProofBlock`, `BlockId`), `ProofLedger`, Tokio async IPC server (TCP/UDS), and coordinator RPC. |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, PyTest) | `BourbakiMuZero` neural dynamics ($h_\theta, g_\theta, f_\theta$), polarity-inverting Latent MCTS, semantic tableau cold-start generator, and `AsyncMeshClient`. |
+| **`lean_target/`** | Lean 4 (`lake`, v4.33.0) | Zero-trust Lean 4 kernel verification harness and mechanized meta-theoretic soundness formalization (`LeanTarget.MetaTheory`). |
 
 ---
 
-## 🚀 Quickstart & Setup
+## 🚀 Quickstart & Verification
 
 ### Prerequisites
-- **Rust toolchain** (1.80+ / 2021/2024 edition)
-- **Python** (3.11+) and [`uv`](https://github.com/astral-sh/uv)
-- **Lean 4 / Lake** via [`elan`](https://github.com/leanprover/elan)
+- **Rust Toolchain:** 1.80+ (`rustup component add clippy rustfmt`)
+- **Python Environment:** 3.11+ (`torch`, `pydantic`, `pytest`)
+- **Lean 4:** [`elan`](https://github.com/leanprover/elan) with `leanprover/lean4:v4.33.0`
 
 ### 1. Python Environment Setup
 ```bash
-# Initialize venv and install dependencies in editable mode
-uv venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-uv pip install -e ".[dev]"
+pip install -e ".[dev]"
 
-# Verify Python setup
-python -c "import torch, networkx, pydantic; print('BourbakiMesh Python environment active!')"
-
-# Run Python test suite
-pytest
+# Run full Python test suite (16 tests)
+pytest tests/
 ```
 
 ### 2. Rust Workspace Build & Tests
 ```bash
-# Type check and build all crates
+# Lint checks (zero warnings policy)
+cargo fmt --check
 cargo check --workspace
+cargo clippy --workspace -- -D warnings
 
-# Run all Rust unit and integration tests
+# Run all Rust unit, integration, and Tier 3a proptests (42 tests)
 cargo test --workspace
+
+# Run Criterion micro-benchmarks
+cargo bench --workspace -- --test
 ```
 
-### 3. Lean 4 Target Verification
+### 3. Lean 4 Verification Harness
 ```bash
 cd lean_target
 lake build
+cd ..
+```
+
+### 4. Performance & CSE Benchmark Run
+```bash
+# Run quick benchmark profile
+.venv/bin/python -m bourbakimesh.benchmarks.cli --quick
 ```
 
 ---
 
-## 🧠 Core Principles & Invariants
+## 🛡️ 3-Tiered Soundness Architecture
 
-1. **Constructive Game Semantics**: Proof search is formalized as a zero-sum dialogue game between Proponent ($P$) attempting to validate a proposition and Opponent ($O$) attempting to refute it.
-2. **Deterministic Extraction**: Every winning strategy for $P$ in an arena game must deterministically extract into a sound CIC proof term.
-3. **Zero Unverified Axioms**: Proof terms verified by BourbakiMesh must pass Lean 4 kernel checks without introducing unverified axioms.
+BourbakiMesh eliminates unsound proofs through three orthogonal defense tiers:
+1. **Tier 1 (Operational Runtime Gate):** Every extracted proof term is submitted to `lake env lean` to pass the official Lean 4 type-checker without `sorry` or unverified axioms.
+2. **Tier 2 (Mechanized Meta-Theory):** Formalization of arena dialogue syntax, P-views, deep CIC embeddings, and the Master Soundness Theorem in Lean 4 (`LeanTarget.MetaTheory`).
+3. **Tier 3 (Empirical Testing):**
+   - **Tier 3a:** Generative property-based fuzzing (`proptest`) verifying alternation, pointer acyclicity, and stack discipline.
+   - **Tier 3b:** Adversarial falsification hunt targeting $\bot$ (False) and round-trip isomorphism ($\text{CIC} \to \text{StrategyTree} \to \text{CIC} \to \text{Lean 4 Kernel}$).
+
+---
+
+## 🤝 Contributing & Community
+
+We welcome contributions across formal logic, category theory, neural dynamics, and distributed systems!
+
+- **[Contributing Guidelines](CONTRIBUTING.md):** Detailed environment setup, commit conventions, and pull request checklist.
+- **[Request for Comments (RFCs)](rfcs/):** Review active proposals and use [`rfcs/0000-template.md`](rfcs/0000-template.md) for major architectural changes.
+- **[GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions):** Join discussions on theoretical foundations and system architecture.
+- **[GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki):** Comprehensive technical specifications, API guides, and theoretical papers.
 
 ---
 
 ## 📜 License
+
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
