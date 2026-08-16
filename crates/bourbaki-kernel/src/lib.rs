@@ -1,15 +1,18 @@
 //! Bourbaki Kernel: Minimal Calculus of Inductive Constructions (CIC) Translation Layer.
 //!
 //! Provides the CIC Abstract Syntax Tree (AST), the Lean 4 source code emitter,
-//! and the deterministic Strategy Extraction Compiler ($\mathcal{E}(\sigma) \to \text{Term}_{\text{CIC}}$).
+//! the deterministic Strategy Extraction Compiler ($\mathcal{E}(\sigma) \to \text{Term}_{\text{CIC}}$),
+//! and the Zero-Trust Lean 4 verification harness bridge.
 
 pub mod ast;
 pub mod emitter;
 pub mod extractor;
+pub mod verifier;
 
 pub use ast::{BinderInfo, MatchCase, Term, Universe};
 pub use emitter::ToLean;
 pub use extractor::{ExtractionError, StrategyExtractor, TermExtractor};
+pub use verifier::{LeanEnvironment, VerificationError, VerificationReport};
 
 /// Backwards compatibility module for CIC AST types.
 pub mod cic {
