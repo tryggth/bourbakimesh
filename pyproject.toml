@@ -1,0 +1,39 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bourbakimesh"
+version = "0.1.0"
+description = "Python ML, Latent MCTS, and proof dynamics engine for BourbakiMesh"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT OR Apache-2.0" }
+authors = [
+    { name = "BourbakiMesh Contributors" }
+]
+dependencies = [
+    "torch>=2.2.0",
+    "numpy>=1.26.0",
+    "networkx>=3.2.1",
+    "fastapi>=0.110.0",
+    "uvicorn>=0.28.0",
+    "pydantic>=2.6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[project.scripts]
+bourbaki-mcts = "bourbakimesh.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/bourbakimesh"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"

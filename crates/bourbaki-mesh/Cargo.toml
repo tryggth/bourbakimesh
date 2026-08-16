@@ -1,0 +1,19 @@
+[package]
+name = "bourbaki-mesh"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Distributed edge worker networking, RPC interface, and proof ledger client"
+
+[dependencies]
+bourbaki-ir = { path = "../bourbaki-ir" }
+bourbaki-kernel = { path = "../bourbaki-kernel" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+bytes = { workspace = true }

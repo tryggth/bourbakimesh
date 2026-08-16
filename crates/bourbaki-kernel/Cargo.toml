@@ -1,0 +1,15 @@
+[package]
+name = "bourbaki-kernel"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Calculus of Inductive Constructions (CIC) translation layer and proof term extractor"
+
+[dependencies]
+bourbaki-ir = { path = "../bourbaki-ir" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
