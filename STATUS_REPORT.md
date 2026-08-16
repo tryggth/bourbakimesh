@@ -22,7 +22,7 @@
 
 ## 2. Issue Tracking & Roadmap State
 
-### Closed Milestones
+### Closed Foundation & Subsystem Milestones (Phase 1)
 - [x] **#1 [`feat(ir): Implement Game-Semantic Arena IR and PlayTrace Validators`](https://github.com/tryggth/bourbakimesh/issues/1)**  
   *Delivered full Hyland-Ong view calculations, polarity duality, move AST, and well-bracketing stack discipline.*
 - [x] **#2 [`feat(kernel): Implement CIC AST and Winning Strategy Extraction Compiler`](https://github.com/tryggth/bourbakimesh/issues/2)**  
@@ -50,7 +50,19 @@
 
 ---
 
-## 3. Monorepo Architecture Overview
+## 3. Macro-Level Roadmap Epics (Active Planning)
+
+| Epic | Title | Subsystem Focus | Status |
+| :--- | :--- | :--- | :---: |
+| **[#14](https://github.com/tryggth/bourbakimesh/issues/14)** | **`epic(ml): Phase 2 — Hybrid Neural Dynamics and Scaled Self-Play Training Pipeline`** | Python ML / Transformers / Tree-GNN | 📋 Backlog |
+| **[#15](https://github.com/tryggth/bourbakimesh/issues/15)** | **`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`** | Mathlib / Strategy Decompiler | 📋 Backlog |
+| **[#16](https://github.com/tryggth/bourbakimesh/issues/16)** | **`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`** | Rust / libp2p / Proof DAG | 📋 Backlog |
+| **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
+| **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
+
+---
+
+## 4. Monorepo Architecture Overview
 
 ```
 bourbakimesh/
@@ -94,9 +106,3 @@ bourbakimesh/
             ├── CIC.lean
             └── Soundness.lean
 ```
-
----
-
-## 4. Current Status
-
-- **All foundational, kernel, neural, distributed, empirical, and documentation milestones completed and certified.**
