@@ -1,6 +1,6 @@
 //! Strategy Extractor Compiler ($\mathcal{E}(\sigma) \to \text{Term}_{\text{CIC}}$).
 
-use crate::ast::{MatchCase, Term};
+use crate::ast::{MatchCase, Term, Universe};
 use bourbaki_ir::{
     ArenaDialogue, ConjunctionBranch, LogicalPayload, MoveKind, PlayTrace, Polarity, StrategyNode,
     StrategyTree,
@@ -70,7 +70,8 @@ impl StrategyExtractor {
                         current_term = Term::lam(hyp_name, hyp_type, current_term);
                     }
                     LogicalPayload::InstantiateUniversal { term_repr } => {
-                        current_term = Term::app(current_term, Term::var(term_repr.clone()));
+                        let (name, ty) = parse_binder(term_repr);
+                        current_term = Term::lam(name, ty, current_term);
                     }
                     _ => {
                         if m.kind == MoveKind::Question {
@@ -106,6 +107,32 @@ impl StrategyExtractor {
             return Self::extract_leaf_payload(&node.current_move.payload);
         }
 
+        // If the current node is an Opponent move, it binds a hypothesis / universal instantiation
+        if node.current_move.player == Polarity::Opponent {
+            match &node.current_move.payload {
+                LogicalPayload::AttackHypothesis { hyp_id } => {
+                    let child = node
+                        .children
+                        .first()
+                        .ok_or(ExtractionError::IncompleteProponentStrategy)?;
+                    let body_term = Self::compile_node(child)?;
+                    let hyp_name = format!("hyp_{}", hyp_id);
+                    let hyp_type = Term::var(format!("A_{}", hyp_id));
+                    return Ok(Term::lam(hyp_name, hyp_type, body_term));
+                }
+                LogicalPayload::InstantiateUniversal { term_repr } => {
+                    let child = node
+                        .children
+                        .first()
+                        .ok_or(ExtractionError::IncompleteProponentStrategy)?;
+                    let body_term = Self::compile_node(child)?;
+                    let (name, ty) = parse_binder(term_repr);
+                    return Ok(Term::lam(name, ty, body_term));
+                }
+                _ => {}
+            }
+        }
+
         // Check for Conjunction branches (Rule 5 / Conjunction intro)
         let has_conjunction_branch = node.children.iter().any(|c| {
             matches!(
@@ -120,7 +147,6 @@ impl StrategyExtractor {
 
             for child in &node.children {
                 if let LogicalPayload::AttackConjunction { branch } = &child.current_move.payload {
-                    // The Opponent conjunction question has a Proponent response child
                     let prop_child = child
                         .children
                         .first()
@@ -140,7 +166,6 @@ impl StrategyExtractor {
                 ExtractionError::MissingPayload("Right conjunction branch missing".into())
             })?;
 
-            // Rule 5: Conjunction pairing And.intro left right
             return Ok(Term::mk_app(
                 Term::const_term("And.intro", vec![]),
                 vec![left, right],
@@ -180,51 +205,7 @@ impl StrategyExtractor {
         // Single child continuation
         if node.children.len() == 1 {
             let child = &node.children[0];
-            match child.current_move.player {
-                Polarity::Opponent => match &child.current_move.payload {
-                    // Rule 2: Pi-Intro / Lambda binding
-                    LogicalPayload::AttackHypothesis { hyp_id } => {
-                        let prop_child = child
-                            .children
-                            .first()
-                            .ok_or(ExtractionError::IncompleteProponentStrategy)?;
-                        let body_term = Self::compile_node(prop_child)?;
-                        let hyp_name = format!("hyp_{}", hyp_id);
-                        let hyp_type = Term::var(format!("A_{}", hyp_id));
-                        return Ok(Term::lam(hyp_name, hyp_type, body_term));
-                    }
-                    // Rule 4: DemandWitness -> Proponent provides witness
-                    LogicalPayload::DemandWitness => {
-                        let prop_child = child
-                            .children
-                            .first()
-                            .ok_or(ExtractionError::IncompleteProponentStrategy)?;
-                        if let LogicalPayload::ProvideWitness { term_repr } =
-                            &prop_child.current_move.payload
-                        {
-                            let prop_continuation = prop_child
-                                .children
-                                .first()
-                                .map(Self::compile_node)
-                                .transpose()?
-                                .unwrap_or_else(|| Term::var("trivial_proof"));
-                            // Rule 4: Exists.intro witness prop
-                            return Ok(Term::mk_app(
-                                Term::const_term("Exists.intro", vec![]),
-                                vec![Term::var(term_repr.clone()), prop_continuation],
-                            ));
-                        }
-                    }
-                    _ => {
-                        if let Some(prop_child) = child.children.first() {
-                            return Self::compile_node(prop_child);
-                        }
-                    }
-                },
-                Polarity::Proponent => {
-                    return Self::compile_node(child);
-                }
-            }
+            return Self::compile_node(child);
         }
 
         // Fallback for general node
@@ -238,13 +219,56 @@ impl StrategyExtractor {
             LogicalPayload::AxiomDischarge { premise_id } => {
                 Ok(Term::var(format!("hyp_{}", premise_id)))
             }
-            LogicalPayload::ProvideWitness { term_repr } => Ok(Term::var(term_repr.clone())),
+            LogicalPayload::ProvideWitness { term_repr } => {
+                let trimmed = term_repr.trim();
+                if trimmed.starts_with('(') && trimmed.ends_with(')') {
+                    let inner = &trimmed[1..trimmed.len() - 1];
+                    let parts: Vec<&str> = inner.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let mut term = Term::var(parts[0]);
+                        for &arg in &parts[1..] {
+                            term = Term::app(term, Term::var(arg));
+                        }
+                        return Ok(term);
+                    }
+                } else {
+                    let parts: Vec<&str> = trimmed.split_whitespace().collect();
+                    if parts.len() >= 2 {
+                        let mut term = Term::var(parts[0]);
+                        for &arg in &parts[1..] {
+                            term = Term::app(term, Term::var(arg));
+                        }
+                        return Ok(term);
+                    }
+                }
+                Ok(Term::var(term_repr.clone()))
+            }
             LogicalPayload::RootGoal(goal) => Ok(Term::var(goal.clone())),
             other => Err(ExtractionError::MissingPayload(format!(
                 "Cannot extract leaf from payload: {:?}",
                 other
             ))),
         }
+    }
+}
+
+/// Helper parsing a binder representation string like "A : Prop" or "h : A" into (name, Term).
+fn parse_binder(repr: &str) -> (String, Term) {
+    if let Some((name, ty_str)) = repr.split_once(':') {
+        let name = name.trim().to_string();
+        let ty_str = ty_str.trim();
+        let ty = if ty_str == "Prop" {
+            Term::sort(Universe::prop())
+        } else if ty_str == "Type" {
+            Term::sort(Universe::type_0())
+        } else if let Some((dom, codom)) = ty_str.split_once("->") {
+            Term::arrow(Term::var(dom.trim()), Term::var(codom.trim()))
+        } else {
+            Term::var(ty_str)
+        };
+        (name, ty)
+    } else {
+        (repr.trim().to_string(), Term::sort(Universe::prop()))
     }
 }
 

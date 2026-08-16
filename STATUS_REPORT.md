@@ -11,12 +11,12 @@
 | Subsystem | Target Toolchain | Test Suite | Result | Status |
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** | 16 / 16 passed | 🟢 Clean |
-| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** | 13 / 13 passed | 🟢 Clean |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** | 17 / 17 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + **Proof DAG & Dispatch** | 8 / 8 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`tests/test_latent_mcts.py`, `tests/test_smoke.py`) | 7 / 7 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_latent_mcts.py`, `test_smoke.py`) | 9 / 9 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** | 8 / 8 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **44 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **50 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -37,29 +37,31 @@
   *Delivered formalization of arena dialogue syntax, P-views/O-views, deep CIC embedding, typing judgments, and constructive soundness preservation lemmas.*
 - [x] **#7 [`test(fuzz): Implement Property-Based Invariant Fuzzing (Tier 3a)`](https://github.com/tryggth/bourbakimesh/issues/7)**  
   *Delivered generative `proptest` suites verifying alternation, pointer bounds, stack discipline, and bincode serialization.*
+- [x] **#8 [`test(adversarial): Implement Inconsistency Hunt on False and Mathlib Round-Tripping (Tier 3b)`](https://github.com/tryggth/bourbakimesh/issues/8)**  
+  *Delivered False inconsistency hunter, CIC-to-Strategy decompiler, and round-trip differential verification with Lean 4 kernel.*
 
 ### Active Roadmap Issues
-- [ ] **#8 [`test(adversarial): Implement Inconsistency Hunt on False and Mathlib Round-Tripping (Tier 3b)`](https://github.com/tryggth/bourbakimesh/issues/8)** — *Empirical Falsification*
-- [ ] **#9 [`docs(sync): periodic wiki, architecture, and project board synchronization`](https://github.com/tryggth/bourbakimesh/issues/9)** — *Rolling Documentation Maintenance*
 - [ ] **#10 [`feat(bridge): Implement async IPC/gRPC bridge between Python Latent MCTS and Rust MeshCoordinator`](https://github.com/tryggth/bourbakimesh/issues/10)** — *Inter-Process Bridge*
 - [ ] **#11 [`feat(bootstrap): Implement classical SMT/Tableau seed dialogue generator for imitation learning`](https://github.com/tryggth/bourbakimesh/issues/11)** — *Cold-Start Bootstrap*
 - [ ] **#12 [`perf(bench): Build automated proof extraction and MCTS search throughput benchmarking suite`](https://github.com/tryggth/bourbakimesh/issues/12)** — *Benchmarking & Profiling*
+- [ ] **#13 [`docs(sync): periodic wiki, architecture, and project board synchronization (Cycle 2)`](https://github.com/tryggth/bourbakimesh/issues/13)** — *Rolling Documentation Maintenance*
 
 ---
 
 ## 3. Summary of Changes in this Milestone
 
-1. **New Architectural Issues Provisioned:**
-   - Logged and linked Issues #10 (Python/Rust IPC bridge), #11 (SMT/Tableau seed generator), and #12 (Automated benchmarking suite).
-2. **Tier 2 Lean 4 Meta-Theoretic Formalization (`lean_target/LeanTarget/MetaTheory/`):**
-   - **`Arena.lean`**: Formalized `Polarity`, `MoveKind`, `ConjunctionBranch`, `LogicalPayload`, `Move`, `PlayTrace`, `PView`, `OView`, `StrictAlternation`, `WellBracketed`, and `InnocentStrategy`.
-   - **`CIC.lean`**: Formalized deep embedding of core CIC (`sort`, `var`, `lam`, `pi`, `app`, `letE`) and inductive typing judgment $\Gamma \vdash t : T$.
-   - **`Soundness.lean`**: Formalized recursive extraction lowering `extractTerm`, foundational preservation lemmas for identity, $\Pi$-introduction, and modus ponens, and stated the Master Constructive Soundness Theorem.
-3. **LeanTarget Integration:**
-   - Exported meta-theory modules in `LeanTarget.lean`, building cleanly with `lake build` (8 jobs).
+1. **Adversarial False Inconsistency Hunter ([`src/bourbakimesh/adversarial_hunt.py`](file:///home/tryggth2009/bourbakimesh/src/bourbakimesh/adversarial_hunt.py)):**
+   - Implemented `FalseInconsistencyHunter` running deep latent MCTS search against contradictory propositions ($\bot$), verifying that Opponent refutation dominates value backpropagation ($v^{(O)} > 0$).
+2. **CIC Proof Term-to-Strategy Decompiler ([`crates/bourbaki-kernel/src/decompiler.rs`](file:///home/tryggth2009/bourbakimesh/crates/bourbaki-kernel/src/decompiler.rs)):**
+   - Implemented `CICDecompiler` converting CIC proposition types and proof terms into game-semantic arena `StrategyTree` structures with preserved binder types and witness applications.
+3. **Differential & Inconsistency Test Suite ([`crates/bourbaki-kernel/tests/adversarial_and_roundtrip_tests.rs`](file:///home/tryggth2009/bourbakimesh/crates/bourbaki-kernel/tests/adversarial_and_roundtrip_tests.rs)):**
+   - Verified rejection of fake/adversarial proofs targeting `False`.
+   - Verified end-to-end round-trip isomorphism ($\text{CIC} \to \text{StrategyTree} \to \text{CIC} \to \text{Lean 4 Kernel}$) for Identity, Weakening, and Modus Ponens with zero kernel typecheck diagnostics.
+4. **Adversarial Python Test Suite ([`tests/test_adversarial_hunt.py`](file:///home/tryggth2009/bourbakimesh/tests/test_adversarial_hunt.py)):**
+   - Verified MCTS refutation search and exploration entropy over contradictory goal states.
 
 ---
 
 ## 4. Next Scheduled Milestone
 
-- **Milestone:** **Issue #8** (`test(adversarial): Implement Inconsistency Hunt on False and Mathlib Round-Tripping (Tier 3b)`)
+- **Milestone:** **Issue #10** (`feat(bridge): Implement async IPC/gRPC bridge between Python Latent MCTS and Rust MeshCoordinator`)

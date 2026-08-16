@@ -2,14 +2,16 @@
 //!
 //! Provides the CIC Abstract Syntax Tree (AST), the Lean 4 source code emitter,
 //! the deterministic Strategy Extraction Compiler ($\mathcal{E}(\sigma) \to \text{Term}_{\text{CIC}}$),
-//! and the Zero-Trust Lean 4 verification harness bridge.
+//! the term-to-strategy decompiler, and the Zero-Trust Lean 4 verification harness bridge.
 
 pub mod ast;
+pub mod decompiler;
 pub mod emitter;
 pub mod extractor;
 pub mod verifier;
 
 pub use ast::{BinderInfo, MatchCase, Term, Universe};
+pub use decompiler::{CICDecompiler, DecompileError};
 pub use emitter::ToLean;
 pub use extractor::{ExtractionError, StrategyExtractor, TermExtractor};
 pub use verifier::{LeanEnvironment, VerificationError, VerificationReport};
