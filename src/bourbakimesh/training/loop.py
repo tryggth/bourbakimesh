@@ -1,4 +1,4 @@
-"""Closed-loop self-play and continuous training orchestrator."""
+"""Closed-loop self-play and continuous training orchestrator with progressive curriculum pacing."""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -8,6 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 from bourbakimesh.benchmarks.bench_engine import BenchmarkReport, BenchmarkRunner
 from bourbakimesh.bootstrap import SeedCorpusGenerator
+from bourbakimesh.corpus.curriculum import CurriculumManager
 from bourbakimesh.latent_mcts import MCTSConfig
 from bourbakimesh.models import ArenaEmbeddingConfig, BourbakiMuZero
 from bourbakimesh.self_play import ReplayBuffer, SelfPlayWorker
@@ -47,18 +48,20 @@ class IterationMetrics:
     policy_loss: float
     value_loss: float
     reward_loss: float
+    active_curriculum_tier: int = 1
     eval_cse_score: Optional[float] = None
     eval_sims_per_sec: Optional[float] = None
     promoted: bool = False
 
 
 class ContinuousTrainingLoop:
-    """Orchestrates closed-loop self-play generation, training optimization, and evaluation."""
+    """Orchestrates closed-loop self-play generation, training optimization, and curriculum-paced evaluation."""
 
     def __init__(
         self,
         model: Optional[BourbakiMuZero] = None,
         config: Optional[LoopConfig] = None,
+        curriculum: Optional[CurriculumManager] = None,
     ) -> None:
         self.config = config or LoopConfig()
         self.checkpoint_dir = Path(self.config.checkpoint_dir)
@@ -78,6 +81,7 @@ class ContinuousTrainingLoop:
 
         self.buffer = ReplayBuffer(capacity=self.config.buffer_capacity)
         self.generator = SeedCorpusGenerator()
+        self.curriculum = curriculum
 
         mcts_config = MCTSConfig(
             num_simulations=self.config.simulations_per_move,
@@ -96,8 +100,20 @@ class ContinuousTrainingLoop:
         self.best_loss = float("inf")
         self.history: List[IterationMetrics] = []
 
+    def get_active_curriculum_tier(self, iter_idx: int) -> int:
+        """Determine unlocked curriculum difficulty tier based on training loop progression."""
+        progress = iter_idx / max(1, self.config.iterations)
+        if progress <= 0.34:
+            return 1
+        elif progress <= 0.67:
+            return 2
+        else:
+            return 3
+
     def run_iteration(self, iter_idx: int) -> IterationMetrics:
         """Execute one complete cycle: Seed Injection -> Self-Play -> Train -> Eval -> Promote."""
+        active_tier = self.get_active_curriculum_tier(iter_idx)
+
         # 1. Synthesize Seed Data from Semantic Tableau
         seeds_added = 0
         if self.config.tableau_seeds_per_iter > 0:
@@ -108,7 +124,16 @@ class ContinuousTrainingLoop:
                 action_space_size=self.config.action_space_size,
             )
 
-        # 2. Generate Self-Play Trajectories with Current Model
+        # 2. Inject Curriculum Demonstrations up to active tier
+        if self.curriculum is not None:
+            curriculum_added = self.curriculum.populate_replay_buffer(
+                self.buffer,
+                max_tier=active_tier,
+                samples_per_tier=max(2, self.config.tableau_seeds_per_iter // 2),
+            )
+            seeds_added += curriculum_added
+
+        # 3. Generate Self-Play Trajectories with Current Model
         games_added = 0
         for _ in range(self.config.self_play_games_per_iter):
             traj = self.worker.play_game(
@@ -119,7 +144,7 @@ class ContinuousTrainingLoop:
                 self.buffer.push(traj)
                 games_added += 1
 
-        # 3. Create Dataset from Updated Experience Buffer
+        # 4. Create Dataset from Updated Experience Buffer
         dataset = ReplayDataset.from_replay_buffer(
             self.buffer,
             unroll_steps=self.config.unroll_steps,
@@ -139,6 +164,7 @@ class ContinuousTrainingLoop:
                 policy_loss=0.0,
                 value_loss=0.0,
                 reward_loss=0.0,
+                active_curriculum_tier=active_tier,
                 promoted=False,
             )
 
@@ -150,12 +176,12 @@ class ContinuousTrainingLoop:
             drop_last=False,
         )
 
-        # 4. Neural Optimization
+        # 5. Neural Optimization
         epoch_res = TrainStepResult(0.0, 0.0, 0.0, 0.0)
         for _ in range(self.config.train_epochs_per_iter):
             epoch_res = self.trainer.train_epoch(dataloader)
 
-        # 5. Benchmark Evaluation
+        # 6. Benchmark Evaluation
         eval_cse: Optional[float] = None
         eval_sims: Optional[float] = None
 
@@ -166,7 +192,7 @@ class ContinuousTrainingLoop:
             if report.mcts_benchmarks:
                 eval_sims = report.mcts_benchmarks[0].simulations_per_sec
 
-        # 6. Checkpoint Management & Model Promotion
+        # 7. Checkpoint Management & Model Promotion
         promoted = False
         iter_ckpt_path = self.checkpoint_dir / f"checkpoint_iter_{iter_idx}.pt"
         self.trainer.save_checkpoint(iter_ckpt_path, extra_meta={"iteration": iter_idx})
@@ -190,6 +216,7 @@ class ContinuousTrainingLoop:
             policy_loss=epoch_res.policy_loss,
             value_loss=epoch_res.value_loss,
             reward_loss=epoch_res.reward_loss,
+            active_curriculum_tier=active_tier,
             eval_cse_score=eval_cse,
             eval_sims_per_sec=eval_sims,
             promoted=promoted,

@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple
 import numpy as np
 import torch
+import torch.nn.functional as F
 from torch.utils.data import Dataset
 from bourbakimesh.self_play import GameTrajectory, ReplayBuffer
 
@@ -74,6 +75,14 @@ class ReplayDataset(Dataset):
         else:
             obs_0 = obs_0.float()
 
+        # Adjust feature dimension if needed
+        if obs_0.shape[-1] != self.feature_dim:
+            if obs_0.shape[-1] > self.feature_dim:
+                obs_0 = obs_0[..., :self.feature_dim]
+            else:
+                pad = torch.zeros(*obs_0.shape[:-1], self.feature_dim - obs_0.shape[-1], dtype=obs_0.dtype)
+                obs_0 = torch.cat([obs_0, pad], dim=-1)
+
         # 2. Extract action sequence and targets over K unroll steps
         actions = torch.zeros(self.unroll_steps, dtype=torch.long)
         target_policies = torch.zeros(
@@ -92,9 +101,17 @@ class ReplayDataset(Dataset):
                 # Step exists in trajectory
                 pol = traj.policies[curr_pos]
                 if isinstance(pol, np.ndarray):
-                    target_policies[k] = torch.from_numpy(pol).float()
+                    pol_tensor = torch.from_numpy(pol).float()
                 else:
-                    target_policies[k] = torch.tensor(pol, dtype=torch.float32)
+                    pol_tensor = torch.tensor(pol, dtype=torch.float32)
+
+                if pol_tensor.shape[0] == self.action_space_size:
+                    target_policies[k] = pol_tensor
+                elif pol_tensor.shape[0] > self.action_space_size:
+                    target_policies[k] = F.softmax(pol_tensor[:self.action_space_size], dim=-1)
+                else:
+                    target_policies[k, :pol_tensor.shape[0]] = pol_tensor
+                    target_policies[k] = target_policies[k] / (target_policies[k].sum() + 1e-8)
 
                 player = traj.players[curr_pos] if curr_pos < len(traj.players) else 1
                 val = traj.terminal_value * player
@@ -102,7 +119,7 @@ class ReplayDataset(Dataset):
                 mask[k] = 1.0
 
                 if k < self.unroll_steps:
-                    actions[k] = int(traj.actions[curr_pos])
+                    actions[k] = int(traj.actions[curr_pos]) % self.action_space_size
                     rew = traj.rewards[curr_pos] if curr_pos < len(traj.rewards) else 0.0
                     target_rewards[k, 0] = float(rew)
             else:

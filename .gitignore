@@ -19,6 +19,7 @@ htmlcov/
 .ruff_cache/
 checkpoints/
 *.pt
+data/
 
 # Lean 4 / Lake
 lean_target/.lake/
