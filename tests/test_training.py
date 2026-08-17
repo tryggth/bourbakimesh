@@ -177,6 +177,7 @@ def test_checkpoint_save_and_load():
     model = BourbakiMuZero(config)
     trainer = BourbakiTrainer(model, TrainingConfig())
 
+    model.eval()
     obs = torch.randn(1, 16)
     with torch.no_grad():
         orig_s0, orig_p, orig_v = model.initial_inference(obs)
@@ -192,6 +193,7 @@ def test_checkpoint_save_and_load():
         new_model = BourbakiMuZero(config)
         new_trainer = BourbakiTrainer(new_model, TrainingConfig())
         meta = new_trainer.load_checkpoint(tmp_path)
+        new_model.eval()
 
         assert meta["extra_meta"]["test_flag"] is True
 

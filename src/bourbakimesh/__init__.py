@@ -4,8 +4,11 @@ from .models import (
     ArenaEmbeddingConfig,
     BourbakiMuZero,
     DynamicsNetwork,
+    MLPRepresentationNetwork,
     PredictionNetwork,
-    RepresentationNetwork,
+    RelationalArenaTransformer,
+    RelationalMultiheadAttention,
+    RelationalTransformerLayer,
 )
 from .latent_mcts import LatentMCTS, MCTSConfig, Node
 from .self_play import GameTrajectory, ReplayBuffer, SelfPlayWorker
@@ -39,7 +42,10 @@ __version__ = "0.1.0"
 __all__ = [
     "ArenaEmbeddingConfig",
     "BourbakiMuZero",
-    "RepresentationNetwork",
+    "RelationalArenaTransformer",
+    "RelationalMultiheadAttention",
+    "RelationalTransformerLayer",
+    "MLPRepresentationNetwork",
     "DynamicsNetwork",
     "PredictionNetwork",
     "LatentMCTS",

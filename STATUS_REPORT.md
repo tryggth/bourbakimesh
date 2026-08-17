@@ -13,16 +13,16 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **Criterion Bench** | 9 / 9 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, **`test_train_loop.py`**) | 23 / 23 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, **`test_relational_model.py`**) | 27 / 27 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** | 8 / 8 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **65 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **69 passed (0 failed, 0 warnings)**
 
 ---
 
 ## 2. Issue Tracking & Roadmap State
 
-### Closed Foundation & Subsystem Milestones (Phase 1)
+### Closed Milestones (Phase 1 & Phase 2 Neural Core)
 - [x] **#1 [`feat(ir): Implement Game-Semantic Arena IR and PlayTrace Validators`](https://github.com/tryggth/bourbakimesh/issues/1)**  
   *Delivered full Hyland-Ong view calculations, polarity duality, move AST, and well-bracketing stack discipline.*
 - [x] **#2 [`feat(kernel): Implement CIC AST and Winning Strategy Extraction Compiler`](https://github.com/tryggth/bourbakimesh/issues/2)**  
@@ -47,15 +47,16 @@
   *Delivered Rust Criterion micro-benchmarks across all crates and Python profiling CLI measuring neural dynamics latency, MCTS throughput (1000+ sims/sec), and Compute Simulation Equivalent (CSE).*
 - [x] **#13 [`docs(sync): periodic wiki, architecture, and project board synchronization (Cycle 2)`](https://github.com/tryggth/bourbakimesh/issues/13)**  
   *Synchronized complete specifications to the GitHub Wiki across all subsystems, including IPC bridge, tableau bootstrapping, Tier 2/3b soundness formalization, and CSE benchmarking.*
+- [x] **#14 [`epic(ml): Phase 2 — Hybrid Neural Dynamics and Scaled Self-Play Training Pipeline`](https://github.com/tryggth/bourbakimesh/issues/14)**  
+  *Delivered 25M-parameter Relational Arena Graph Transformer (`RelationalArenaTransformer`) with relational edge attention for justification pointers and view scoping, $K$-step recurrent dynamics unrolling (`BourbakiTrainer`), and continuous closed-loop orchestrator (`ContinuousTrainingLoop`).*
 
 ---
 
-## 3. Macro-Level Roadmap Epics (Active Planning & Phase 2 Execution)
+## 3. Macro-Level Roadmap Epics (Active Planning & Execution)
 
 | Epic | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
-| **[#14](https://github.com/tryggth/bourbakimesh/issues/14)** | **`epic(ml): Phase 2 — Hybrid Neural Dynamics and Scaled Self-Play Training Pipeline`** | Python ML / Transformers / Tree-GNN | 🔄 In Progress |
-| **[#15](https://github.com/tryggth/bourbakimesh/issues/15)** | **`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`** | Mathlib / Strategy Decompiler | 📋 Backlog |
+| **[#15](https://github.com/tryggth/bourbakimesh/issues/15)** | **`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`** | Mathlib / Strategy Decompiler | 🔄 In Progress |
 | **[#16](https://github.com/tryggth/bourbakimesh/issues/16)** | **`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`** | Rust / libp2p / Proof DAG | 📋 Backlog |
 | **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
 | **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
@@ -89,17 +90,12 @@ bourbakimesh/
 │   ├── bourbaki-kernel/                       # CIC AST & Strategy Extractor
 │   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
-│   ├── training/                              # MuZero K-step unrolled training
-│   │   ├── dataset.py                         # ReplayDataset & TrajectoryWindow
-│   │   ├── trainer.py                         # BourbakiTrainer (multi-task loss)
-│   │   ├── loop.py                            # ContinuousTrainingLoop orchestrator
-│   │   ├── cli.py                             # Training loop CLI
-│   │   └── train.py                           # Single-run training CLI
-│   ├── models.py                              # BourbakiMuZero (h_θ, g_θ, f_θ)
+│   ├── models.py                              # RelationalArenaTransformer & BourbakiMuZero
+│   ├── training/                              # MuZero K-step unrolled training & loop
 │   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
 │   └── benchmarks/                            # Profiler & CSE evaluator
-├── tests/                                     # PyTest Integration Suites (23 tests)
+├── tests/                                     # PyTest Integration Suites (27 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
 ```
