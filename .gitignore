@@ -40,10 +40,8 @@ build/
 !.env.example
 
 # OS & Editor artifacts
-.DS_Store
-Thumbs.db
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
+# Node / Frontend
+node_modules/
+ui/node_modules/
+ui/dist/
+

@@ -13,10 +13,15 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Cut Elimination / Lemma Injection** + **Tier 3a Proptest** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Cut Lemma Let-Binding Extraction** + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Universal Multi-Target Emitters (Lean 4, Coq, Isabelle/HOL, Dedukti)** + **Criterion Bench** | 31 / 31 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **Criterion Bench** | 22 / 22 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 56 / 56 passed | 🟢 Clean |
+| Subsystem | Target Toolchain | Test Suite | Result | Status |
+| :--- | :--- | :--- | :---: | :---: |
+| **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Cut Elimination / Lemma Injection** + **Tier 3a Proptest** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Cut Lemma Let-Binding Extraction** + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Universal Multi-Target Emitters (Lean 4, Coq, Isabelle/HOL, Dedukti)** + **Criterion Bench** | 31 / 31 passed | 🟢 Clean |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **Criterion Bench** | 22 / 22 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_api_server.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 62 / 62 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **126 passed (70 Rust + 56 Python, 0 failed, 0 warnings)**
+**Total Workspace Test Count:** **132 passed (70 Rust + 62 Python, 0 failed, 0 warnings)**
 
 ---
 
@@ -37,7 +42,7 @@
 
 ## 3. Issue Tracking & Roadmap State
 
-### Closed Milestones (Phase 1, Phase 2, Phase 3, Phase 4 & Phase 6 Delivered)
+### Closed Milestones (Phase 1, Phase 2, Phase 3, Phase 4, Phase 5 & Phase 6 Delivered)
 - [x] **#1 [`feat(ir): Implement Game-Semantic Arena IR and PlayTrace Validators`](https://github.com/tryggth/bourbakimesh/issues/1)**  
   *Delivered full Hyland-Ong view calculations, polarity duality, move AST, and well-bracketing stack discipline.*
 - [x] **#2 [`feat(kernel): Implement CIC AST and Winning Strategy Extraction Compiler`](https://github.com/tryggth/bourbakimesh/issues/2)**  
@@ -68,6 +73,8 @@
   *Delivered Lean 4 theorem export metaprogram (`Export.lean`), `export_mathlib` CLI binary, Rust batch corpus decompiler (`bourbaki-kernel::corpus`, `decompile_corpus` binary), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), progressive curriculum pacing in `ContinuousTrainingLoop`, and calibrated 3-tier curriculum datasets (`data/curriculum/`).*
 - [x] **#16 [`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`](https://github.com/tryggth/bourbakimesh/issues/16)**  
   *Delivered decentralized libp2p GossipSub and Kademlia DHT swarm (`P2PNode`), Byzantine proof attestation engine (`ProofAttestationEngine`), standalone `bourbaki-daemon` binary, content-addressed weight chunk distribution (`ModelChunker`), and 5-node cluster consensus benchmarks.*
+- [x] **#17 [`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`](https://github.com/tryggth/bourbakimesh/issues/17)**  
+  *Delivered React + TypeScript + Tailwind CSS web dashboard (`ui/`), FastAPI REST and WebSocket telemetry server (`bourbakimesh.api.server`), polarized Lorenzen/Hyland-Ong dialogue tree visualizer, decentralized proof ledger DAG inspector, and interactive MCTS theorem prover.*
 - [x] **#18 [`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`](https://github.com/tryggth/bourbakimesh/issues/18)**  
   *Delivered pluggable `ProofEmitter` architecture and code generators for Lean 4, Coq (Gallina `.v`), Isabelle/HOL (Isar `.thy`), and Dedukti (`.dk`), proving semantic universality of game-semantic arena extraction.*
 - [x] **#20 [`feat(ml): Neural and Game-Semantic Hinting Engine for BourbakiMuZero`](https://github.com/tryggth/bourbakimesh/issues/20)**  
@@ -93,9 +100,7 @@
 
 | Epic / Issue | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
-| **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
 | **[#28](https://github.com/tryggth/bourbakimesh/issues/28)** | **`feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine`** | WebGPU / Wasm SIMD / ONNX / RFC 0003 | 🔬 Active R&D |
-
 ---
 
 ## 5. Ingested Mathlib Curriculum Datasets

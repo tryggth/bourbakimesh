@@ -1,5 +1,5 @@
-"""FastAPI orchestration and worker coordination API."""
+"""BourbakiMesh REST & WebSocket Telemetry API."""
 
-from .server import app
+from bourbakimesh.api.server import create_app, start_server
 
-__all__ = ["app"]
+__all__ = ["create_app", "start_server"]
