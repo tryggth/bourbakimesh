@@ -365,6 +365,19 @@ def create_app(
             time_ms=elapsed,
         )
 
+    class BroadcastRequest(BaseModel):
+        type: str
+        data: Dict[str, Any]
+
+    @app.post("/api/telemetry/broadcast")
+    async def post_broadcast(req: BroadcastRequest) -> Dict[str, Any]:
+        await hub.broadcast(req.type, req.data)
+        return {
+            "status": "broadcasted",
+            "type": req.type,
+            "subscribers": len(hub.active_connections),
+        }
+
     @app.websocket("/ws/telemetry")
     async def ws_telemetry(websocket: WebSocket) -> None:
         await hub.connect(websocket)

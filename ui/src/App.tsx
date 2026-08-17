@@ -217,6 +217,39 @@ export function App() {
         try {
           const parsed: TelemetryEvent = JSON.parse(event.data);
           setTelemetryEvents((prev) => [parsed, ...prev].slice(0, 100));
+
+          if (parsed.type === 'move_added' && parsed.data && parsed.data.move) {
+            const newMove = parsed.data.move as DialogueMove;
+            if (newMove.id === 0) {
+              setMoves([newMove]);
+            } else {
+              setMoves((prev) => {
+                if (prev.some((m) => m.id === newMove.id)) return prev;
+                return [...prev, newMove];
+              });
+            }
+          } else if (parsed.type === 'proof_attested' && parsed.data && parsed.data.block_id) {
+            const data = parsed.data as Record<string, any>;
+            const newBlock: ProofBlockNode = {
+              id: data.block_id,
+              parents: data.parents || [],
+              theorem_name: data.theorem_name || 'Attested Theorem',
+              proposition: data.proposition || 'A -> B',
+              extracted_term: data.extracted_term || '',
+              lean_verified: Boolean(data.lean_verified),
+              timestamp: Date.now() / 1000,
+              status: 'certified',
+            };
+            setBlocks((prev) => {
+              if (prev.some((b) => b.id === newBlock.id)) return prev;
+              return [...prev, newBlock];
+            });
+            setStatus((prev) => ({
+              ...prev,
+              total_blocks: prev.total_blocks + 1,
+              certified_blocks: prev.certified_blocks + 1,
+            }));
+          }
         } catch (err) {
           console.error(err);
         }
