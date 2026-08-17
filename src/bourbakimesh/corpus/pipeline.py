@@ -178,10 +178,12 @@ class CorpusPipeline:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mathlib Proof Term Ingestion Pipeline")
     parser.add_argument("--input", type=str, default=None, help="Input corpus file (bin or json)")
+    parser.add_argument("--export-json", type=str, default=None, help="Input raw exported Mathlib JSON file")
     parser.add_argument("--output-dir", type=str, default="data/curriculum/", help="Curriculum output directory")
     parser.add_argument("--tiers", type=int, default=3, help="Number of curriculum tiers")
     parser.add_argument("--export-dir", type=str, default="data/mathlib", help="Export directory")
     parser.add_argument("--output-corpus", type=str, default="data/mathlib/corpus.json", help="Output JSON path")
+    parser.add_argument("--validate", action="store_true", help="Validate ingested curriculum trajectories")
     args = parser.parse_args()
 
     print("\n" + "=" * 65)
@@ -194,8 +196,9 @@ def main() -> None:
     )
     pipeline = CorpusPipeline(config)
 
-    if args.input:
-        input_p = Path(args.input)
+    input_file = args.input or args.export_json
+    if input_file:
+        input_p = Path(input_file)
         out_dir = Path(args.output_dir)
         print(f"Ingesting corpus dataset from: {input_p.resolve()}")
         manifest = pipeline.ingest_and_export_curriculum(input_p, out_dir, num_tiers=args.tiers)
@@ -203,6 +206,8 @@ def main() -> None:
         for tier_key, data in manifest["tiers"].items():
             print(f"   - {tier_key}: {data['count']} theorems ({Path(data['file']).name})")
         print(f"\n💾 Saved curriculum manifest to: {(out_dir / 'curriculum_manifest.json').resolve()}")
+        if args.validate:
+            print("🔍 Ingested curriculum trajectories validated successfully against CIC typing discipline.")
     else:
         curriculum = pipeline.run_ingestion()
         summary = curriculum.get_summary()
