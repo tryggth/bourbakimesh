@@ -21,7 +21,7 @@ pub use p2p::{
     TaskGossipMessage, TOPIC_PROOFS, TOPIC_TASKS,
 };
 pub use protocol::{WorkerCommand, WorkerResponse};
-pub use worker::EdgeWorker;
+pub use worker::{EdgeWorker, MeshWorkerDaemon, WorkerDaemonEvent, WorkerError};
 
 #[cfg(test)]
 mod tests {

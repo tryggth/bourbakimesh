@@ -86,6 +86,31 @@ impl ProofLedger {
         self.blocks.is_empty()
     }
 
+    /// Retrieve all block IDs currently in the ledger.
+    pub fn get_block_ids(&self) -> Vec<BlockId> {
+        self.blocks.keys().cloned().collect()
+    }
+
+    /// Retrieve DAG tips (blocks not referenced as parents by any other block).
+    pub fn get_tips(&self) -> Vec<BlockId> {
+        if self.blocks.is_empty() {
+            return Vec::new();
+        }
+
+        let mut referenced_parents = std::collections::HashSet::new();
+        for block in self.blocks.values() {
+            for pid in &block.parent_ids {
+                referenced_parents.insert(*pid);
+            }
+        }
+
+        self.blocks
+            .keys()
+            .filter(|id| !referenced_parents.contains(id))
+            .cloned()
+            .collect()
+    }
+
     /// Verify the integrity of the entire DAG:
     /// - Every block's stored ID matches its recomputed content hash.
     /// - Every parent reference exists in the ledger.
@@ -108,3 +133,4 @@ impl ProofLedger {
         Ok(())
     }
 }
+

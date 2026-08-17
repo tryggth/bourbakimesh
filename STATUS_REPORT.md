@@ -12,11 +12,11 @@
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
-| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **Criterion Bench** | 18 / 18 passed | 🟢 Clean |
 | **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 43 / 43 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **95 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **98 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -66,6 +66,8 @@
   *Delivered 25M-parameter Relational Arena Graph Transformer (`RelationalArenaTransformer`) with relational edge attention for justification pointers and view scoping, $K$-step recurrent dynamics unrolling (`BourbakiTrainer`), and continuous closed-loop orchestrator (`ContinuousTrainingLoop`).*
 - [x] **#15 [`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`](https://github.com/tryggth/bourbakimesh/issues/15)**  
   *Delivered Lean 4 theorem export metaprogram (`Export.lean`), `export_mathlib` CLI binary, Rust batch corpus decompiler (`bourbaki-kernel::corpus`, `decompile_corpus` binary), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), progressive curriculum pacing in `ContinuousTrainingLoop`, and calibrated 3-tier curriculum datasets (`data/curriculum/`).*
+- [x] **#22 [`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`](https://github.com/tryggth/bourbakimesh/issues/22)**  
+  *Delivered standalone `bourbaki-daemon` CLI binary with clap CLI parsing, embedded `MeshWorkerDaemon` for automated libp2p task subscription, game-semantic dialogue resolution, cryptographic `ProofBlock` construction, and verified loopback P2P gossip attestation test suite (`daemon_integration_tests.rs`).*
 - [x] **#23 [`test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness`](https://github.com/tryggth/bourbakimesh/issues/23)**  
   *Delivered `ModelTournament` paired matches engine, `EloTracker` with Bayesian MAP estimation, `tournament_cli.py`, and baseline head-to-head match between `bourbaki_v0` (Elo: 1569.5) and `bourbaki_v1` (Elo: 1430.5).*
 - [x] **#24 [`feat(training): Implement Verified-Proof Prioritized Experience Replay (PER)`](https://github.com/tryggth/bourbakimesh/issues/24)**  
@@ -88,7 +90,7 @@
 | **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
 | **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
 | **[#21](https://github.com/tryggth/bourbakimesh/issues/21)** | **`feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline`** | CI/CD / GitHub Releases / Hugging Face / P2P | 📋 Backlog |
-| **[#22](https://github.com/tryggth/bourbakimesh/issues/22)** | **`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`** | Rust / libp2p / Python FFI | 📋 Backlog |
+| **[#28](https://github.com/tryggth/bourbakimesh/issues/28)** | **`feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine`** | WebGPU / Wasm SIMD / ONNX / RFC 0003 | 🔬 Active R&D |
 
 ---
 
