@@ -1,5 +1,5 @@
 # BourbakiMesh Open Tickets Inventory
-**Generated:** Mon Aug 17 10:15:51 PM UTC 2026
+**Generated:** Mon Aug 17 10:49:43 PM UTC 2026
 **Repository:** https://github.com/tryggth/bourbakimesh
 
 ## Issue #28: feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine
@@ -40,56 +40,6 @@ Investigate and prototype client-side browser execution of BourbakiMuZero ($h_\t
 - [ ] **RFC 0003:** `rfcs/0003-webgpu-browser-inference.md` documenting runtime benchmarks and architecture.
 - [ ] **ONNX Export Script:** `scripts/export_onnx.py` converting `bourbaki_v1.pt` to ONNX computation graphs.
 - [ ] **Browser Benchmark Harness:** Minimal Vite/TypeScript harness measuring WebGPU vs Wasm sims/sec on CPU/GPU.
-
----
-
-## Issue #18: epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)
-**URL:** https://github.com/tryggth/bourbakimesh/issues/18
-**Labels:** epic, kernel
-
-### Current Body
-### Objective
-Implement backend code emitters in `crates/bourbaki-kernel` targeting Coq (Gallina), Isabelle/HOL (Isar), and Dedukti, proving the semantic universality of the game-semantic arena IR.
-
----
-
-### Universal Target Architecture
-```
-                         ┌─► Lean 4 (.lean) [Verified]
-                         │
- Game-Semantic Strategy ─┼─► Coq / Gallina (.v)
-      σ : P-Strategy     │
-                         ├─► Isabelle / Isar (.thy)
-                         │
-                         └─► Dedukti (.dk)
-```
-- **Coq Emitter (`crates/bourbaki-kernel/src/emitters/coq.rs`):** Compile strategy trees to Gallina match/fixpoint terms.
-- **Isabelle Emitter (`crates/bourbaki-kernel/src/emitters/isabelle.rs`):** Compile strategy trees to Isar proof scripts.
-- **Dedukti Emitter (`crates/bourbaki-kernel/src/emitters/dedukti.rs`):** Compile strategy trees to $\lambda\Pi$-calculus modulo rewriting.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **Target Emitter Trait (`crates/bourbaki-kernel/src/emitter.rs`):**
-   - Define `pub trait ProofEmitter { fn emit_strategy(&self, strategy: &StrategyTree) -> Result<String, EmissionError>; }`.
-2. **Implement Backends:**
-   - `CoqEmitter` (`crates/bourbaki-kernel/src/emitters/coq.rs`).
-   - `IsabelleEmitter` (`crates/bourbaki-kernel/src/emitters/isabelle.rs`).
-   - `DeduktiEmitter` (`crates/bourbaki-kernel/src/emitters/dedukti.rs`).
-3. **Cross-Kernel Test Suite (`crates/bourbaki-kernel/tests/multi_target_tests.rs`):**
-   - Lower canonical strategy trees (Identity, Modus Ponens, Negation Elimination) and verify syntax validity across all three formats.
-
-#### 2. Verification Commands
-- `cargo test -p bourbaki-kernel --test multi_target_tests`
-- `cargo check --workspace`
-
-#### 3. Commit
-`feat(kernel): implement universal multi-target strategy emitters for Coq, Isabelle, and Dedukti (fixes #18)`
-```
-
 
 ---
 
