@@ -89,6 +89,8 @@
   *Delivered automated head-to-head tournament gating in `ContinuousTrainingLoop`, ensuring candidate checkpoints outperform the incumbent champion prior to promotion.*
 - [x] **#27 [`feat(ml): Train and Certify bourbaki_v2.pt with Calibrated Gated Pipeline`](https://github.com/tryggth/bourbakimesh/issues/27)**  
   *Delivered 40-iteration continuous training run certified as `checkpoints/bourbaki_v2.pt` with PER, temperature scaling ($\tau=0.5$), champion gating, and 3-way tournament benchmark.*
+- [x] **#29 [`feat(worker): In-Browser Web Worker with ONNX Runtime WebGPU & IndexedDB Weight Caching`](https://github.com/tryggth/bourbakimesh/issues/29)**  
+  *Delivered PyTorch-to-ONNX exporter (`scripts/export_onnx.py`), WebGPU/Wasm web worker (`prover.worker.ts`), in-browser `BrowserLatentMCTS`, and `idb-keyval` IndexedDB weight caching.*
 
 ---
 
@@ -97,6 +99,9 @@
 | Epic / Issue | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
 | **[#28](https://github.com/tryggth/bourbakimesh/issues/28)** | **`feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine`** | WebGPU / Wasm SIMD / ONNX / RFC 0003 | 🔬 Active R&D |
+| **[#30](https://github.com/tryggth/bourbakimesh/issues/30)** | **`feat(crypto): Web Crypto Ephemeral Ed25519 Node Identity & Signed Proof Attestation`** | Web Crypto API / Submissions / Attestation | 📋 Backlog |
+| **[#31](https://github.com/tryggth/bourbakimesh/issues/31)** | **`feat(ui): 'Contribute Cycles' Toggle, Resource Throttle Slider & Contributor Dashboard`** | React UI / Battery & Visibility APIs / Throttling | 📋 Backlog |
+| **[#32](https://github.com/tryggth/bourbakimesh/issues/32)** | **`feat(mesh): WebSocket/WebRTC Gateway Bridge for Browser Worker Task Claiming`** | FastAPI Bridge / GossipSub Gateway / Attestation Gate | 📋 Backlog |
 ---
 
 ## 5. Ingested Mathlib Curriculum Datasets
