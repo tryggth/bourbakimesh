@@ -13,12 +13,8 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Cut Elimination / Lemma Injection** + **Tier 3a Proptest** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Cut Lemma Let-Binding Extraction** + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Universal Multi-Target Emitters (Lean 4, Coq, Isabelle/HOL, Dedukti)** + **Criterion Bench** | 31 / 31 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **Criterion Bench** | 22 / 22 passed | 🟢 Clean |
-| Subsystem | Target Toolchain | Test Suite | Result | Status |
-| :--- | :--- | :--- | :---: | :---: |
-| **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Cut Elimination / Lemma Injection** + **Tier 3a Proptest** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
-| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Cut Lemma Let-Binding Extraction** + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Universal Multi-Target Emitters (Lean 4, Coq, Isabelle/HOL, Dedukti)** + **Criterion Bench** | 31 / 31 passed | 🟢 Clean |
-| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **Criterion Bench** | 22 / 22 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_api_server.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 62 / 62 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_api_server.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_training.py`) | 62 / 62 passed | 🟢 Clean |
+| **`ui/` (PWA Frontend)** | Vite + React + TypeScript + Tailwind + `vite-plugin-pwa` | PWA Production Build, Workbox SW precaching, IndexedDB DAG caching, GitHub Actions CI/CD | Built clean (16 assets) | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
 **Total Workspace Test Count:** **132 passed (70 Rust + 62 Python, 0 failed, 0 warnings)**
@@ -74,7 +70,7 @@
 - [x] **#16 [`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`](https://github.com/tryggth/bourbakimesh/issues/16)**  
   *Delivered decentralized libp2p GossipSub and Kademlia DHT swarm (`P2PNode`), Byzantine proof attestation engine (`ProofAttestationEngine`), standalone `bourbaki-daemon` binary, content-addressed weight chunk distribution (`ModelChunker`), and 5-node cluster consensus benchmarks.*
 - [x] **#17 [`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`](https://github.com/tryggth/bourbakimesh/issues/17)**  
-  *Delivered React + TypeScript + Tailwind CSS web dashboard (`ui/`), FastAPI REST and WebSocket telemetry server (`bourbakimesh.api.server`), polarized Lorenzen/Hyland-Ong dialogue tree visualizer, decentralized proof ledger DAG inspector, and interactive MCTS theorem prover.*
+  *Delivered React + TypeScript + Tailwind CSS web dashboard (`ui/`), FastAPI REST and WebSocket telemetry server (`bourbakimesh.api.server`), auto-updating Progressive Web App (`vite-plugin-pwa`, Workbox, IndexedDB caching), polarized Lorenzen/Hyland-Ong dialogue tree visualizer, decentralized proof ledger DAG inspector, and interactive MCTS theorem prover.*
 - [x] **#18 [`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`](https://github.com/tryggth/bourbakimesh/issues/18)**  
   *Delivered pluggable `ProofEmitter` architecture and code generators for Lean 4, Coq (Gallina `.v`), Isabelle/HOL (Isar `.thy`), and Dedukti (`.dk`), proving semantic universality of game-semantic arena extraction.*
 - [x] **#20 [`feat(ml): Neural and Game-Semantic Hinting Engine for BourbakiMuZero`](https://github.com/tryggth/bourbakimesh/issues/20)**  
@@ -120,6 +116,7 @@
 - **Architectural RFCs:**
   - [`rfcs/0000-template.md`](rfcs/0000-template.md): Standard architectural RFC template.
   - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms.
+  - [`rfcs/0003-webgpu-browser-inference.md`](rfcs/0003-webgpu-browser-inference.md): In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine.
 - **Issue & PR Templates:** `.github/ISSUE_TEMPLATE/` (`design_proposal.md`, `bug_report.md`, `feature_request.md`) and `.github/pull_request_template.md`.
 - **Knowledge Base:** [GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki) and [GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions).
 
@@ -134,18 +131,19 @@ bourbakimesh/
 ├── README.md                                  # System map & quickstart
 ├── STATUS_REPORT.md                           # Verification & status matrix
 ├── .github/
+│   ├── workflows/deploy-pwa.yml               # GitHub Actions PWA deployment workflow
 │   ├── ISSUE_TEMPLATE/                        # Design, bug, & feature templates
 │   └── pull_request_template.md               # PR verification checklist
 ├── rfcs/
 │   ├── 0000-template.md                       # Architectural RFC template
-│   └── 0002-neural-game-semantic-hinting.md   # Model hinting mechanisms RFC
+│   ├── 0002-neural-game-semantic-hinting.md   # Model hinting mechanisms RFC
+│   └── 0003-webgpu-browser-inference.md       # In-Browser WebGPU/Wasm MCTS RFC
 ├── crates/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
 │   ├── bourbaki-kernel/                       # CIC AST, Strategy Extractor & Corpus Decompiler
 │   └── bourbaki-mesh/                         # Proof DAG, Async Tokio Node & libp2p P2P Swarm
-│       ├── src/{block, consensus, dag, ipc_server, ledger, node, p2p, protocol, rpc, worker}.rs
-│       └── tests/{ipc_bridge_tests, mesh_protocol_tests, p2p_swarm_tests}.rs
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
+│   ├── api/                                   # FastAPI REST/WebSocket telemetry & live demo runner
 │   ├── corpus/                                # Ingestion pipeline & curriculum manager
 │   ├── models.py                              # RelationalArenaTransformer & BourbakiMuZero
 │   ├── training/                              # MuZero K-step unrolled training & curriculum pacing
@@ -153,18 +151,14 @@ bourbakimesh/
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
 │   └── benchmarks/                            # Profiler, CSE evaluator, & Tournament Elo harness
-│       ├── bench_engine.py
-│       ├── cli.py
-│       ├── elo.py                             # Bradley-Terry Bayesian Elo tracker
-│       ├── tournament.py                      # Paired match dialogue tournament
-│       └── tournament_cli.py                  # Tournament CLI runner
-├── tests/                                     # PyTest Integration Suites (38 tests)
+├── ui/                                        # Auto-Updating React + TypeScript PWA
+│   ├── public/                                # PWA manifest icons & offline snapshots
+│   ├── src/
+│   │   ├── components/                        # Dialogue, DAG, Leaderboard, Prover & Update toast
+│   │   ├── services/                          # IndexedDB hydrator & WebSocket gateway client
+│   │   ├── registerServiceWorker.ts           # Workbox PWA service worker updater
+│   │   └── App.tsx                            # Root application view & state
+│   ├── vite.config.ts                         # VitePWA build & cache configuration
+│   └── package.json
 └── lean_target/                               # Zero-Trust Lean 4 Harness
-    ├── LeanTarget.lean
-    ├── lakefile.toml                          # Targets: LeanTarget & export_mathlib
-    └── LeanTarget/
-        ├── Basic.lean
-        ├── Harness.lean
-        ├── Export.lean                        # Theorem export metaprogram & CLI
-        └── MetaTheory/
 ```

@@ -4,6 +4,14 @@ import { ProofDagView } from './components/ProofDagView';
 import { LeaderboardView } from './components/LeaderboardView';
 import { TheoremProverView } from './components/TheoremProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
+import { UpdateNotification } from './components/UpdateNotification';
+import { initServiceWorker } from './registerServiceWorker';
+import {
+  hydrateProofDag,
+  saveBlocksToIndexedDB,
+  getTelemetryWebSocketUrl,
+  fetchDaemonStatus,
+} from './services/telemetryClient';
 import {
   DaemonStatus,
   DialogueMove,
@@ -164,6 +172,7 @@ export function App() {
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
   const [status, setStatus] = useState<DaemonStatus>({
     status: "online",
     active_model: "checkpoints/bourbaki_v2.pt",
@@ -179,17 +188,20 @@ export function App() {
     },
   });
 
-  // Fetch REST endpoints on mount
+  // Register PWA Service Worker for auto-updates
   useEffect(() => {
-    fetch('/api/status')
-      .then((res) => res.json())
-      .then((data) => setStatus(data))
-      .catch(() => console.log('Running in standalone demo mode'));
+    initServiceWorker(() => setUpdateAvailable(true));
+  }, []);
 
-    fetch('/api/ledger')
-      .then((res) => res.json())
+  // Fetch initial ledger & daemon status (with IndexedDB fallback)
+  useEffect(() => {
+    fetchDaemonStatus().then(setStatus).catch(() => {});
+
+    hydrateProofDag()
       .then((data) => {
-        if (data.nodes) setBlocks(data.nodes);
+        if (data.nodes && data.nodes.length > 0) {
+          setBlocks(data.nodes);
+        }
       })
       .catch(() => {});
 
@@ -205,8 +217,7 @@ export function App() {
   useEffect(() => {
     let ws: WebSocket | null = null;
     try {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//${window.location.host}/ws/telemetry`;
+      const wsUrl = getTelemetryWebSocketUrl();
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -242,7 +253,9 @@ export function App() {
             };
             setBlocks((prev) => {
               if (prev.some((b) => b.id === newBlock.id)) return prev;
-              return [...prev, newBlock];
+              const updated = [...prev, newBlock];
+              saveBlocksToIndexedDB(updated);
+              return updated;
             });
             setStatus((prev) => ({
               ...prev,
@@ -415,6 +428,12 @@ export function App() {
           <TelemetryFeed events={telemetryEvents} isConnected={isConnected} />
         )}
       </main>
+
+      {/* Auto-Updating PWA & Version Toast */}
+      <UpdateNotification
+        updateAvailable={updateAvailable}
+        onRefresh={() => window.location.reload()}
+      />
     </div>
   );
 }
