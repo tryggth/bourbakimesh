@@ -1,3 +1,7 @@
+# BourbakiMesh Open Tickets Inventory
+**Generated:** Mon Aug 17 09:40:40 PM UTC 2026
+**Repository:** https://github.com/tryggth/bourbakimesh
+
 ## Issue #28: feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine
 **URL:** https://github.com/tryggth/bourbakimesh/issues/28
 **Labels:** enhancement, ml, ui, rfc
@@ -36,50 +40,6 @@ Investigate and prototype client-side browser execution of BourbakiMuZero ($h_\t
 - [ ] **RFC 0003:** `rfcs/0003-webgpu-browser-inference.md` documenting runtime benchmarks and architecture.
 - [ ] **ONNX Export Script:** `scripts/export_onnx.py` converting `bourbaki_v1.pt` to ONNX computation graphs.
 - [ ] **Browser Benchmark Harness:** Minimal Vite/TypeScript harness measuring WebGPU vs Wasm sims/sec on CPU/GPU.
-
----
-
-## Issue #22: feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker
-**URL:** https://github.com/tryggth/bourbakimesh/issues/22
-**Labels:** mesh, rust, p2p
-
-### Current Body
-### Objective
-Build a standalone binary CLI (`crates/bourbaki-mesh/src/bin/bourbaki-daemon.rs`) that joins the libp2p GossipSub network, claims open Mathlib subgoals, and evaluates them using an embedded or IPC-bridged `bourbaki_v1.pt` MCTS search worker.
-
----
-
-### Component Specifications
-- **Binary:** `bourbaki-daemon`
-- **Arguments:** `--peer-port <PORT>`, `--model-path <PATH>`, `--simulations <N>`, `--max-tasks <N>`, `--bootstrap-nodes <MULTIADDR>`
-- **Gossip Subscriptions:**
-  - Topic `/bourbaki/1.0.0/tasks`: Ingest open goal obligations.
-  - Topic `/bourbaki/1.0.0/proofs`: Broadcast verified `ProofBlock` records.
-- **Worker Execution Loop:** Task Ingestion $\to$ MCTS Search $\to$ Strategy Extractor $\to$ Zero-Trust Lean Kernel Check $\to$ Proof Attestation Engine $\to$ Gossip Broadcast.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **Daemon Binary (`crates/bourbaki-mesh/src/bin/bourbaki-daemon.rs`):**
-   - Implement CLI argument parsing with `clap`.
-   - Initialize `P2PNode`, `ProofLedger`, and `ProofAttestationEngine`.
-2. **Worker Bridge Orchestrator (`crates/bourbaki-mesh/src/worker.rs`):**
-   - Spawn Python MCTS inference worker or connect via Unix Domain Socket IPC.
-   - Run task claim, proof generation, and verification loop.
-3. **Integration Test (`crates/bourbaki-mesh/tests/daemon_integration_tests.rs`):**
-   - Launch two daemon nodes on loopback; Node 1 emits task, Node 2 solves and returns verified proof block.
-
-#### 2. Verification Commands
-- `cargo test -p bourbaki-mesh --test daemon_integration_tests`
-- `cargo check --workspace`
-
-#### 3. Commit
-`feat(mesh): implement standalone bourbaki-daemon and P2P proof search worker (fixes #22)`
-```
-
 
 ---
 
