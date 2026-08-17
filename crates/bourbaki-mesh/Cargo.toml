@@ -20,6 +20,8 @@ uuid = { workspace = true }
 bytes = { workspace = true }
 sha2 = { workspace = true }
 hex = { workspace = true }
+libp2p = { version = "0.53", features = ["tokio", "gossipsub", "kad", "identify", "ping", "noise", "tcp", "yamux", "macros"] }
+futures = "0.3"
 
 [dev-dependencies]
 criterion = { workspace = true }

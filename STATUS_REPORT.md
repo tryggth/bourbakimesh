@@ -1,6 +1,6 @@
 # BourbakiMesh Status Report
 
-**Generated:** 2026-08-16  
+**Generated:** 2026-08-17  
 **Repository:** [`tryggth/bourbakimesh`](https://github.com/tryggth/bourbakimesh)  
 **Project Focus:** LEANForward / BourbakiMesh Theorem Prover
 
@@ -12,11 +12,11 @@
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
-| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **Criterion Bench** | 9 / 9 passed | 🟢 Clean |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
 | **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_train_loop.py`, `test_training.py`) | 34 / 34 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **80 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **86 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -58,7 +58,7 @@
 
 | Epic | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
-| **[#16](https://github.com/tryggth/bourbakimesh/issues/16)** | **`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`** | Rust / libp2p / Proof DAG | 🔄 In Progress |
+| **[#16](https://github.com/tryggth/bourbakimesh/issues/16)** | **`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`** | Rust / libp2p / Proof DAG / GossipSub | 🔄 In Progress |
 | **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
 | **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
 
@@ -100,21 +100,18 @@ bourbakimesh/
 ├── crates/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
 │   ├── bourbaki-kernel/                       # CIC AST, Strategy Extractor & Corpus Decompiler
-│   │   ├── src/{ast, corpus, decompiler, emitter, extractor, verifier}.rs
-│   │   ├── src/bin/decompile_corpus.rs        # Rust batch decompiler CLI
-│   │   └── tests/{extraction_tests, lean_verification_tests, adversarial_and_roundtrip_tests, corpus_tests}.rs
-│   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
+│   └── bourbaki-mesh/                         # Proof DAG, Async Tokio Node & libp2p P2P Swarm
+│       ├── src/{block, consensus, dag, ipc_server, ledger, node, p2p, protocol, rpc, worker}.rs
+│       └── tests/{ipc_bridge_tests, mesh_protocol_tests, p2p_swarm_tests}.rs
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
 │   ├── corpus/                                # Ingestion pipeline & curriculum manager
-│   │   ├── curriculum.py
-│   │   └── pipeline.py
 │   ├── models.py                              # RelationalArenaTransformer & BourbakiMuZero
 │   ├── training/                              # MuZero K-step unrolled training & curriculum pacing
 │   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
 │   └── benchmarks/                            # Profiler & CSE evaluator
-├── tests/                                     # PyTest Integration Suites (32 tests)
+├── tests/                                     # PyTest Integration Suites (34 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
     ├── LeanTarget.lean
     ├── lakefile.toml                          # Targets: LeanTarget & export_mathlib
