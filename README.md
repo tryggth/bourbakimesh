@@ -99,9 +99,18 @@ cd ..
 
 ### 4. Performance & CSE Benchmark Run
 ```bash
-# Run quick benchmark profile
-.venv/bin/python -m bourbakimesh.benchmarks.cli --quick
+# Run benchmark profile on promoted model
+.venv/bin/python -m bourbakimesh.benchmarks.cli --model-path checkpoints/bourbaki_v0.pt --simulations 50 --device cpu
 ```
+
+---
+
+## 🧠 Model Registry & Fine-Tuning Baselines
+
+| Model Checkpoint | Parameters & Architecture | Training Regimen | Search Throughput (CPU) | CSE Score | Latency (100 sims) | Status |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| `checkpoints/bourbaki_v0.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Tableau seeds + 3-Tier Curriculum | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
+| `checkpoints/bourbaki_v1.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
 
 ---
 
@@ -121,7 +130,9 @@ BourbakiMesh eliminates unsound proofs through three orthogonal defense tiers:
 We welcome contributions across formal logic, category theory, neural dynamics, and distributed systems!
 
 - **[Contributing Guidelines](CONTRIBUTING.md):** Detailed environment setup, commit conventions, and pull request checklist.
-- **[Request for Comments (RFCs)](rfcs/):** Review active proposals and use [`rfcs/0000-template.md`](rfcs/0000-template.md) for major architectural changes.
+- **[Request for Comments (RFCs)](rfcs/):** Review active proposals:
+  - [`rfcs/0000-template.md`](rfcs/0000-template.md): Standard architectural RFC template.
+  - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms.
 - **[GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions):** Join discussions on theoretical foundations and system architecture.
 - **[GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki):** Comprehensive technical specifications, API guides, and theoretical papers.
 

@@ -13,14 +13,23 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_train_loop.py`, `test_training.py`) | 34 / 34 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_train_loop.py`, `test_training.py`) | 35 / 35 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **86 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **87 passed (0 failed, 0 warnings)**
 
 ---
 
-## 2. Issue Tracking & Roadmap State
+## 2. Model Registry & Fine-Tuning Baselines
+
+| Model Checkpoint | Parameters & Architecture | Training Regimen & Experience | Search Throughput (CPU) | CSE Score | Latency (100 sims) | Status |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
+| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Semantic Tableau seeds + 3-Tier Curriculum (7,434 steps) | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
+| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move, 12,500+ steps) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
+
+---
+
+## 3. Issue Tracking & Roadmap State
 
 ### Closed Milestones (Phase 1, Phase 2 & Phase 3 Core)
 - [x] **#1 [`feat(ir): Implement Game-Semantic Arena IR and PlayTrace Validators`](https://github.com/tryggth/bourbakimesh/issues/1)**  
@@ -54,17 +63,18 @@
 
 ---
 
-## 3. Macro-Level Roadmap Epics (Active Planning & Execution)
+## 4. Macro-Level Roadmap Epics & Active R&D
 
-| Epic | Title | Subsystem Focus | Status |
+| Epic / Issue | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
 | **[#16](https://github.com/tryggth/bourbakimesh/issues/16)** | **`epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger`** | Rust / libp2p / Proof DAG / GossipSub | 🔄 In Progress |
 | **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
 | **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
+| **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
 
 ---
 
-## 4. Ingested Mathlib Curriculum Datasets
+## 5. Ingested Mathlib Curriculum Datasets
 
 - **Raw Mathlib Export:** [`data/mathlib_raw.json`](file:///home/tryggth2009/bourbakimesh/data/mathlib_raw.json) (15 theorems, Logic, Order, Group, Ring, Nat)
 - **Binary Strategy Corpus:** [`data/mathlib_corpus.bin`](file:///home/tryggth2009/bourbakimesh/data/mathlib_corpus.bin) (4,112 bytes, 55 strategy nodes)
@@ -75,16 +85,18 @@
 
 ---
 
-## 5. Community & Governance Scaffolding
+## 6. Community, RFCs & Governance Scaffolding
 
 - **Contributor Guidelines:** [`CONTRIBUTING.md`](CONTRIBUTING.md) defines local developer workflows, quality gates, and commit standards.
-- **Architectural RFC Process:** [`rfcs/0000-template.md`](rfcs/0000-template.md) establishes standard RFC proposal mechanics.
+- **Architectural RFCs:**
+  - [`rfcs/0000-template.md`](rfcs/0000-template.md): Standard architectural RFC template.
+  - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms (Policy Warping, Subgame Injection, Conditioned Dynamics, Tableau Clues).
 - **Issue & PR Templates:** `.github/ISSUE_TEMPLATE/` (`design_proposal.md`, `bug_report.md`, `feature_request.md`) and `.github/pull_request_template.md`.
 - **Knowledge Base:** [GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki) and [GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions).
 
 ---
 
-## 6. Monorepo Architecture Overview
+## 7. Monorepo Architecture Overview
 
 ```
 bourbakimesh/
@@ -96,7 +108,8 @@ bourbakimesh/
 │   ├── ISSUE_TEMPLATE/                        # Design, bug, & feature templates
 │   └── pull_request_template.md               # PR verification checklist
 ├── rfcs/
-│   └── 0000-template.md                       # Architectural RFC template
+│   ├── 0000-template.md                       # Architectural RFC template
+│   └── 0002-neural-game-semantic-hinting.md   # Model hinting mechanisms RFC
 ├── crates/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
 │   ├── bourbaki-kernel/                       # CIC AST, Strategy Extractor & Corpus Decompiler
@@ -111,7 +124,7 @@ bourbakimesh/
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
 │   └── benchmarks/                            # Profiler & CSE evaluator
-├── tests/                                     # PyTest Integration Suites (34 tests)
+├── tests/                                     # PyTest Integration Suites (35 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
     ├── LeanTarget.lean
     ├── lakefile.toml                          # Targets: LeanTarget & export_mathlib
