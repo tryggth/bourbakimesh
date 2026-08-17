@@ -2,6 +2,7 @@
 
 from .dataset import ReplayDataset, TrajectoryWindow
 from .trainer import BourbakiTrainer, TrainStepResult, TrainingConfig
+from .loop import ContinuousTrainingLoop, IterationMetrics, LoopConfig
 
 __all__ = [
     "ReplayDataset",
@@ -9,4 +10,7 @@ __all__ = [
     "BourbakiTrainer",
     "TrainingConfig",
     "TrainStepResult",
+    "ContinuousTrainingLoop",
+    "LoopConfig",
+    "IterationMetrics",
 ]

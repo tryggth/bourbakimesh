@@ -25,6 +25,9 @@ from .bootstrap import (
 )
 from .training import (
     BourbakiTrainer,
+    ContinuousTrainingLoop,
+    IterationMetrics,
+    LoopConfig,
     ReplayDataset,
     TrajectoryWindow,
     TrainStepResult,
@@ -63,4 +66,7 @@ __all__ = [
     "BourbakiTrainer",
     "TrainingConfig",
     "TrainStepResult",
+    "ContinuousTrainingLoop",
+    "LoopConfig",
+    "IterationMetrics",
 ]
