@@ -22,7 +22,7 @@ class LoopConfig:
 
     iterations: int = 5
     self_play_games_per_iter: int = 20
-    tableau_seeds_per_iter: int = 20
+    tableau_seeds_per_iter: int = 10
     train_epochs_per_iter: int = 3
     simulations_per_move: int = 50
     batch_size: int = 16
@@ -32,6 +32,8 @@ class LoopConfig:
     initial_checkpoint: Optional[str | Path] = None
     eval_bench_interval: int = 1
     buffer_capacity: int = 1000
+    target_temperature: float = 0.5
+    verified_boost: float = 5.0
     feature_dim: int = 32
     action_space_size: int = 16
 
@@ -89,7 +91,10 @@ class ContinuousTrainingLoop:
         else:
             self.model = model
 
-        self.buffer = ReplayBuffer(capacity=self.config.buffer_capacity)
+        self.buffer = ReplayBuffer(
+            capacity=self.config.buffer_capacity,
+            verified_boost=self.config.verified_boost,
+        )
         self.generator = SeedCorpusGenerator()
         self.curriculum = curriculum
 
@@ -97,7 +102,11 @@ class ContinuousTrainingLoop:
             num_simulations=self.config.simulations_per_move,
             exploration_fraction=0.25,
         )
-        self.worker = SelfPlayWorker(self.model, mcts_config)
+        self.worker = SelfPlayWorker(
+            self.model,
+            mcts_config,
+            target_temperature=self.config.target_temperature,
+        )
 
         trainer_config = TrainingConfig(
             batch_size=self.config.batch_size,

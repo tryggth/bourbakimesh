@@ -13,10 +13,10 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 38 / 38 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 41 / 41 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **90 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **93 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -67,6 +67,10 @@
   *Delivered Lean 4 theorem export metaprogram (`Export.lean`), `export_mathlib` CLI binary, Rust batch corpus decompiler (`bourbaki-kernel::corpus`, `decompile_corpus` binary), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), progressive curriculum pacing in `ContinuousTrainingLoop`, and calibrated 3-tier curriculum datasets (`data/curriculum/`).*
 - [x] **#23 [`test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness`](https://github.com/tryggth/bourbakimesh/issues/23)**  
   *Delivered `ModelTournament` paired matches engine, `EloTracker` with Bayesian MAP estimation, `tournament_cli.py`, and baseline head-to-head match between `bourbaki_v0` (Elo: 1569.5) and `bourbaki_v1` (Elo: 1430.5).*
+- [x] **#24 [`feat(training): Implement Verified-Proof Prioritized Experience Replay (PER)`](https://github.com/tryggth/bourbakimesh/issues/24)**  
+  *Delivered weighted experience replay sampling with 5.0x boost for Lean 4-verified proof traces, ensuring synthetic tableau anchors and curriculum demonstrations maintain policy anchor.*
+- [x] **#25 [`feat(ml): Temperature-Scaled Target Distributions and Policy Sharpness Control`](https://github.com/tryggth/bourbakimesh/issues/25)**  
+  *Delivered $\pi_{\text{target}}(a) \propto N(s, a)^{1/\tau}$ temperature scaling ($\tau = 0.5$) in self-play worker to prevent policy prior flattening and maintain sharp action selection.*
 
 ---
 
@@ -80,6 +84,8 @@
 | **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
 | **[#21](https://github.com/tryggth/bourbakimesh/issues/21)** | **`feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline`** | CI/CD / GitHub Releases / Hugging Face / P2P | 📋 Backlog |
 | **[#22](https://github.com/tryggth/bourbakimesh/issues/22)** | **`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`** | Rust / libp2p / Python FFI | 📋 Backlog |
+| **[#26](https://github.com/tryggth/bourbakimesh/issues/26)** | **`feat(training): Continuous Champion Gating via Head-to-Head Tournament Validation`** | Training / Benchmarks / Elo | 📋 Backlog |
+| **[#27](https://github.com/tryggth/bourbakimesh/issues/27)** | **`feat(ml): Train and Certify bourbaki_v2.pt with Calibrated Gated Pipeline`** | ML / Training / Certification | 📋 Backlog |
 
 ---
 

@@ -31,6 +31,8 @@ def main() -> None:
         default=None,
         help="Path to existing model checkpoint to resume or fine-tune from",
     )
+    parser.add_argument("--target-temperature", "--temperature", dest="target_temperature", type=float, default=0.5, help="Policy target temperature scaling (default: 0.5)")
+    parser.add_argument("--verified-boost", type=float, default=5.0, help="Sampling weight multiplier for verified proof traces (default: 5.0)")
     parser.add_argument("--device", type=str, default="cpu", help="Compute device ('cpu', 'cuda')")
     args = parser.parse_args()
 
@@ -79,6 +81,8 @@ def main() -> None:
         learning_rate=args.lr,
         checkpoint_dir=Path(args.checkpoint_dir),
         initial_checkpoint=args.initial_checkpoint,
+        target_temperature=args.target_temperature,
+        verified_boost=args.verified_boost,
     )
 
     loop = ContinuousTrainingLoop(config=config, curriculum=curriculum)

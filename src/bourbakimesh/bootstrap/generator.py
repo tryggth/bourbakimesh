@@ -96,6 +96,7 @@ class SeedCorpusGenerator:
             traj.rewards.append(1.0)
             traj.players.append(1)
             traj.terminal_value = 1.0
+            traj.verified = True
 
             buffer.push(traj)
             inserted_trajectories += 1

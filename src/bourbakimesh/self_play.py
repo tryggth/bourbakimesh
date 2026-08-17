@@ -1,4 +1,4 @@
-"""Self-play worker and replay buffer for BourbakiMuZero."""
+"""Self-play worker and prioritized replay buffer for BourbakiMuZero."""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
@@ -20,8 +20,9 @@ class GameTrajectory:
     rewards: List[float] = field(default_factory=list)
     players: List[int] = field(default_factory=list)
     terminal_value: float = 0.0
+    verified: bool = False
 
-    def __len__(self) -> usize:
+    def __len__(self) -> int:
         return len(self.actions)
 
 
@@ -32,10 +33,22 @@ class SelfPlayWorker:
         self,
         model: BourbakiMuZero,
         mcts_config: Optional[MCTSConfig] = None,
+        target_temperature: float = 0.5,
     ) -> None:
         self.model = model
         self.config = mcts_config or MCTSConfig()
         self.mcts = LatentMCTS(model, self.config)
+        self.target_temperature = target_temperature
+
+    @staticmethod
+    def _compute_target_policy(visits: np.ndarray, target_temperature: float) -> np.ndarray:
+        """Sharpen or smooth MCTS visit distribution using temperature scaling."""
+        if target_temperature != 1.0 and target_temperature > 0.0:
+            visits_scaled = np.power(np.maximum(visits, 0.0), 1.0 / target_temperature)
+            total = np.sum(visits_scaled)
+            if total > 0.0:
+                return visits_scaled / total
+        return visits
 
     def play_game(
         self,
@@ -56,19 +69,22 @@ class SelfPlayWorker:
         step = 0
 
         while not terminal and step < max_moves:
-            policy = self.mcts.search(
+            raw_policy = self.mcts.search(
                 current_obs,
                 current_player=current_player,
                 num_simulations=num_simulations,
                 is_latent=False,
             )
 
+            # Apply temperature scaling to target policy distribution
+            target_policy = self._compute_target_policy(raw_policy, self.target_temperature)
+
             # Sample action from visit distribution
-            action = int(np.random.choice(len(policy), p=policy))
+            action = int(np.random.choice(len(raw_policy), p=raw_policy))
 
             trajectory.states.append(current_obs.squeeze(0).clone())
             trajectory.actions.append(action)
-            trajectory.policies.append(policy)
+            trajectory.policies.append(target_policy)
             trajectory.players.append(current_player)
 
             # Step dynamics
@@ -98,8 +114,9 @@ class SelfPlayWorker:
 class ReplayBuffer:
     """Experience replay buffer storing self-play trajectories for policy/value optimization."""
 
-    def __init__(self, capacity: int = 10000) -> None:
+    def __init__(self, capacity: int = 10000, verified_boost: float = 5.0) -> None:
         self.capacity = capacity
+        self.verified_boost = verified_boost
         self.trajectories: List[GameTrajectory] = []
 
     def push(self, trajectory: GameTrajectory) -> None:
@@ -116,7 +133,7 @@ class ReplayBuffer:
         return sum(len(t) for t in self.trajectories)
 
     def sample_batch(self, batch_size: int) -> Dict[str, torch.Tensor]:
-        """Sample a batch of training transitions (s, a, target_policy, target_value)."""
+        """Sample a prioritized batch of training transitions (s, a, target_policy, target_value)."""
         if not self.trajectories:
             raise ValueError("Cannot sample from an empty replay buffer")
 
@@ -126,11 +143,14 @@ class ReplayBuffer:
         target_values = []
 
         all_samples = []
+        sample_weights = []
         for traj in self.trajectories:
+            weight = self.verified_boost if traj.verified else 1.0
             for idx in range(len(traj)):
                 all_samples.append((traj, idx))
+                sample_weights.append(weight)
 
-        sampled = random.sample(all_samples, min(batch_size, len(all_samples)))
+        sampled = random.choices(all_samples, weights=sample_weights, k=batch_size)
 
         for traj, idx in sampled:
             states.append(traj.states[idx])

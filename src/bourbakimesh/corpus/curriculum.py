@@ -148,6 +148,7 @@ class CurriculumManager:
             traj.players.append(player)
 
         traj.terminal_value = 1.0
+        traj.verified = True
         return traj
 
     def get_tier(self, tier: int) -> List[TheoremEntry]:
