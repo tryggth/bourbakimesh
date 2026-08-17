@@ -75,6 +75,9 @@
 | **[#17](https://github.com/tryggth/bourbakimesh/issues/17)** | **`epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI`** | TypeScript / WebGL / Graph DAG | 📋 Backlog |
 | **[#18](https://github.com/tryggth/bourbakimesh/issues/18)** | **`epic(kernel): Phase 6 — Universal Multi-Target Extraction (Coq, Isabelle, Dedukti)`** | Rust Kernel / Coq / Isabelle | 📋 Backlog |
 | **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
+| **[#21](https://github.com/tryggth/bourbakimesh/issues/21)** | **`feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline`** | CI/CD / GitHub Releases / Hugging Face / P2P | 📋 Backlog |
+| **[#22](https://github.com/tryggth/bourbakimesh/issues/22)** | **`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`** | Rust / libp2p / Python FFI | 📋 Backlog |
+| **[#23](https://github.com/tryggth/bourbakimesh/issues/23)** | **`test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness`** | Python Benchmarks / MCTS / Elo | 📋 Backlog |
 
 ---
 
