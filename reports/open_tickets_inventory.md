@@ -1,5 +1,5 @@
 # BourbakiMesh Open Tickets Inventory
-**Generated:** Mon Aug 17 10:49:43 PM UTC 2026
+**Generated:** Mon Aug 17 11:00:06 PM UTC 2026
 **Repository:** https://github.com/tryggth/bourbakimesh
 
 ## Issue #28: feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine
@@ -40,44 +40,6 @@ Investigate and prototype client-side browser execution of BourbakiMuZero ($h_\t
 - [ ] **RFC 0003:** `rfcs/0003-webgpu-browser-inference.md` documenting runtime benchmarks and architecture.
 - [ ] **ONNX Export Script:** `scripts/export_onnx.py` converting `bourbaki_v1.pt` to ONNX computation graphs.
 - [ ] **Browser Benchmark Harness:** Minimal Vite/TypeScript harness measuring WebGPU vs Wasm sims/sec on CPU/GPU.
-
----
-
-## Issue #17: epic(ui): Phase 5 — Real-Time Proof DAG Visualizer & Interactive Web UI
-**URL:** https://github.com/tryggth/bourbakimesh/issues/17
-**Labels:** epic, ui
-
-### Current Body
-### Objective
-Develop an interactive Web UI dashboard and WebGL/Canvas visualization engine to render polarized Hyland-Ong dialogue trees, live proof DAGs, and cluster worker performance metrics.
-
----
-
-### Sub-Milestones & Architecture
-- **Web App (`ui/`):** React / TypeScript / Tailwind / Three.js or React-Flow.
-- **Dialogue Graph Viewer:** Render active Proponent/Opponent moves, view scoping stacks, and justification pointers.
-- **Proof DAG Visualizer:** Render content-addressed `ProofBlock` nodes, parent hashes, and validation statuses.
-- **Backend Bridge:** FastAPI WebSocket streaming live MCTS search steps and P2P ledger blocks to browser clients.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **UI Scaffold (`ui/package.json`):** Initialize Vite + React + TypeScript + Tailwind + ReactFlow.
-2. **WebSocket Gateway (`src/bourbakimesh/api/ws.py`):** Broadcast live dialogue traces and proof DAG updates over WebSockets.
-3. **Dialogue Arena Visualizer Component:** Interactive node-link graph with polarized coloring (P: Blue, O: Orange) and justification edge arcs.
-4. **End-to-End Smoke Test:** Run backend + frontend in dev mode and verify socket telemetry.
-
-#### 2. Verification Commands
-- `cd ui && npm test && npm run build`
-- `.venv/bin/pytest tests/test_smoke.py`
-
-#### 3. Commit
-`feat(ui): implement real-time proof DAG visualizer and dialogue arena web UI (fixes #17)`
-```
-
 
 ---
 
