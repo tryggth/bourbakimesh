@@ -27,6 +27,10 @@
 | [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Semantic Tableau seeds + 3-Tier Curriculum (7,434 steps) | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
 | [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move, 12,500+ steps) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
 
+- **Release Distribution:** Tagged release [`v0.1.0-alpha`](https://github.com/tryggth/bourbakimesh/releases/tag/v0.1.0-alpha).
+- **Download CLI:** `gh release download v0.1.0-alpha --dir checkpoints/`
+- **Checksum Manifest:** [`checkpoints/CHECKSUMS.txt`](file:///home/tryggth2009/bourbakimesh/checkpoints/CHECKSUMS.txt)
+
 ---
 
 ## 3. Issue Tracking & Roadmap State

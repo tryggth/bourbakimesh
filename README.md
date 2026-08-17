@@ -112,6 +112,13 @@ cd ..
 | `checkpoints/bourbaki_v0.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Tableau seeds + 3-Tier Curriculum | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
 | `checkpoints/bourbaki_v1.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
 
+### Download Pre-Trained Weights
+Model weights and verification checksums are distributed as release assets under [`v0.1.0-alpha`](https://github.com/tryggth/bourbakimesh/releases/tag/v0.1.0-alpha):
+```bash
+# Pull model checkpoints into checkpoints/
+gh release download v0.1.0-alpha --dir checkpoints/
+```
+
 ---
 
 ## 🛡️ 3-Tiered Soundness Architecture
