@@ -13,23 +13,24 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_train_loop.py`, `test_training.py`) | 35 / 35 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 38 / 38 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **87 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **90 passed (0 failed, 0 warnings)**
 
 ---
 
-## 2. Model Registry & Fine-Tuning Baselines
+## 2. Model Registry & Tournament Elo Ratings
 
-| Model Checkpoint | Parameters & Architecture | Training Regimen & Experience | Search Throughput (CPU) | CSE Score | Latency (100 sims) | Status |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Semantic Tableau seeds + 3-Tier Curriculum (7,434 steps) | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
-| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move, 12,500+ steps) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
+| Model Checkpoint | Parameters & Architecture | Bayesian Elo Rating (±95% CI) | Match Record (W-L-D) | Tier 1 Solve | Tier 2 Solve | Tier 3 Solve | Search Throughput (CPU) | CSE Score | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1569.5** (±127.1) | 21-9-0 (70.0%) | 72.2% | 75.0% | 50.0% | 1,490.3 sims/sec (50 sims) | 2.981x | 🟢 Promoted Baseline |
+| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1430.5** (±127.1) | 9-21-0 (30.0%) | 27.8% | 25.0% | 50.0% | 715.0 sims/sec (100 sims) | 1.430x | 🟢 Fine-Tuned Active |
 
 - **Release Distribution:** Tagged release [`v0.1.0-alpha`](https://github.com/tryggth/bourbakimesh/releases/tag/v0.1.0-alpha).
 - **Download CLI:** `gh release download v0.1.0-alpha --dir checkpoints/`
 - **Checksum Manifest:** [`checkpoints/CHECKSUMS.txt`](file:///home/tryggth2009/bourbakimesh/checkpoints/CHECKSUMS.txt)
+- **Tournament Report:** [`reports/tournament_v0_v1.json`](file:///home/tryggth2009/bourbakimesh/reports/tournament_v0_v1.json) (30 paired games over 15 Mathlib curriculum propositions).
 
 ---
 
@@ -64,6 +65,8 @@
   *Delivered 25M-parameter Relational Arena Graph Transformer (`RelationalArenaTransformer`) with relational edge attention for justification pointers and view scoping, $K$-step recurrent dynamics unrolling (`BourbakiTrainer`), and continuous closed-loop orchestrator (`ContinuousTrainingLoop`).*
 - [x] **#15 [`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`](https://github.com/tryggth/bourbakimesh/issues/15)**  
   *Delivered Lean 4 theorem export metaprogram (`Export.lean`), `export_mathlib` CLI binary, Rust batch corpus decompiler (`bourbaki-kernel::corpus`, `decompile_corpus` binary), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), progressive curriculum pacing in `ContinuousTrainingLoop`, and calibrated 3-tier curriculum datasets (`data/curriculum/`).*
+- [x] **#23 [`test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness`](https://github.com/tryggth/bourbakimesh/issues/23)**  
+  *Delivered `ModelTournament` paired matches engine, `EloTracker` with Bayesian MAP estimation, `tournament_cli.py`, and baseline head-to-head match between `bourbaki_v0` (Elo: 1569.5) and `bourbaki_v1` (Elo: 1430.5).*
 
 ---
 
@@ -77,7 +80,6 @@
 | **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
 | **[#21](https://github.com/tryggth/bourbakimesh/issues/21)** | **`feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline`** | CI/CD / GitHub Releases / Hugging Face / P2P | 📋 Backlog |
 | **[#22](https://github.com/tryggth/bourbakimesh/issues/22)** | **`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`** | Rust / libp2p / Python FFI | 📋 Backlog |
-| **[#23](https://github.com/tryggth/bourbakimesh/issues/23)** | **`test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness`** | Python Benchmarks / MCTS / Elo | 📋 Backlog |
 
 ---
 
@@ -97,7 +99,7 @@
 - **Contributor Guidelines:** [`CONTRIBUTING.md`](CONTRIBUTING.md) defines local developer workflows, quality gates, and commit standards.
 - **Architectural RFCs:**
   - [`rfcs/0000-template.md`](rfcs/0000-template.md): Standard architectural RFC template.
-  - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms (Policy Warping, Subgame Injection, Conditioned Dynamics, Tableau Clues).
+  - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms.
 - **Issue & PR Templates:** `.github/ISSUE_TEMPLATE/` (`design_proposal.md`, `bug_report.md`, `feature_request.md`) and `.github/pull_request_template.md`.
 - **Knowledge Base:** [GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki) and [GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions).
 
@@ -130,8 +132,13 @@ bourbakimesh/
 │   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
-│   └── benchmarks/                            # Profiler & CSE evaluator
-├── tests/                                     # PyTest Integration Suites (35 tests)
+│   └── benchmarks/                            # Profiler, CSE evaluator, & Tournament Elo harness
+│       ├── bench_engine.py
+│       ├── cli.py
+│       ├── elo.py                             # Bradley-Terry Bayesian Elo tracker
+│       ├── tournament.py                      # Paired match dialogue tournament
+│       └── tournament_cli.py                  # Tournament CLI runner
+├── tests/                                     # PyTest Integration Suites (38 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
     ├── LeanTarget.lean
     ├── lakefile.toml                          # Targets: LeanTarget & export_mathlib

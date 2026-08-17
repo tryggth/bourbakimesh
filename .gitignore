@@ -23,6 +23,7 @@ data/
 logs/
 reports/*
 !reports/*.md
+!reports/*.json
 
 # Lean 4 / Lake
 lean_target/.lake/

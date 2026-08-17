@@ -1,0 +1,381 @@
+{
+  "timestamp": 1786991209.9045372,
+  "simulations_per_move": 100,
+  "models": [
+    "bourbaki_v0",
+    "bourbaki_v1"
+  ],
+  "total_games": 30,
+  "summaries": {
+    "bourbaki_v0": {
+      "model_name": "bourbaki_v0",
+      "elo": 1569.47,
+      "elo_stderr": 64.87,
+      "ci_lower": 1442.33,
+      "ci_upper": 1696.61,
+      "wins": 21,
+      "losses": 9,
+      "draws": 0,
+      "total_games": 30,
+      "win_rate": 0.7,
+      "tier_solve_rates": {
+        "1": 0.7222,
+        "2": 0.75,
+        "3": 0.5
+      },
+      "mean_plies": 2.6,
+      "mean_latency_ms": 2713.03
+    },
+    "bourbaki_v1": {
+      "model_name": "bourbaki_v1",
+      "elo": 1430.53,
+      "elo_stderr": 64.87,
+      "ci_lower": 1303.39,
+      "ci_upper": 1557.67,
+      "wins": 9,
+      "losses": 21,
+      "draws": 0,
+      "total_games": 30,
+      "win_rate": 0.3,
+      "tier_solve_rates": {
+        "1": 0.2778,
+        "2": 0.25,
+        "3": 0.5
+      },
+      "mean_plies": 2.6,
+      "mean_latency_ms": 2713.03
+    }
+  },
+  "games": [
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.id",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 3,
+      "duration_ms": 1466.8,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.id",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 243.59,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.and_intro",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 128.33,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.and_intro",
+      "tier": 1,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 132.9,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.and_elim_l",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 672.99,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.and_elim_l",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 429.31,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.and_elim_r",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 3,
+      "duration_ms": 975.59,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.and_elim_r",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 290.17,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Order.Basic.le_refl",
+      "tier": 1,
+      "winner": "bourbaki_v1",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 455.25,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Order.Basic.le_refl",
+      "tier": 1,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 3,
+      "duration_ms": 433.59,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Algebra.Group.Basic.mul_one",
+      "tier": 1,
+      "winner": "bourbaki_v1",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 465.9,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Algebra.Group.Basic.mul_one",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 253.72,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Algebra.Group.Basic.one_mul",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 5,
+      "duration_ms": 683.12,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Algebra.Group.Basic.one_mul",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 4,
+      "duration_ms": 374.46,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Algebra.Ring.Basic.mul_zero",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 5,
+      "duration_ms": 487.14,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Algebra.Ring.Basic.mul_zero",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 4,
+      "duration_ms": 377.79,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Algebra.Ring.Basic.zero_mul",
+      "tier": 1,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 96.39,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Algebra.Ring.Basic.zero_mul",
+      "tier": 1,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 3,
+      "duration_ms": 3676.91,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.k_comb",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 13,
+      "duration_ms": 29000.62,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.k_comb",
+      "tier": 2,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 926.17,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.modus_ponens",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 2446.09,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.modus_ponens",
+      "tier": 2,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 5,
+      "duration_ms": 16272.63,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Logic.Basic.trans_impl",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 606.46,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Logic.Basic.trans_impl",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 2568.64,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Order.Basic.le_trans",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 720.61,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Order.Basic.le_trans",
+      "tier": 2,
+      "winner": "bourbaki_v0",
+      "proponent_score": 0.0,
+      "plies": 2,
+      "duration_ms": 1425.39,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Algebra.Group.Basic.mul_left_inv",
+      "tier": 3,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 5188.95,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Algebra.Group.Basic.mul_left_inv",
+      "tier": 3,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 4776.32,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v0",
+      "opponent": "bourbaki_v1",
+      "proposition": "Mathlib.Data.Nat.Basic.induction",
+      "tier": 3,
+      "winner": "bourbaki_v0",
+      "proponent_score": 1.0,
+      "plies": 3,
+      "duration_ms": 5001.01,
+      "verified": true
+    },
+    {
+      "proponent": "bourbaki_v1",
+      "opponent": "bourbaki_v0",
+      "proposition": "Mathlib.Data.Nat.Basic.induction",
+      "tier": 3,
+      "winner": "bourbaki_v1",
+      "proponent_score": 1.0,
+      "plies": 1,
+      "duration_ms": 814.0,
+      "verified": true
+    }
+  ]
+}
