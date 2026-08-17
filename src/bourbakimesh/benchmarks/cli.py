@@ -101,18 +101,8 @@ def main() -> None:
 
     model = None
     if args.model_path and Path(args.model_path).exists():
-        ckpt = torch.load(args.model_path, map_location=args.device)
-        state_dict = ckpt.get("model_state_dict", ckpt)
-
-        if "model_config" in ckpt and isinstance(ckpt["model_config"], dict):
-            model_config = ArenaEmbeddingConfig(**ckpt["model_config"])
-        else:
-            model_config = infer_model_config(state_dict)
-
-        model = BourbakiMuZero(model_config)
-        model.load_state_dict(state_dict)
-        model.eval()
-        print(f"📦 Loaded checkpoint from: {args.model_path} (Latent: {model_config.latent_dim}, Hidden: {model_config.hidden_dim}, Actions: {model_config.action_space_size})")
+        model = BourbakiMuZero.load_from_checkpoint(args.model_path, map_location=args.device)
+        print(f"📦 Loaded checkpoint from: {args.model_path} (Latent: {model.config.latent_dim}, Hidden: {model.config.hidden_dim}, Actions: {model.config.action_space_size})")
 
     runner = BenchmarkRunner(model=model)
     sim_counts = [args.simulations] if args.simulations is not None else None

@@ -387,3 +387,94 @@ class BourbakiMuZero(nn.Module):
         next_latent, reward = self.dynamics(latent_state, action)
         policy_logits, value = self.prediction(next_latent)
         return next_latent, reward, policy_logits, value
+
+    @classmethod
+    def load_from_checkpoint(
+        cls,
+        path: str | Path,
+        map_location: str = "cpu",
+    ) -> BourbakiMuZero:
+        """Load BourbakiMuZero model from checkpoint with automatic architecture inference."""
+        ckpt = torch.load(path, map_location=map_location)
+
+        # 1. Extract state dict
+        if isinstance(ckpt, dict):
+            state_dict = ckpt.get("model_state_dict", ckpt.get("state_dict", ckpt))
+        else:
+            state_dict = ckpt
+
+        # 2. Extract or infer config
+        config = None
+        if isinstance(ckpt, dict):
+            for cfg_key in ["model_config", "model_kwargs", "config"]:
+                if cfg_key in ckpt and isinstance(ckpt[cfg_key], dict):
+                    try:
+                        cfg_dict = ckpt[cfg_key]
+                        # Filter to only valid fields of ArenaEmbeddingConfig
+                        valid_fields = set(ArenaEmbeddingConfig.model_fields.keys())
+                        filtered_cfg = {k: v for k, v in cfg_dict.items() if k in valid_fields}
+                        candidate = ArenaEmbeddingConfig(**filtered_cfg)
+
+                        # Verify candidate against tensor dimensions
+                        if "representation.token_proj.weight" in state_dict:
+                            w = state_dict["representation.token_proj.weight"]
+                            if w.shape[0] == candidate.hidden_dim and w.shape[1] == candidate.feature_dim:
+                                config = candidate
+                                break
+                    except Exception:
+                        pass
+
+        if config is None:
+            # Auto-infer config from state_dict shapes
+            hidden_dim = 256
+            feature_dim = 32
+            if "representation.token_proj.weight" in state_dict:
+                w = state_dict["representation.token_proj.weight"]
+                hidden_dim = w.shape[0]
+                feature_dim = w.shape[1]
+            elif "representation.encoder.0.weight" in state_dict:
+                w = state_dict["representation.encoder.0.weight"]
+                hidden_dim = w.shape[0]
+                feature_dim = w.shape[1]
+
+            action_space_size = 64
+            latent_dim = 128
+            if "dynamics.action_embed.weight" in state_dict:
+                w = state_dict["dynamics.action_embed.weight"]
+                action_space_size = w.shape[0]
+                latent_dim = w.shape[1]
+
+            num_res_blocks = 0
+            while f"dynamics.blocks.{num_res_blocks}.fc1.weight" in state_dict:
+                num_res_blocks += 1
+            if num_res_blocks == 0:
+                num_res_blocks = 2
+
+            num_layers = 0
+            while f"representation.layers.{num_layers}.ln1.weight" in state_dict:
+                num_layers += 1
+            use_transformer = num_layers > 0
+            if num_layers == 0:
+                num_layers = 4
+
+            num_heads = 8
+            if "representation.layers.0.self_attn.rel_k_embed.weight" in state_dict:
+                head_dim = state_dict["representation.layers.0.self_attn.rel_k_embed.weight"].shape[1]
+                num_heads = hidden_dim // max(1, head_dim)
+
+            config = ArenaEmbeddingConfig(
+                feature_dim=feature_dim,
+                latent_dim=latent_dim,
+                action_space_size=action_space_size,
+                hidden_dim=hidden_dim,
+                num_res_blocks=num_res_blocks,
+                use_relational_transformer=use_transformer,
+                transformer_layers=num_layers,
+                transformer_heads=num_heads,
+            )
+
+        model = cls(config)
+        model.load_state_dict(state_dict, strict=True)
+        model.to(map_location)
+        model.eval()
+        return model
