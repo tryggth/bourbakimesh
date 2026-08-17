@@ -1,5 +1,5 @@
 # BourbakiMesh Open Tickets Inventory
-**Generated:** Mon Aug 17 09:56:55 PM UTC 2026
+**Generated:** Mon Aug 17 10:15:51 PM UTC 2026
 **Repository:** https://github.com/tryggth/bourbakimesh
 
 ## Issue #28: feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine
@@ -40,48 +40,6 @@ Investigate and prototype client-side browser execution of BourbakiMuZero ($h_\t
 - [ ] **RFC 0003:** `rfcs/0003-webgpu-browser-inference.md` documenting runtime benchmarks and architecture.
 - [ ] **ONNX Export Script:** `scripts/export_onnx.py` converting `bourbaki_v1.pt` to ONNX computation graphs.
 - [ ] **Browser Benchmark Harness:** Minimal Vite/TypeScript harness measuring WebGPU vs Wasm sims/sec on CPU/GPU.
-
----
-
-## Issue #21: feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline
-**URL:** https://github.com/tryggth/bourbakimesh/issues/21
-**Labels:** ml, mesh, infrastructure
-
-### Current Body
-### Objective
-Establish automated distribution, versioning, and download pipelines for trained BourbakiMuZero neural checkpoints across GitHub Releases, Hugging Face Hub, and decentralized P2P chunks.
-
----
-
-### Distribution Architecture
-1. **GitHub Releases:** Release `v0.1.0-alpha` published with `bourbaki_v0.pt`, `bourbaki_v1.pt`, and `CHECKSUMS.txt`.
-2. **Hugging Face Hub:** Auto-sync pipeline for model cards, configs, and safetensors (`tryggth/bourbakimesh-muzero`).
-3. **P2P Chunk Distribution:** Splitting weights into 1MB SHA-256 content-addressed chunks in `crates/bourbaki-mesh/src/chunks.rs`.
-4. **Unified Pull CLI:** `python -m bourbakimesh.models.pull --checkpoint bourbaki_v1` with fallback hierarchy: Local Cache $\to$ P2P Mesh $\to$ GitHub Release $\to$ Hugging Face.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **Model Pull CLI (`src/bourbakimesh/models/pull.py`):**
-   - Implement automated checkpoint downloader fetching assets from GitHub Releases or Hugging Face if missing locally.
-2. **Hugging Face Sync Script (`scripts/sync_huggingface.py`):**
-   - Convert `.pt` state dicts to `.safetensors`, generate dynamic model card with CSE benchmarks, and push to HF Hub.
-3. **P2P Weight Chunker (`crates/bourbaki-mesh/src/chunks.rs`):**
-   - Implement `ModelChunker` creating 1MB content-addressed chunk DAG with Merkle root verification.
-4. **Integration Test (`tests/test_model_registry.py`):**
-   - Verify Merkle chunk assembly and CLI fallback downloads.
-
-#### 2. Verification Commands
-- `.venv/bin/pytest tests/test_model_registry.py`
-- `cargo test -p bourbaki-mesh`
-
-#### 3. Commit
-`feat(infra): implement multi-tier model pull CLI, HF sync, and P2P weight chunking (fixes #21)`
-```
-
 
 ---
 
@@ -168,44 +126,6 @@ Develop an interactive Web UI dashboard and WebGL/Canvas visualization engine to
 
 #### 3. Commit
 `feat(ui): implement real-time proof DAG visualizer and dialogue arena web UI (fixes #17)`
-```
-
-
----
-
-## Issue #16: epic(p2p): Phase 4 — Decentralized P2P Mesh Network & Byzantine-Resilient Ledger
-**URL:** https://github.com/tryggth/bourbakimesh/issues/16
-**Labels:** epic, mesh
-
-### Current Body
-### Objective
-Complete Phase 4 macro epic: establish decentralized P2P gossipsub network, Kademlia DHT routing, Byzantine proof validation consensus, and edge node proof aggregation.
-
----
-
-### Sub-Milestones & Status
-- [x] Libp2p GossipSub & Kademlia DHT integration (`crates/bourbaki-mesh/src/p2p.rs`).
-- [x] Byzantine-resilient proof attestation gate (`crates/bourbaki-mesh/src/consensus.rs`).
-- [x] P2P swarm integration test suite (15 clean tests).
-- [ ] Standalone daemon binary (`bourbaki-daemon` — Issue #22).
-- [ ] Edge telemetry stream (`/bourbaki/1.0.0/telemetry`).
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. Finalize and verify all sub-tickets under Epic #16 (#22 daemon, telemetry streams).
-2. Execute multi-node loopback cluster benchmarks measuring proof propagation latency under 10+ simulated peers.
-3. Update `STATUS_REPORT.md` and monorepo verification matrix.
-
-#### 2. Verification Commands
-- `cargo test -p bourbaki-mesh --test p2p_swarm_tests`
-- `cargo test --workspace`
-
-#### 3. Commit
-`feat(mesh): complete Phase 4 decentralized P2P mesh network and ledger (fixes #16)`
 ```
 
 
