@@ -217,6 +217,9 @@ class BourbakiTrainer:
         state = {
             "global_step": self.global_step,
             "model_state_dict": self.model.state_dict(),
+            "model_config": self.model.config.model_dump()
+            if hasattr(self.model.config, "model_dump")
+            else self.model.config.__dict__,
             "optimizer_state_dict": self.optimizer.state_dict(),
             "scheduler_state_dict": self.scheduler.state_dict(),
             "config": self.config.__dict__,

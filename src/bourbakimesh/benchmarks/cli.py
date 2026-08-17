@@ -6,9 +6,60 @@ import json
 import os
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any, Dict
 import torch
 from bourbakimesh.benchmarks.bench_engine import BenchmarkReport, BenchmarkRunner
 from bourbakimesh.models import ArenaEmbeddingConfig, BourbakiMuZero
+
+
+def infer_model_config(state_dict: Dict[str, Any]) -> ArenaEmbeddingConfig:
+    """Infer ArenaEmbeddingConfig architectural dimensions from state_dict tensors."""
+    hidden_dim = 256
+    feature_dim = 32
+    if "representation.token_proj.weight" in state_dict:
+        w = state_dict["representation.token_proj.weight"]
+        hidden_dim = w.shape[0]
+        feature_dim = w.shape[1]
+    elif "representation.encoder.0.weight" in state_dict:
+        w = state_dict["representation.encoder.0.weight"]
+        hidden_dim = w.shape[0]
+        feature_dim = w.shape[1]
+
+    action_space_size = 64
+    latent_dim = 128
+    if "dynamics.action_embed.weight" in state_dict:
+        w = state_dict["dynamics.action_embed.weight"]
+        action_space_size = w.shape[0]
+        latent_dim = w.shape[1]
+
+    num_res_blocks = 0
+    while f"dynamics.blocks.{num_res_blocks}.fc1.weight" in state_dict:
+        num_res_blocks += 1
+    if num_res_blocks == 0:
+        num_res_blocks = 2
+
+    num_layers = 0
+    while f"representation.layers.{num_layers}.ln1.weight" in state_dict:
+        num_layers += 1
+    use_transformer = num_layers > 0
+    if num_layers == 0:
+        num_layers = 4
+
+    num_heads = 8
+    if "representation.layers.0.self_attn.rel_k_embed.weight" in state_dict:
+        head_dim = state_dict["representation.layers.0.self_attn.rel_k_embed.weight"].shape[1]
+        num_heads = hidden_dim // max(1, head_dim)
+
+    return ArenaEmbeddingConfig(
+        feature_dim=feature_dim,
+        latent_dim=latent_dim,
+        action_space_size=action_space_size,
+        hidden_dim=hidden_dim,
+        num_res_blocks=num_res_blocks,
+        use_relational_transformer=use_transformer,
+        transformer_layers=num_layers,
+        transformer_heads=num_heads,
+    )
 
 
 def print_report_table(report: BenchmarkReport) -> None:
@@ -51,14 +102,17 @@ def main() -> None:
     model = None
     if args.model_path and Path(args.model_path).exists():
         ckpt = torch.load(args.model_path, map_location=args.device)
-        model_config = ArenaEmbeddingConfig()
-        if "model_config" in ckpt:
-            model_config = ArenaEmbeddingConfig(**ckpt["model_config"])
-        model = BourbakiMuZero(model_config)
         state_dict = ckpt.get("model_state_dict", ckpt)
+
+        if "model_config" in ckpt and isinstance(ckpt["model_config"], dict):
+            model_config = ArenaEmbeddingConfig(**ckpt["model_config"])
+        else:
+            model_config = infer_model_config(state_dict)
+
+        model = BourbakiMuZero(model_config)
         model.load_state_dict(state_dict)
         model.eval()
-        print(f"📦 Loaded checkpoint from: {args.model_path}")
+        print(f"📦 Loaded checkpoint from: {args.model_path} (Latent: {model_config.latent_dim}, Hidden: {model_config.hidden_dim}, Actions: {model_config.action_space_size})")
 
     runner = BenchmarkRunner(model=model)
     sim_counts = [args.simulations] if args.simulations is not None else None

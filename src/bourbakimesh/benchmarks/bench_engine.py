@@ -165,10 +165,15 @@ class BenchmarkRunner:
         avg_throughput = np.mean([r.simulations_per_sec for r in mcts_results])
         return round(float(avg_throughput / 500.0), 3)
 
-    def run_all(self, quick: bool = False) -> BenchmarkReport:
+    def run_all(
+        self,
+        quick: bool = False,
+        simulation_counts: Optional[List[int]] = None,
+        batch_sizes: Optional[List[int]] = None,
+    ) -> BenchmarkReport:
         """Run complete benchmark suite and return structured report."""
-        bsz = [1, 16] if quick else [1, 16, 64]
-        sims = [50, 100] if quick else [50, 100, 250]
+        bsz = batch_sizes or ([1, 16] if quick else [1, 16, 64])
+        sims = simulation_counts or ([50, 100] if quick else [50, 100, 250])
 
         neural_res = self.bench_neural_inference(batch_sizes=bsz, iterations=15 if quick else 30)
         mcts_res = self.bench_mcts_throughput(simulation_counts=sims, runs=2 if quick else 3)
