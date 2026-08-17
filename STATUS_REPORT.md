@@ -11,12 +11,12 @@
 | Subsystem | Target Toolchain | Test Suite | Result | Status |
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
-| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **Criterion Bench** | 20 / 20 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **Criterion Bench** | 9 / 9 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, **`test_relational_model.py`**) | 27 / 27 passed | 🟢 Clean |
-| **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** | 8 / 8 jobs | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, `test_relational_model.py`, **`test_mathlib_corpus.py`**) | 30 / 30 passed | 🟢 Clean |
+| **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **Export Metaprogram** | 9 / 9 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **69 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **75 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -87,15 +87,25 @@ bourbakimesh/
 │   └── 0000-template.md                       # Architectural RFC template
 ├── crates/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
-│   ├── bourbaki-kernel/                       # CIC AST & Strategy Extractor
+│   ├── bourbaki-kernel/                       # CIC AST, Strategy Extractor & Corpus Decompiler
+│   │   ├── src/{ast, corpus, decompiler, emitter, extractor, verifier}.rs
+│   │   └── tests/{extraction_tests, lean_verification_tests, adversarial_and_roundtrip_tests, corpus_tests}.rs
 │   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
+│   ├── corpus/                                # Curriculum indexer & difficulty manager
+│   │   └── curriculum.py
 │   ├── models.py                              # RelationalArenaTransformer & BourbakiMuZero
 │   ├── training/                              # MuZero K-step unrolled training & loop
 │   ├── latent_mcts.py                         # Polarity-Inverting Latent MCTS
 │   ├── self_play.py                           # Self-play worker & ReplayBuffer
 │   ├── bootstrap/                             # Semantic Tableau seed generator
 │   └── benchmarks/                            # Profiler & CSE evaluator
-├── tests/                                     # PyTest Integration Suites (27 tests)
+├── tests/                                     # PyTest Integration Suites (30 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
+    ├── LeanTarget.lean
+    └── LeanTarget/
+        ├── Basic.lean
+        ├── Harness.lean
+        ├── Export.lean                        # Theorem export metaprogram
+        └── MetaTheory/
 ```

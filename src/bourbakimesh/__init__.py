@@ -36,6 +36,10 @@ from .training import (
     TrainStepResult,
     TrainingConfig,
 )
+from .corpus import (
+    CurriculumManager,
+    TheoremEntry,
+)
 
 __version__ = "0.1.0"
 
@@ -75,4 +79,6 @@ __all__ = [
     "ContinuousTrainingLoop",
     "LoopConfig",
     "IterationMetrics",
+    "CurriculumManager",
+    "TheoremEntry",
 ]
