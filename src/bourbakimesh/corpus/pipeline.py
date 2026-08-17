@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import json
+import pickle
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -109,13 +110,64 @@ class CorpusPipeline:
         self.curriculum.ingest_corpus_json(payload)
         return self.curriculum
 
+    def ingest_and_export_curriculum(
+        self,
+        input_path: Path,
+        output_dir: Path,
+        num_tiers: int = 3,
+    ) -> Dict[str, Any]:
+        """Ingest decompiled corpus dataset and export tiered curriculum binary bundles."""
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Ingest JSON or JSON metadata alongside .bin
+        json_path = input_path.with_suffix(".json") if input_path.suffix == ".bin" else input_path
+        if not json_path.exists() and (input_path.parent / "mathlib_raw.json").exists():
+            json_path = input_path.parent / "mathlib_raw.json"
+
+        with open(json_path, "r", encoding="utf-8") as f:
+            payload = json.load(f)
+
+        self.curriculum.ingest_corpus_json(payload)
+
+        tier_files = {
+            1: output_dir / "tier1_foundations.bin",
+            2: output_dir / "tier2_implications.bin",
+            3: output_dir / "tier3_algebraic.bin",
+        }
+
+        manifest = {
+            "num_tiers": num_tiers,
+            "total_theorems": len(self.curriculum.theorems),
+            "tiers": {},
+        }
+
+        for tier in range(1, num_tiers + 1):
+            theorems = self.curriculum.get_tier(tier)
+            bin_path = tier_files.get(tier, output_dir / f"tier{tier}.bin")
+
+            tier_trajectories = [t.trajectory for t in theorems if t.trajectory is not None]
+            with open(bin_path, "wb") as f:
+                pickle.dump(tier_trajectories, f)
+
+            manifest["tiers"][f"tier_{tier}"] = {
+                "count": len(theorems),
+                "file": str(bin_path.resolve()),
+                "theorems": [t.name for t in theorems],
+            }
+
+        manifest_path = output_dir / "curriculum_manifest.json"
+        with open(manifest_path, "w", encoding="utf-8") as f:
+            json.dump(manifest, f, indent=2)
+
+        return manifest
+
     def prime_replay_buffer(
         self,
         buffer: ReplayBuffer,
         max_tier: int = 3,
         samples_per_tier: int = 10,
     ) -> int:
-        """Prime ReplayBuffer directly with curriculum-demonstrations."""
+        """Prime ReplayBuffer directly with curriculum demonstrations."""
         return self.curriculum.populate_replay_buffer(
             buffer,
             max_tier=max_tier,
@@ -125,6 +177,9 @@ class CorpusPipeline:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mathlib Proof Term Ingestion Pipeline")
+    parser.add_argument("--input", type=str, default=None, help="Input corpus file (bin or json)")
+    parser.add_argument("--output-dir", type=str, default="data/curriculum/", help="Curriculum output directory")
+    parser.add_argument("--tiers", type=int, default=3, help="Number of curriculum tiers")
     parser.add_argument("--export-dir", type=str, default="data/mathlib", help="Export directory")
     parser.add_argument("--output-corpus", type=str, default="data/mathlib/corpus.json", help="Output JSON path")
     args = parser.parse_args()
@@ -138,15 +193,25 @@ def main() -> None:
         output_corpus=Path(args.output_corpus),
     )
     pipeline = CorpusPipeline(config)
-    curriculum = pipeline.run_ingestion()
 
-    summary = curriculum.get_summary()
-    print(f"✅ Ingested {summary['total_theorems']} Mathlib theorems into CurriculumManager:")
-    print(f"   - Tier 1 (Elementary Tautologies): {summary['tier_1_count']}")
-    print(f"   - Tier 2 (Propositional Implication): {summary['tier_2_count']}")
-    print(f"   - Tier 3 (Algebra & Induction): {summary['tier_3_count']}")
-    print(f"   - Mean Topological Difficulty: {summary['avg_difficulty']:.2f}")
-    print(f"\n💾 Saved structured dataset to: {config.output_corpus.resolve()}")
+    if args.input:
+        input_p = Path(args.input)
+        out_dir = Path(args.output_dir)
+        print(f"Ingesting corpus dataset from: {input_p.resolve()}")
+        manifest = pipeline.ingest_and_export_curriculum(input_p, out_dir, num_tiers=args.tiers)
+        print(f"✅ Generated {args.tiers}-tier curriculum in {out_dir.resolve()}:")
+        for tier_key, data in manifest["tiers"].items():
+            print(f"   - {tier_key}: {data['count']} theorems ({Path(data['file']).name})")
+        print(f"\n💾 Saved curriculum manifest to: {(out_dir / 'curriculum_manifest.json').resolve()}")
+    else:
+        curriculum = pipeline.run_ingestion()
+        summary = curriculum.get_summary()
+        print(f"✅ Ingested {summary['total_theorems']} Mathlib theorems into CurriculumManager:")
+        print(f"   - Tier 1 (Elementary Tautologies): {summary['tier_1_count']}")
+        print(f"   - Tier 2 (Propositional Implication): {summary['tier_2_count']}")
+        print(f"   - Tier 3 (Algebra & Induction): {summary['tier_3_count']}")
+        print(f"   - Mean Topological Difficulty: {summary['avg_difficulty']:.2f}")
+        print(f"\n💾 Saved structured dataset to: {config.output_corpus.resolve()}")
 
 
 if __name__ == "__main__":

@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import torch
 from bourbakimesh.self_play import GameTrajectory, ReplayBuffer
@@ -14,7 +14,7 @@ from bourbakimesh.self_play import GameTrajectory, ReplayBuffer
 class TheoremEntry:
     """Indexed theorem record with topological metrics and associated trajectory."""
 
-    name: String
+    name: str
     type_expr: str
     trace_depth: int
     branch_count: int
@@ -52,9 +52,9 @@ class CurriculumManager:
 
     def assign_tier(self, difficulty: float) -> int:
         """Partition difficulty score into progressive curriculum tiers."""
-        if difficulty <= 3.5:
+        if difficulty <= 4.5:
             return 1  # Tier 1: Elementary identities & single-step tautologies
-        elif difficulty <= 8.0:
+        elif difficulty <= 7.5:
             return 2  # Tier 2: Multi-step propositional implication
         else:
             return 3  # Tier 3: Complex first-order logic & induction
@@ -102,7 +102,7 @@ class CurriculumManager:
         count = 0
         for item in theorems_data:
             name = item.get("name", "unknown")
-            type_expr = item.get("type_expr", "")
+            type_expr = item.get("type_expr", item.get("typeExpr", ""))
             depth = item.get("trace_depth", 1)
             branches = item.get("branch_count", 1)
             deps = item.get("dependency_count", 0)

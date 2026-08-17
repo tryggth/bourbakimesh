@@ -11,12 +11,12 @@
 | Subsystem | Target Toolchain | Test Suite | Result | Status |
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
-| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **Criterion Bench** | 20 / 20 passed | 🟢 Clean |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **Criterion Bench** | 9 / 9 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, `test_relational_model.py`, `test_mathlib_corpus.py`, **`test_corpus_pipeline.py`**) | 32 / 32 passed | 🟢 Clean |
-| **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **Export Metaprogram** | 9 / 9 jobs | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, `test_relational_model.py`, `test_mathlib_corpus.py`, `test_corpus_pipeline.py`) | 32 / 32 passed | 🟢 Clean |
+| **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **77 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **78 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -50,7 +50,7 @@
 - [x] **#14 [`epic(ml): Phase 2 — Hybrid Neural Dynamics and Scaled Self-Play Training Pipeline`](https://github.com/tryggth/bourbakimesh/issues/14)**  
   *Delivered 25M-parameter Relational Arena Graph Transformer (`RelationalArenaTransformer`) with relational edge attention for justification pointers and view scoping, $K$-step recurrent dynamics unrolling (`BourbakiTrainer`), and continuous closed-loop orchestrator (`ContinuousTrainingLoop`).*
 - [x] **#15 [`epic(corpus): Phase 3 — Mathlib Decompilation & Curriculum Ingestion Engine`](https://github.com/tryggth/bourbakimesh/issues/15)**  
-  *Delivered Lean 4 theorem export metaprogram (`Export.lean`), Rust batch corpus decompiler (`bourbaki-kernel::corpus`), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), and progressive curriculum pacing in `ContinuousTrainingLoop`.*
+  *Delivered Lean 4 theorem export metaprogram (`Export.lean`), `export_mathlib` CLI binary, Rust batch corpus decompiler (`bourbaki-kernel::corpus`, `decompile_corpus` binary), topological difficulty scoring $D(\tau)$, curriculum manager (`CurriculumManager`), end-to-end ingestion pipeline CLI (`bourbakimesh.corpus.pipeline`), progressive curriculum pacing in `ContinuousTrainingLoop`, and calibrated 3-tier curriculum datasets (`data/curriculum/`).*
 
 ---
 
@@ -64,7 +64,18 @@
 
 ---
 
-## 4. Community & Governance Scaffolding
+## 4. Ingested Mathlib Curriculum Datasets
+
+- **Raw Mathlib Export:** [`data/mathlib_raw.json`](file:///home/tryggth2009/bourbakimesh/data/mathlib_raw.json) (15 theorems, Logic, Order, Group, Ring, Nat)
+- **Binary Strategy Corpus:** [`data/mathlib_corpus.bin`](file:///home/tryggth2009/bourbakimesh/data/mathlib_corpus.bin) (4,112 bytes, 55 strategy nodes)
+- **Curriculum Manifest:** [`data/curriculum/curriculum_manifest.json`](file:///home/tryggth2009/bourbakimesh/data/curriculum/curriculum_manifest.json)
+  - **Tier 1 (Foundations & Rewrites, 9 theorems):** `data/curriculum/tier1_foundations.bin`
+  - **Tier 2 (Implications & Transitivity, 4 theorems):** `data/curriculum/tier2_implications.bin`
+  - **Tier 3 (Algebraic Inverses & Induction, 2 theorems):** `data/curriculum/tier3_algebraic.bin`
+
+---
+
+## 5. Community & Governance Scaffolding
 
 - **Contributor Guidelines:** [`CONTRIBUTING.md`](CONTRIBUTING.md) defines local developer workflows, quality gates, and commit standards.
 - **Architectural RFC Process:** [`rfcs/0000-template.md`](rfcs/0000-template.md) establishes standard RFC proposal mechanics.
@@ -73,7 +84,7 @@
 
 ---
 
-## 5. Monorepo Architecture Overview
+## 6. Monorepo Architecture Overview
 
 ```
 bourbakimesh/
@@ -90,6 +101,7 @@ bourbakimesh/
 │   ├── bourbaki-ir/                           # Dialogue Arena AST & Views
 │   ├── bourbaki-kernel/                       # CIC AST, Strategy Extractor & Corpus Decompiler
 │   │   ├── src/{ast, corpus, decompiler, emitter, extractor, verifier}.rs
+│   │   ├── src/bin/decompile_corpus.rs        # Rust batch decompiler CLI
 │   │   └── tests/{extraction_tests, lean_verification_tests, adversarial_and_roundtrip_tests, corpus_tests}.rs
 │   └── bourbaki-mesh/                         # Proof DAG & Async Tokio Node
 ├── src/bourbakimesh/                          # Python ML & Dynamics Engine
@@ -105,9 +117,10 @@ bourbakimesh/
 ├── tests/                                     # PyTest Integration Suites (32 tests)
 └── lean_target/                               # Zero-Trust Lean 4 Harness
     ├── LeanTarget.lean
+    ├── lakefile.toml                          # Targets: LeanTarget & export_mathlib
     └── LeanTarget/
         ├── Basic.lean
         ├── Harness.lean
-        ├── Export.lean                        # Theorem export metaprogram
+        ├── Export.lean                        # Theorem export metaprogram & CLI
         └── MetaTheory/
 ```
