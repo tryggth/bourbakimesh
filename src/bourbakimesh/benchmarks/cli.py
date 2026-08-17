@@ -5,7 +5,10 @@ import argparse
 import json
 import os
 from dataclasses import asdict
+from pathlib import Path
+import torch
 from bourbakimesh.benchmarks.bench_engine import BenchmarkReport, BenchmarkRunner
+from bourbakimesh.models import ArenaEmbeddingConfig, BourbakiMuZero
 
 
 def print_report_table(report: BenchmarkReport) -> None:
@@ -39,11 +42,27 @@ def print_report_table(report: BenchmarkReport) -> None:
 def main() -> None:
     parser = argparse.ArgumentParser(description="BourbakiMesh Performance Benchmarking Harness")
     parser.add_argument("--quick", action="store_true", help="Run shortened smoke benchmark")
-    parser.add_argument("--output", type=str, default="benchmarks/reports/latest.json", help="Report output path")
+    parser.add_argument("--model-path", type=str, default=None, help="Path to trained model checkpoint (.pt)")
+    parser.add_argument("--simulations", type=int, default=None, help="MCTS simulation count for search benchmark")
+    parser.add_argument("--device", type=str, default="cpu", help="Compute device ('cpu', 'cuda')")
+    parser.add_argument("--output", type=str, default="reports/latest_benchmark_report.json", help="Report output path")
     args = parser.parse_args()
 
-    runner = BenchmarkRunner()
-    report = runner.run_all(quick=args.quick)
+    model = None
+    if args.model_path and Path(args.model_path).exists():
+        ckpt = torch.load(args.model_path, map_location=args.device)
+        model_config = ArenaEmbeddingConfig()
+        if "model_config" in ckpt:
+            model_config = ArenaEmbeddingConfig(**ckpt["model_config"])
+        model = BourbakiMuZero(model_config)
+        state_dict = ckpt.get("model_state_dict", ckpt)
+        model.load_state_dict(state_dict)
+        model.eval()
+        print(f"📦 Loaded checkpoint from: {args.model_path}")
+
+    runner = BenchmarkRunner(model=model)
+    sim_counts = [args.simulations] if args.simulations is not None else None
+    report = runner.run_all(quick=args.quick, simulation_counts=sim_counts)
 
     print_report_table(report)
 

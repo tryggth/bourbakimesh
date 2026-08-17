@@ -20,6 +20,8 @@ htmlcov/
 checkpoints/
 *.pt
 data/
+logs/
+reports/
 
 # Lean 4 / Lake
 lean_target/.lake/
