@@ -23,6 +23,13 @@ from .bootstrap import (
     TableauSolver,
     TableauToDialogueTranspiler,
 )
+from .training import (
+    BourbakiTrainer,
+    ReplayDataset,
+    TrajectoryWindow,
+    TrainStepResult,
+    TrainingConfig,
+)
 
 __version__ = "0.1.0"
 
@@ -51,4 +58,9 @@ __all__ = [
     "TableauSolver",
     "TableauToDialogueTranspiler",
     "SeedCorpusGenerator",
+    "ReplayDataset",
+    "TrajectoryWindow",
+    "BourbakiTrainer",
+    "TrainingConfig",
+    "TrainStepResult",
 ]

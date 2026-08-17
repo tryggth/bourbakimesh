@@ -17,6 +17,8 @@ build/
 htmlcov/
 .mypy_cache/
 .ruff_cache/
+checkpoints/
+*.pt
 
 # Lean 4 / Lake
 lean_target/.lake/
