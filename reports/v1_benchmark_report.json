@@ -1,0 +1,36 @@
+{
+  "timestamp": 1786985389.8482563,
+  "device": "cpu",
+  "neural_benchmarks": [
+    {
+      "batch_size": 1,
+      "representation_ms_p50": 0.773,
+      "dynamics_ms_p50": 0.24,
+      "prediction_ms_p50": 0.196,
+      "total_throughput_fps": 2296.3
+    },
+    {
+      "batch_size": 16,
+      "representation_ms_p50": 1.909,
+      "dynamics_ms_p50": 0.576,
+      "prediction_ms_p50": 0.48,
+      "total_throughput_fps": 15153.0
+    },
+    {
+      "batch_size": 64,
+      "representation_ms_p50": 2.422,
+      "dynamics_ms_p50": 0.633,
+      "prediction_ms_p50": 0.528,
+      "total_throughput_fps": 55147.3
+    }
+  ],
+  "mcts_benchmarks": [
+    {
+      "num_simulations": 100,
+      "total_time_ms": 139.85,
+      "simulations_per_sec": 715.0,
+      "proponent_root_value": 0.03
+    }
+  ],
+  "cse_score": 1.43
+}

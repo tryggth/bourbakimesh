@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 import torch
 from torch.utils.data import DataLoader
 from bourbakimesh.benchmarks.bench_engine import BenchmarkReport, BenchmarkRunner
+from bourbakimesh.benchmarks.tournament import ModelTournament
 from bourbakimesh.bootstrap import SeedCorpusGenerator
 from bourbakimesh.corpus.curriculum import CurriculumManager
 from bourbakimesh.latent_mcts import MCTSConfig
@@ -34,6 +35,8 @@ class LoopConfig:
     buffer_capacity: int = 1000
     target_temperature: float = 0.5
     verified_boost: float = 5.0
+    champion_gating: bool = True
+    gating_matches: int = 6
     feature_dim: int = 32
     action_space_size: int = 16
 
@@ -55,6 +58,7 @@ class IterationMetrics:
     eval_cse_score: Optional[float] = None
     eval_sims_per_sec: Optional[float] = None
     promoted: bool = False
+    gating_win_rate: Optional[float] = None
 
 
 class ContinuousTrainingLoop:
@@ -213,17 +217,63 @@ class ContinuousTrainingLoop:
 
         # 7. Checkpoint Management & Model Promotion
         promoted = False
+        gating_win_rate: Optional[float] = None
         iter_ckpt_path = self.checkpoint_dir / f"checkpoint_iter_{iter_idx}.pt"
         self.trainer.save_checkpoint(iter_ckpt_path, extra_meta={"iteration": iter_idx})
 
-        if epoch_res.total_loss < self.best_loss or iter_idx == 1:
+        best_ckpt_path = self.checkpoint_dir / "best_model.pt"
+
+        if iter_idx == 1 and not best_ckpt_path.exists():
             self.best_loss = epoch_res.total_loss
             promoted = True
-            best_ckpt_path = self.checkpoint_dir / "best_model.pt"
             self.trainer.save_checkpoint(
                 best_ckpt_path,
                 extra_meta={"iteration": iter_idx, "best_loss": self.best_loss},
             )
+        elif self.config.champion_gating and best_ckpt_path.exists():
+            try:
+                device_str = str(self.trainer.device)
+                incumbent = BourbakiMuZero.load_from_checkpoint(
+                    best_ckpt_path, map_location=device_str
+                )
+                props = ModelTournament.default_propositions()[: max(1, self.config.gating_matches // 2)]
+                tourney = ModelTournament(
+                    {"candidate": self.model, "incumbent": incumbent},
+                    propositions=props,
+                    simulations=min(50, self.config.simulations_per_move),
+                    device=device_str,
+                )
+                report = tourney.run_tournament()
+                cand_summary = report.summaries.get("candidate")
+                if cand_summary:
+                    gating_win_rate = cand_summary.win_rate
+                    if cand_summary.win_rate > 0.5:
+                        self.best_loss = epoch_res.total_loss
+                        promoted = True
+                        self.trainer.save_checkpoint(
+                            best_ckpt_path,
+                            extra_meta={
+                                "iteration": iter_idx,
+                                "best_loss": self.best_loss,
+                                "gating_win_rate": gating_win_rate,
+                            },
+                        )
+            except Exception:
+                if epoch_res.total_loss < self.best_loss:
+                    self.best_loss = epoch_res.total_loss
+                    promoted = True
+                    self.trainer.save_checkpoint(
+                        best_ckpt_path,
+                        extra_meta={"iteration": iter_idx, "best_loss": self.best_loss},
+                    )
+        else:
+            if epoch_res.total_loss < self.best_loss:
+                self.best_loss = epoch_res.total_loss
+                promoted = True
+                self.trainer.save_checkpoint(
+                    best_ckpt_path,
+                    extra_meta={"iteration": iter_idx, "best_loss": self.best_loss},
+                )
 
         metrics = IterationMetrics(
             iteration=iter_idx,
@@ -239,6 +289,7 @@ class ContinuousTrainingLoop:
             eval_cse_score=eval_cse,
             eval_sims_per_sec=eval_sims,
             promoted=promoted,
+            gating_win_rate=gating_win_rate,
         )
 
         self.history.append(metrics)

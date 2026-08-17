@@ -13,10 +13,10 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **Criterion Bench** | 15 / 15 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 41 / 41 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 43 / 43 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **93 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **95 passed (0 failed, 0 warnings)**
 
 ---
 
@@ -24,13 +24,14 @@
 
 | Model Checkpoint | Parameters & Architecture | Bayesian Elo Rating (±95% CI) | Match Record (W-L-D) | Tier 1 Solve | Tier 2 Solve | Tier 3 Solve | Search Throughput (CPU) | CSE Score | Status |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
-| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1569.5** (±127.1) | 21-9-0 (70.0%) | 72.2% | 75.0% | 50.0% | 1,490.3 sims/sec (50 sims) | 2.981x | 🟢 Promoted Baseline |
-| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1430.5** (±127.1) | 9-21-0 (30.0%) | 27.8% | 25.0% | 50.0% | 715.0 sims/sec (100 sims) | 1.430x | 🟢 Fine-Tuned Active |
+| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1485.0** (±86.1) | 28-32-0 (46.7%) | 44.4% | 37.5% | 75.0% | 1,490.3 sims/sec (50 sims) | 2.981x | 🟢 Baseline |
+| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1530.0** (±86.5) | 34-26-0 (56.7%) | 61.1% | 62.5% | 25.0% | 715.0 sims/sec (100 sims) | 1.430x | 🟢 Fine-Tuned Active |
+| [`checkpoints/bourbaki_v2.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v2.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | **1485.0** (±86.1) | 28-32-0 (46.7%) | 44.4% | 50.0% | 50.0% | 1,002.2 sims/sec (100 sims) | 1.580x | 🟢 Gated PER Active |
 
 - **Release Distribution:** Tagged release [`v0.1.0-alpha`](https://github.com/tryggth/bourbakimesh/releases/tag/v0.1.0-alpha).
 - **Download CLI:** `gh release download v0.1.0-alpha --dir checkpoints/`
 - **Checksum Manifest:** [`checkpoints/CHECKSUMS.txt`](file:///home/tryggth2009/bourbakimesh/checkpoints/CHECKSUMS.txt)
-- **Tournament Report:** [`reports/tournament_v0_v1.json`](file:///home/tryggth2009/bourbakimesh/reports/tournament_v0_v1.json) (30 paired games over 15 Mathlib curriculum propositions).
+- **Tournament Report:** [`reports/tournament_v0_v1_v2.json`](file:///home/tryggth2009/bourbakimesh/reports/tournament_v0_v1_v2.json) (90 paired games across 3 models over 15 Mathlib curriculum propositions).
 
 ---
 
@@ -71,6 +72,10 @@
   *Delivered weighted experience replay sampling with 5.0x boost for Lean 4-verified proof traces, ensuring synthetic tableau anchors and curriculum demonstrations maintain policy anchor.*
 - [x] **#25 [`feat(ml): Temperature-Scaled Target Distributions and Policy Sharpness Control`](https://github.com/tryggth/bourbakimesh/issues/25)**  
   *Delivered $\pi_{\text{target}}(a) \propto N(s, a)^{1/\tau}$ temperature scaling ($\tau = 0.5$) in self-play worker to prevent policy prior flattening and maintain sharp action selection.*
+- [x] **#26 [`feat(training): Continuous Champion Gating via Head-to-Head Tournament Validation`](https://github.com/tryggth/bourbakimesh/issues/26)**  
+  *Delivered automated head-to-head tournament gating in `ContinuousTrainingLoop`, ensuring candidate checkpoints outperform the incumbent champion prior to promotion.*
+- [x] **#27 [`feat(ml): Train and Certify bourbaki_v2.pt with Calibrated Gated Pipeline`](https://github.com/tryggth/bourbakimesh/issues/27)**  
+  *Delivered 40-iteration continuous training run certified as `checkpoints/bourbaki_v2.pt` with PER, temperature scaling ($\tau=0.5$), champion gating, and 3-way tournament benchmark.*
 
 ---
 
@@ -84,8 +89,6 @@
 | **[#20](https://github.com/tryggth/bourbakimesh/issues/20)** | **`feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero`** | Python / MCTS / Arena IR / RFC 0002 | 🔬 Active R&D |
 | **[#21](https://github.com/tryggth/bourbakimesh/issues/21)** | **`feat(infra): Multi-Tier Model Registry & Release Asset Distribution Pipeline`** | CI/CD / GitHub Releases / Hugging Face / P2P | 📋 Backlog |
 | **[#22](https://github.com/tryggth/bourbakimesh/issues/22)** | **`feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker`** | Rust / libp2p / Python FFI | 📋 Backlog |
-| **[#26](https://github.com/tryggth/bourbakimesh/issues/26)** | **`feat(training): Continuous Champion Gating via Head-to-Head Tournament Validation`** | Training / Benchmarks / Elo | 📋 Backlog |
-| **[#27](https://github.com/tryggth/bourbakimesh/issues/27)** | **`feat(ml): Train and Certify bourbaki_v2.pt with Calibrated Gated Pipeline`** | ML / Training / Certification | 📋 Backlog |
 
 ---
 

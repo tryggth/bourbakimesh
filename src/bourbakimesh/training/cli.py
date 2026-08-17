@@ -33,6 +33,8 @@ def main() -> None:
     )
     parser.add_argument("--target-temperature", "--temperature", dest="target_temperature", type=float, default=0.5, help="Policy target temperature scaling (default: 0.5)")
     parser.add_argument("--verified-boost", type=float, default=5.0, help="Sampling weight multiplier for verified proof traces (default: 5.0)")
+    parser.add_argument("--champion-gating", action=argparse.BooleanOptionalAction, default=True, help="Validate candidate model against incumbent before checkpoint promotion (default: True)")
+    parser.add_argument("--gating-matches", type=int, default=6, help="Number of evaluation matches for champion gating (default: 6)")
     parser.add_argument("--device", type=str, default="cpu", help="Compute device ('cpu', 'cuda')")
     args = parser.parse_args()
 
@@ -83,6 +85,8 @@ def main() -> None:
         initial_checkpoint=args.initial_checkpoint,
         target_temperature=args.target_temperature,
         verified_boost=args.verified_boost,
+        champion_gating=args.champion_gating,
+        gating_matches=args.gating_matches,
     )
 
     loop = ContinuousTrainingLoop(config=config, curriculum=curriculum)
