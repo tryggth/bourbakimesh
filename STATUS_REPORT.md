@@ -13,10 +13,10 @@
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Tier 3a Proptest** + **Criterion Bench** | 16 / 16 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Criterion Bench** | 21 / 21 passed | 🟢 Clean |
 | **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **Criterion Bench** | 9 / 9 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_latent_mcts.py`, `test_mesh_bridge.py`, `test_smoke.py`, `test_training.py`, `test_train_loop.py`, `test_relational_model.py`, `test_mathlib_corpus.py`, `test_corpus_pipeline.py`) | 32 / 32 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_relational_model.py`, `test_smoke.py`, `test_train_loop.py`, `test_training.py`) | 34 / 34 passed | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **78 passed (0 failed, 0 warnings)**
+**Total Workspace Test Count:** **80 passed (0 failed, 0 warnings)**
 
 ---
 
