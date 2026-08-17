@@ -1,51 +1,6 @@
 # BourbakiMesh Open Tickets Inventory
-**Generated:** Mon Aug 17 05:52:38 PM UTC 2026
+**Generated:** Mon Aug 17 06:30:30 PM UTC 2026
 **Repository:** https://github.com/tryggth/bourbakimesh
-
-## Issue #23: test(bench): Scaled Self-Play Tournament & Elo Evaluation Harness
-**URL:** https://github.com/tryggth/bourbakimesh/issues/23
-**Labels:** ml, benchmarks
-
-### Current Body
-### Objective
-Construct an automated head-to-head tournament evaluation harness to track empirical Bayesian Elo ratings, theorem solve rates, and search efficiency gains across model generations (`bourbaki_v0.pt` vs `bourbaki_v1.pt` vs `v2`).
-
----
-
-### Tournament Specifications
-- **Engine (`src/bourbakimesh/benchmarks/tournament.py`):** Head-to-head pairing over standard 50-theorem proposition datasets with randomized Proponent/Opponent polarities.
-- **Metrics Tracked:**
-  - Bayesian Elo rating and 95% confidence intervals.
-  - Tier-by-tier solve rate (Foundations, Implications, Algebraic).
-  - Compute Simulation Equivalent (CSE) score.
-  - Average proof length (ply count) and extraction latency.
-- **Reporting:** Automated Markdown summary table and JSON export saved to `reports/`.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **Tournament Engine (`src/bourbakimesh/benchmarks/tournament.py`):**
-   - Implement `ModelTournament` running paired games between model checkpoints on standard proposition suites.
-2. **Bayesian Elo Tracker (`src/bourbakimesh/benchmarks/elo.py`):**
-   - Compute maximum likelihood Elo ratings from tournament game win/loss/draw matrices.
-3. **Tournament CLI (`src/bourbakimesh/benchmarks/tournament_cli.py`):**
-   - CLI accepting `--models checkpoints/bourbaki_v0.pt checkpoints/bourbaki_v1.pt --simulations 100 --output reports/tournament_v0_v1.json`.
-4. **Integration Test (`tests/test_tournament.py`):**
-   - Verify paired games, score tabulation, and Elo calculation.
-
-#### 2. Verification Commands
-- `.venv/bin/pytest tests/test_tournament.py`
-- `.venv/bin/python -m bourbakimesh.benchmarks.tournament_cli --models checkpoints/bourbaki_v0.pt checkpoints/bourbaki_v1.pt --output reports/tournament_v0_v1.json`
-
-#### 3. Commit
-`test(bench): implement automated head-to-head tournament and Bayesian Elo evaluator (fixes #23)`
-```
-
-
----
 
 ## Issue #22: feat(mesh): Implement standalone bourbaki-daemon with embedded MCTS worker
 **URL:** https://github.com/tryggth/bourbakimesh/issues/22
