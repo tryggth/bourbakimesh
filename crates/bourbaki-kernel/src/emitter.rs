@@ -1,8 +1,49 @@
-//! Lean 4 syntax emitter converting CIC terms into valid Lean 4 code.
+//! Pluggable universal proof emitter architecture and Lean 4 reference emitter.
 
 use crate::ast::{MatchCase, Term, Universe};
+use crate::extractor::{ExtractionError, StrategyExtractor};
+use bourbaki_ir::StrategyTree;
+use thiserror::Error;
 
-/// Trait for emitting Lean 4 source syntax.
+/// Error occurring during term or strategy emission to target proof assistants.
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum EmissionError {
+    #[error("Strategy extraction failed: {0}")]
+    Extraction(#[from] ExtractionError),
+
+    #[error("Unsupported construct in target {target}: {details}")]
+    Unsupported {
+        target: &'static str,
+        details: String,
+    },
+
+    #[error("Emission formatting error: {0}")]
+    Formatting(String),
+}
+
+/// Pluggable proof emitter trait compiling CIC AST terms and game-semantic strategies
+/// into target proof assistant syntaxes (Lean 4, Coq, Isabelle/HOL, Dedukti).
+pub trait ProofEmitter: Send + Sync {
+    /// Emit target-specific syntax for a CIC term.
+    fn emit_term(&self, term: &Term) -> Result<String, EmissionError>;
+
+    /// Extract and emit target-specific syntax for a game-semantic strategy tree $\mathcal{E}(\sigma)$.
+    fn emit_strategy(&self, strategy: &StrategyTree) -> Result<String, EmissionError> {
+        let term = StrategyExtractor::compile_strategy(strategy)?;
+        self.emit_term(&term)
+    }
+
+    /// Emit a complete theorem / lemma declaration in target syntax.
+    fn emit_theorem(&self, name: &str, ty: &Term, proof: &Term) -> Result<String, EmissionError>;
+
+    /// Target language / proof assistant name (e.g. "Lean 4", "Coq", "Isabelle/HOL", "Dedukti").
+    fn target_name(&self) -> &'static str;
+
+    /// File extension for this target language (e.g. "lean", "v", "thy", "dk").
+    fn file_extension(&self) -> &'static str;
+}
+
+/// Trait for emitting Lean 4 source syntax (backward-compatible convenience trait).
 pub trait ToLean {
     /// Emit Lean 4 source code representation.
     fn to_lean_string(&self) -> String;
@@ -45,7 +86,7 @@ impl ToLean for MatchCase {
     }
 }
 
-/// Helper formatting terms with precedence levels to minimize redundant parentheses.
+/// Helper formatting terms with precedence levels for Lean 4.
 /// Precedence levels:
 /// 0: Top level (Let, Match, Lam)
 /// 1: Arrow / Pi (->)
