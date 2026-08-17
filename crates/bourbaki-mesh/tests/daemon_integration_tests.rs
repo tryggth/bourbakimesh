@@ -98,7 +98,10 @@ async fn test_daemon_loopback_task_claiming_and_proof_gossip() {
     })
     .await;
 
-    assert!(connected.is_ok(), "Daemon A and Daemon B connection / subscription timed out");
+    assert!(
+        connected.is_ok(),
+        "Daemon A and Daemon B connection / subscription timed out"
+    );
 
     // Wait for GossipSub mesh stabilization
     tokio::time::sleep(Duration::from_millis(300)).await;
@@ -145,8 +148,16 @@ async fn test_daemon_loopback_task_claiming_and_proof_gossip() {
     let a_guard = ledger_a.read().unwrap();
     let b_guard = ledger_b.read().unwrap();
 
-    assert_eq!(a_guard.len(), 2, "Ledger A should contain Genesis + Proven Block");
-    assert_eq!(b_guard.len(), 2, "Ledger B should contain Genesis + Proven Block");
+    assert_eq!(
+        a_guard.len(),
+        2,
+        "Ledger A should contain Genesis + Proven Block"
+    );
+    assert_eq!(
+        b_guard.len(),
+        2,
+        "Ledger B should contain Genesis + Proven Block"
+    );
 
     let proven_block_b = b_guard
         .get_block_ids()
@@ -154,7 +165,9 @@ async fn test_daemon_loopback_task_claiming_and_proof_gossip() {
         .find(|id| id != &ProofBlock::genesis("True").id)
         .expect("Missing proven block in B");
 
-    let block_data_a = a_guard.get_block(&proven_block_b).expect("Missing block in A");
+    let block_data_a = a_guard
+        .get_block(&proven_block_b)
+        .expect("Missing block in A");
     assert_eq!(block_data_a.theorem_name, "thm_identity");
     assert_eq!(block_data_a.statement, "P -> P");
     assert!(block_data_a.certified);

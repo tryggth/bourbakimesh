@@ -1,6 +1,7 @@
 //! Decentralized Peer-to-Peer (P2P) proof search protocol using libp2p GossipSub and Kademlia DHT.
 
 use crate::block::{BlockId, ProofBlock};
+pub use crate::chunks::{ChunkGossipMessage, ModelChunk, TOPIC_CHUNKS};
 use crate::consensus::{AttestationError, ProofAttestationEngine};
 use crate::dag::ProofLedger;
 use futures::StreamExt;
@@ -108,6 +109,7 @@ pub enum P2PEvent {
     TaskReceived(TaskGossipMessage),
     ProofReceived { block_id: BlockId, prover: String },
     ProofRejected { reason: String },
+    ChunkReceived { chunk: ModelChunk, sender: String },
 }
 
 /// Decentralized P2P node participating in the Bourbaki proof discovery swarm.
@@ -117,6 +119,7 @@ pub struct P2PNode {
     pub attestation_engine: Arc<ProofAttestationEngine>,
     pub tasks_topic: IdentTopic,
     pub proofs_topic: IdentTopic,
+    pub chunks_topic: IdentTopic,
 }
 
 impl P2PNode {
@@ -154,8 +157,10 @@ impl P2PNode {
 
         let tasks_topic = IdentTopic::new(TOPIC_TASKS);
         let proofs_topic = IdentTopic::new(TOPIC_PROOFS);
+        let chunks_topic = IdentTopic::new(TOPIC_CHUNKS);
         gossipsub.subscribe(&tasks_topic)?;
         gossipsub.subscribe(&proofs_topic)?;
+        gossipsub.subscribe(&chunks_topic)?;
 
         // 2. Configure Kademlia DHT
         let store = MemoryStore::new(local_peer_id);
@@ -199,12 +204,16 @@ impl P2PNode {
             attestation_engine,
             tasks_topic,
             proofs_topic,
+            chunks_topic,
         };
 
         node.swarm.listen_on(config.listen_addr)?;
 
         for (peer_id, addr) in config.bootstrap_peers {
-            node.swarm.behaviour_mut().kademlia.add_address(&peer_id, addr);
+            node.swarm
+                .behaviour_mut()
+                .kademlia
+                .add_address(&peer_id, addr);
         }
 
         Ok(node)
@@ -288,6 +297,22 @@ impl P2PNode {
         Ok(block_id)
     }
 
+    /// Broadcast a ModelChunk to the swarm.
+    pub fn broadcast_chunk(&mut self, chunk: ModelChunk) -> Result<[u8; 32], P2PError> {
+        let chunk_hash = chunk.chunk_hash;
+        let msg = ChunkGossipMessage {
+            chunk,
+            sender_peer_id: self.local_peer_id.to_string(),
+        };
+
+        let encoded = serde_json::to_vec(&msg)?;
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(self.chunks_topic.clone(), encoded)?;
+        Ok(chunk_hash)
+    }
+
     /// Step the swarm event loop and handle incoming GossipSub/Kademlia/Ping messages.
     pub async fn step(&mut self) -> Result<Option<P2PEvent>, P2PError> {
         tokio::select! {
@@ -335,6 +360,15 @@ impl P2PNode {
                                             reason: err.to_string(),
                                         }));
                                     }
+                                }
+                            }
+                        } else if message.topic == self.chunks_topic.hash() {
+                            if let Ok(chunk_msg) = serde_json::from_slice::<ChunkGossipMessage>(&message.data) {
+                                if chunk_msg.chunk.verify_hash() {
+                                    return Ok(Some(P2PEvent::ChunkReceived {
+                                        chunk: chunk_msg.chunk,
+                                        sender: chunk_msg.sender_peer_id,
+                                    }));
                                 }
                             }
                         }

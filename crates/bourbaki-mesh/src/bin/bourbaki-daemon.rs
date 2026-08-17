@@ -16,7 +16,11 @@ use std::time::Duration;
 
 /// Standalone P2P worker node daemon for the BourbakiMesh theorem proving network.
 #[derive(Parser, Debug)]
-#[command(name = "bourbaki-daemon", version = "0.1.0", about = "BourbakiMesh P2P Prover Node Daemon")]
+#[command(
+    name = "bourbaki-daemon",
+    version = "0.1.0",
+    about = "BourbakiMesh P2P Prover Node Daemon"
+)]
 pub struct DaemonCliArgs {
     /// P2P swarm listener port.
     #[arg(long, default_value_t = 9001)]
@@ -124,6 +128,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                     Ok(Some(WorkerDaemonEvent::PeerSubscribed { peer_id, topic })) => {
                         println!("📢 [SUB] Peer {} subscribed to {}", peer_id, topic);
+                    }
+                    Ok(Some(WorkerDaemonEvent::ChunkReceived { chunk, sender })) => {
+                        println!("🧩 [CHUNK] Received chunk {}/{} for {} from peer {}", chunk.chunk_index + 1, chunk.total_chunks, chunk.model_name, sender);
                     }
                     Ok(None) => {}
                     Err(err) => {

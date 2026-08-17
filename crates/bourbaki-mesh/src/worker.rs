@@ -4,9 +4,7 @@ use crate::block::{BlockId, ProofBlock};
 use crate::dag::ProofLedger;
 use crate::p2p::{P2PConfig, P2PError, P2PEvent, P2PNode};
 use crate::protocol::{WorkerCommand, WorkerResponse};
-use bourbaki_ir::{
-    LogicalPayload, Move, MoveKind, Polarity, StrategyNode, StrategyTree,
-};
+use bourbaki_ir::{LogicalPayload, Move, MoveKind, Polarity, StrategyNode, StrategyTree};
 use bourbaki_kernel::ast::Term;
 use bourbaki_kernel::extractor::StrategyExtractor;
 use bourbaki_kernel::verifier::LeanEnvironment;
@@ -105,6 +103,10 @@ pub enum WorkerDaemonEvent {
     ProofReceived {
         block_id: BlockId,
         prover: String,
+    },
+    ChunkReceived {
+        chunk: crate::chunks::ModelChunk,
+        sender: String,
     },
 }
 
@@ -258,9 +260,9 @@ impl MeshWorkerDaemon {
                 // 2. Identify parent ledger tip dependencies
                 let parent_ids = {
                     let l = self.node.ledger();
-                    let guard = l.read().map_err(|_| {
-                        P2PError::Init("Failed to acquire ledger read lock".into())
-                    })?;
+                    let guard = l
+                        .read()
+                        .map_err(|_| P2PError::Init("Failed to acquire ledger read lock".into()))?;
                     guard.get_tips().into_iter().take(2).collect()
                 };
 
@@ -281,7 +283,10 @@ impl MeshWorkerDaemon {
                 );
 
                 // 4. Commit to local ledger DAG
-                let block_id = self.node.attestation_engine.verify_and_commit(block.clone())?;
+                let block_id = self
+                    .node
+                    .attestation_engine
+                    .verify_and_commit(block.clone())?;
 
                 // 5. Gossip attested block to the swarm
                 self.node.broadcast_proof(block)?;
@@ -308,6 +313,9 @@ impl MeshWorkerDaemon {
             Some(P2PEvent::ProofRejected { reason }) => {
                 tracing::warn!("Proof rejected during gossip: {}", reason);
                 Ok(None)
+            }
+            Some(P2PEvent::ChunkReceived { chunk, sender }) => {
+                Ok(Some(WorkerDaemonEvent::ChunkReceived { chunk, sender }))
             }
             None => Ok(None),
         }

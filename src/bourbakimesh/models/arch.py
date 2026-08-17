@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 import math
-from typing import Optional, Tuple
+from pathlib import Path
+from typing import Optional, Tuple, Union
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -107,14 +108,12 @@ class RelationalMultiheadAttention(nn.Module):
             # (B, N, N, d_k)
             r_k = self.rel_k_embed(relation_matrix)
             # (B, H, N, N) relational key score: sum_d (q_{b, h, i, d} * r_k_{b, i, j, d}) * scale
-            # q: (B, H, N, 1, d_k), r_k: (B, 1, N, N, d_k)
             q_expanded = q.unsqueeze(3)
             r_k_expanded = r_k.unsqueeze(1)
             rel_scores = (q_expanded * r_k_expanded).sum(dim=-1) * self.scale
             scores = scores + rel_scores
 
         if key_padding_mask is not None:
-            # key_padding_mask: (B, N) -> (B, 1, 1, N)
             mask = key_padding_mask.unsqueeze(1).unsqueeze(2)
             scores = scores.masked_fill(mask, float("-inf"))
 
@@ -125,7 +124,6 @@ class RelationalMultiheadAttention(nn.Module):
         out = torch.matmul(attn_weights, v)  # (B, H, N, d_k)
 
         if relation_matrix is not None:
-            # Add relational value bias: sum_j attn_{b, h, i, j} * r_v_{b, i, j, d}
             r_v = self.rel_v_embed(relation_matrix).unsqueeze(1)  # (B, 1, N, N, d_k)
             rel_v_out = (attn_weights.unsqueeze(-1) * r_v).sum(dim=3)  # (B, H, N, d_k)
             out = out + rel_v_out
@@ -171,7 +169,6 @@ class RelationalTransformerLayer(nn.Module):
         relation_matrix: Optional[torch.Tensor] = None,
         key_padding_mask: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        # Pre-LN Self-Attention
         norm_x = self.ln1(x)
         attn_out = self.self_attn(
             norm_x,
@@ -179,8 +176,6 @@ class RelationalTransformerLayer(nn.Module):
             key_padding_mask=key_padding_mask,
         )
         x = x + self.dropout1(attn_out)
-
-        # Pre-LN Feedforward
         x = x + self.dropout2(self.ffn(self.ln2(x)))
         return x
 
@@ -227,13 +222,6 @@ class RelationalArenaTransformer(nn.Module):
         relation_matrix: Optional[torch.Tensor] = None,
         polarities: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
-        """
-        Args:
-            obs: (B, feature_dim) or (B, N, feature_dim)
-            relation_matrix: Optional (B, N, N) relation tensor
-            polarities: Optional (B, N) polarities (-1, 0, +1)
-        """
-        # Handle 2D flat observations: (B, feature_dim) -> (B, 1, feature_dim)
         if obs.dim() == 2:
             obs = obs.unsqueeze(1)
 
@@ -249,14 +237,12 @@ class RelationalArenaTransformer(nn.Module):
 
         # Polarity Embeddings
         if polarities is not None:
-            # Map [-1, 0, 1] to [0, 1, 2]
             pol_indices = (polarities + 1).long().clamp(0, 2)
             x = x + self.polarity_embed(pol_indices)
 
         # Default sequential relation matrix if none provided
         if relation_matrix is None and N > 1:
             rel_mat = torch.zeros((B, N, N), dtype=torch.long, device=device)
-            # Relation 0: Sequential adjacency
             for i in range(N - 1):
                 rel_mat[:, i, i + 1] = 1
             relation_matrix = rel_mat
@@ -266,8 +252,6 @@ class RelationalArenaTransformer(nn.Module):
             x = layer(x, relation_matrix=relation_matrix)
 
         x = self.final_ln(x)
-
-        # Permutation-invariant attentive/mean pooling across sequence
         pooled = x.mean(dim=1)  # (B, d_model)
         raw_latent = self.pool_head(pooled)
         return normalize_latent(raw_latent)
@@ -391,7 +375,7 @@ class BourbakiMuZero(nn.Module):
     @classmethod
     def load_from_checkpoint(
         cls,
-        path: str | Path,
+        path: Union[str, Path],
         map_location: str = "cpu",
     ) -> BourbakiMuZero:
         """Load BourbakiMuZero model from checkpoint with automatic architecture inference."""
@@ -410,12 +394,10 @@ class BourbakiMuZero(nn.Module):
                 if cfg_key in ckpt and isinstance(ckpt[cfg_key], dict):
                     try:
                         cfg_dict = ckpt[cfg_key]
-                        # Filter to only valid fields of ArenaEmbeddingConfig
                         valid_fields = set(ArenaEmbeddingConfig.model_fields.keys())
                         filtered_cfg = {k: v for k, v in cfg_dict.items() if k in valid_fields}
                         candidate = ArenaEmbeddingConfig(**filtered_cfg)
 
-                        # Verify candidate against tensor dimensions
                         if "representation.token_proj.weight" in state_dict:
                             w = state_dict["representation.token_proj.weight"]
                             if w.shape[0] == candidate.hidden_dim and w.shape[1] == candidate.feature_dim:

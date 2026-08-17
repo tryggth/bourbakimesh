@@ -77,23 +77,25 @@ impl ProofAttestationEngine {
         // 3. Genesis block bypass
         if block.parent_ids.is_empty() && block.theorem_name == "Bourbaki.Genesis" {
             block.certified = true;
-            let mut l = self.ledger.write().map_err(|_| {
-                LedgerError::InvalidBlockHash {
+            let mut l = self
+                .ledger
+                .write()
+                .map_err(|_| LedgerError::InvalidBlockHash {
                     expected: block.id,
                     computed,
-                }
-            })?;
+                })?;
             return Ok(l.insert_block(block)?);
         }
 
         // 4. Verify parent dependencies exist in ledger
         {
-            let l = self.ledger.read().map_err(|_| {
-                LedgerError::InvalidBlockHash {
+            let l = self
+                .ledger
+                .read()
+                .map_err(|_| LedgerError::InvalidBlockHash {
                     expected: block.id,
                     computed,
-                }
-            })?;
+                })?;
             for pid in &block.parent_ids {
                 if !l.contains_block(pid) {
                     return Err(AttestationError::MissingParent(*pid));
@@ -140,12 +142,13 @@ impl ProofAttestationEngine {
         }
 
         // 6. Commit block to local ProofLedger DAG
-        let mut l = self.ledger.write().map_err(|_| {
-            LedgerError::InvalidBlockHash {
+        let mut l = self
+            .ledger
+            .write()
+            .map_err(|_| LedgerError::InvalidBlockHash {
                 expected: block.id,
                 computed,
-            }
-        })?;
+            })?;
         let id = l.insert_block(block)?;
         Ok(id)
     }
@@ -162,7 +165,9 @@ mod tests {
         let engine = ProofAttestationEngine::new(ledger.clone(), None);
 
         let genesis = ProofBlock::genesis("True");
-        let genesis_id = engine.verify_and_commit(genesis).expect("Genesis commit failed");
+        let genesis_id = engine
+            .verify_and_commit(genesis)
+            .expect("Genesis commit failed");
         assert!(ledger.read().unwrap().contains_block(&genesis_id));
 
         let valid_term = Term::lam("x", Term::var("A"), Term::var("x"));
@@ -175,7 +180,9 @@ mod tests {
             true,
             1700000005,
         );
-        let block_id = engine.verify_and_commit(valid_block).expect("Block commit failed");
+        let block_id = engine
+            .verify_and_commit(valid_block)
+            .expect("Block commit failed");
         assert!(ledger.read().unwrap().contains_block(&block_id));
     }
 
@@ -198,7 +205,10 @@ mod tests {
         );
 
         let res = engine.verify_and_commit(fake_block);
-        assert!(matches!(res, Err(AttestationError::ByzantineFalseTheorem(_))));
+        assert!(matches!(
+            res,
+            Err(AttestationError::ByzantineFalseTheorem(_))
+        ));
     }
 
     #[test]

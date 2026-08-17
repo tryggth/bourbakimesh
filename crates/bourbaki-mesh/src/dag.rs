@@ -133,4 +133,3 @@ impl ProofLedger {
         Ok(())
     }
 }
-
