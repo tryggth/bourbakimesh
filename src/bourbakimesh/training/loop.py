@@ -29,6 +29,7 @@ class LoopConfig:
     unroll_steps: int = 3
     learning_rate: float = 1e-3
     checkpoint_dir: Path = field(default_factory=lambda: Path("checkpoints"))
+    initial_checkpoint: Optional[str | Path] = None
     eval_bench_interval: int = 1
     buffer_capacity: int = 1000
     feature_dim: int = 32
@@ -66,16 +67,25 @@ class ContinuousTrainingLoop:
         self.config = config or LoopConfig()
         self.checkpoint_dir = Path(self.config.checkpoint_dir)
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+        device = "cuda" if torch.cuda.is_available() else "cpu"
 
         if model is None:
-            model_config = ArenaEmbeddingConfig(
-                feature_dim=self.config.feature_dim,
-                latent_dim=64,
-                action_space_size=self.config.action_space_size,
-                hidden_dim=128,
-                num_res_blocks=2,
-            )
-            self.model = BourbakiMuZero(model_config)
+            if self.config.initial_checkpoint and Path(self.config.initial_checkpoint).exists():
+                self.model = BourbakiMuZero.load_from_checkpoint(
+                    self.config.initial_checkpoint,
+                    map_location=device,
+                )
+                self.config.feature_dim = self.model.config.feature_dim
+                self.config.action_space_size = self.model.config.action_space_size
+            else:
+                model_config = ArenaEmbeddingConfig(
+                    feature_dim=self.config.feature_dim,
+                    latent_dim=64,
+                    action_space_size=self.config.action_space_size,
+                    hidden_dim=128,
+                    num_res_blocks=2,
+                )
+                self.model = BourbakiMuZero(model_config)
         else:
             self.model = model
 

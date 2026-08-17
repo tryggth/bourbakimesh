@@ -133,3 +133,50 @@ def test_replay_buffer_capacity_bounding():
 
     assert len(buffer) == 5
     assert len(buffer.trajectories) == 5
+
+
+def test_continuous_training_loop_from_initial_checkpoint(temp_checkpoint_dir):
+    """Verify ContinuousTrainingLoop initializes and fine-tunes from an initial checkpoint."""
+    # 1. Create and save a baseline model
+    model_config = ArenaEmbeddingConfig(
+        feature_dim=16,
+        latent_dim=32,
+        action_space_size=8,
+        hidden_dim=32,
+        num_res_blocks=1,
+    )
+    base_model = BourbakiMuZero(model_config)
+    seed_ckpt_path = temp_checkpoint_dir / "seed_model.pt"
+    torch.save(
+        {
+            "model_state_dict": base_model.state_dict(),
+            "model_config": model_config.model_dump(),
+        },
+        seed_ckpt_path,
+    )
+
+    # 2. Configure training loop pointing to the initial checkpoint
+    config = LoopConfig(
+        iterations=1,
+        self_play_games_per_iter=2,
+        tableau_seeds_per_iter=2,
+        train_epochs_per_iter=1,
+        simulations_per_move=10,
+        batch_size=4,
+        unroll_steps=2,
+        checkpoint_dir=temp_checkpoint_dir,
+        initial_checkpoint=seed_ckpt_path,
+    )
+
+    loop = ContinuousTrainingLoop(config=config)
+
+    # Verify loaded model architecture
+    assert loop.model.config.feature_dim == 16
+    assert loop.model.config.latent_dim == 32
+    assert loop.model.config.action_space_size == 8
+
+    # 3. Run training iteration
+    metrics = loop.run_iteration(1)
+    assert metrics.iteration == 1
+    assert metrics.train_loss > 0
+    assert metrics.games_generated == 2

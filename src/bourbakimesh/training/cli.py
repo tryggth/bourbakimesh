@@ -23,6 +23,14 @@ def main() -> None:
     parser.add_argument("--lr", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--checkpoint-dir", type=str, default="checkpoints", help="Output directory for checkpoints")
     parser.add_argument("--curriculum-dir", type=str, default=None, help="Directory containing tiered curriculum data")
+    parser.add_argument(
+        "--initial-checkpoint",
+        "--model-path",
+        dest="initial_checkpoint",
+        type=str,
+        default=None,
+        help="Path to existing model checkpoint to resume or fine-tune from",
+    )
     parser.add_argument("--device", type=str, default="cpu", help="Compute device ('cpu', 'cuda')")
     args = parser.parse_args()
 
@@ -70,6 +78,7 @@ def main() -> None:
         unroll_steps=args.unroll_steps,
         learning_rate=args.lr,
         checkpoint_dir=Path(args.checkpoint_dir),
+        initial_checkpoint=args.initial_checkpoint,
     )
 
     loop = ContinuousTrainingLoop(config=config, curriculum=curriculum)
