@@ -20,7 +20,11 @@ fn test_batch_corpus_decompilation_and_reextraction() {
         name: "k_comb".to_string(),
         type_expr: "A -> B -> A".to_string(),
         prop_type: prop.clone(),
-        proof_term: Term::lam("a", prop.clone(), Term::lam("b", prop.clone(), Term::var("a"))),
+        proof_term: Term::lam(
+            "a",
+            prop.clone(),
+            Term::lam("b", prop.clone(), Term::var("a")),
+        ),
         dependency_count: 1,
     };
 
@@ -37,7 +41,8 @@ fn test_batch_corpus_decompilation_and_reextraction() {
     };
 
     let raw_batch = vec![id_thm, k_thm, mp_thm];
-    let dataset = CorpusDecompiler::decompile_batch(&raw_batch).expect("Batch decompilation failed");
+    let dataset =
+        CorpusDecompiler::decompile_batch(&raw_batch).expect("Batch decompilation failed");
 
     assert_eq!(dataset.theorems.len(), 3);
     assert!(dataset.total_nodes >= 6);
@@ -74,7 +79,9 @@ fn test_corpus_bincode_roundtrip() {
     let temp_dir = std::env::temp_dir();
     let bincode_path = temp_dir.join("bourbaki_mathlib_corpus_test.bin");
 
-    dataset.save_bincode(&bincode_path).expect("Save bincode failed");
+    dataset
+        .save_bincode(&bincode_path)
+        .expect("Save bincode failed");
     let loaded = CorpusDataset::load_bincode(&bincode_path).expect("Load bincode failed");
 
     assert_eq!(loaded.theorems.len(), 1);

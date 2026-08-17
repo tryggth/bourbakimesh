@@ -200,3 +200,53 @@ fn test_term_serialization_round_trip() {
     let lean_code = term.to_lean_string();
     assert!(lean_code.starts_with("fun (x : Prop) => let y : Type := x; match y with"));
 }
+
+#[test]
+fn test_compile_cut_lemma_strategy() {
+    use bourbaki_ir::cut::ArenaCut;
+
+    // Lemma: proof of True via True.intro
+    let lem_root = StrategyNode::new(Move::new(
+        1,
+        Polarity::Proponent,
+        bourbaki_ir::MoveKind::Answer,
+        Some(0),
+        LogicalPayload::ProvideWitness {
+            term_repr: "True.intro".into(),
+        },
+    ));
+    let lem_strat = StrategyTree {
+        root: Some(lem_root),
+    };
+
+    // Continuation: proof of True using lem_0
+    let cont_root = StrategyNode::new(Move::new(
+        2,
+        Polarity::Proponent,
+        bourbaki_ir::MoveKind::Answer,
+        Some(0),
+        LogicalPayload::ProvideWitness {
+            term_repr: "lem_0".into(),
+        },
+    ));
+    let cont_strat = StrategyTree {
+        root: Some(cont_root),
+    };
+
+    let cut = ArenaCut::new(0, "True", lem_strat, cont_strat);
+    let fused_tree = cut.into_strategy_tree();
+
+    let term = StrategyExtractor::compile_strategy(&fused_tree).expect("Cut compilation failed");
+    let lean_code = term.to_lean_string();
+
+    assert_eq!(lean_code, "let lem_0 : True := True.intro; lem_0");
+    match term {
+        Term::Let(name, ty, val, body) => {
+            assert_eq!(name, "lem_0");
+            assert_eq!(*ty, Term::Var("True".into()));
+            assert_eq!(*val, Term::Var("True.intro".into()));
+            assert_eq!(*body, Term::Var("lem_0".into()));
+        }
+        _ => panic!("Expected Let"),
+    }
+}

@@ -161,3 +161,56 @@ fn test_lean_negative_typecheck_failure() {
         VerificationError::TypeCheckFailure { .. }
     ));
 }
+
+#[test]
+fn test_lean_verify_cut_lemma_let_binding() {
+    let env = LeanEnvironment::default_target();
+
+    // Prop type: (A : Prop) -> (B : Prop) -> (A -> B) -> A -> B
+    let prop_type = Term::pi(
+        "A",
+        Term::prop(),
+        Term::pi(
+            "B",
+            Term::prop(),
+            Term::arrow(
+                Term::arrow(Term::var("A"), Term::var("B")),
+                Term::arrow(Term::var("A"), Term::var("B")),
+            ),
+        ),
+    );
+
+    // Proof term with let-bound intermediate lemma:
+    // fun (A : Prop) => fun (B : Prop) => fun (f : A -> B) => fun (a : A) =>
+    //   let lem_0 : B := f a; lem_0
+    let proof_term = Term::lam(
+        "A",
+        Term::prop(),
+        Term::lam(
+            "B",
+            Term::prop(),
+            Term::lam(
+                "f",
+                Term::arrow(Term::var("A"), Term::var("B")),
+                Term::lam(
+                    "a",
+                    Term::var("A"),
+                    Term::let_in(
+                        "lem_0",
+                        Term::var("B"),
+                        Term::app(Term::var("f"), Term::var("a")),
+                        Term::var("lem_0"),
+                    ),
+                ),
+            ),
+        ),
+    );
+
+    let report = env
+        .verify_term("test_kernel_cut_lemma", &prop_type, &proof_term)
+        .expect("Lean 4 kernel verification of cut lemma must succeed");
+
+    assert!(report.success);
+    assert_eq!(report.theorem_name, "test_kernel_cut_lemma");
+    assert!(report.emitted_code.contains("let lem_0 : B := f a; lem_0"));
+}

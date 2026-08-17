@@ -107,6 +107,28 @@ impl StrategyExtractor {
             return Self::extract_leaf_payload(&node.current_move.payload);
         }
 
+        // Check for Cut Lemma Assertion (Rule 6: Let-binding / Cut)
+        if let LogicalPayload::AssertCutLemma {
+            lemma_id,
+            statement,
+        } = &node.current_move.payload
+        {
+            if node.children.len() >= 2 {
+                let lemma_proof = Self::compile_node(&node.children[0])?;
+                let continuation = Self::compile_node(&node.children[1])?;
+                let lemma_name = format!("lem_{}", lemma_id);
+                let lemma_type = Term::var(statement);
+                return Ok(Term::let_in(
+                    lemma_name,
+                    lemma_type,
+                    lemma_proof,
+                    continuation,
+                ));
+            } else if node.children.len() == 1 {
+                return Self::compile_node(&node.children[0]);
+            }
+        }
+
         // If the current node is an Opponent move, it binds a hypothesis / universal instantiation
         if node.current_move.player == Polarity::Opponent {
             match &node.current_move.payload {
@@ -218,6 +240,9 @@ impl StrategyExtractor {
         match payload {
             LogicalPayload::AxiomDischarge { premise_id } => {
                 Ok(Term::var(format!("hyp_{}", premise_id)))
+            }
+            LogicalPayload::AssertCutLemma { lemma_id, .. } => {
+                Ok(Term::var(format!("lem_{}", lemma_id)))
             }
             LogicalPayload::ProvideWitness { term_repr } => {
                 let trimmed = term_repr.trim();

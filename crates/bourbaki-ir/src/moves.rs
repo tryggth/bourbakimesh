@@ -40,6 +40,8 @@ pub enum LogicalPayload {
     AxiomDischarge { premise_id: usize },
     /// Attack an inductive elimination by demanding proof for a specific constructor.
     InductiveCaseDemand { constructor_idx: usize },
+    /// Assert an intermediate auxiliary cut lemma to be proved and used in subsequent moves.
+    AssertCutLemma { lemma_id: usize, statement: String },
 }
 
 /// A discrete, justified move in a Hyland-Ong / Lorenzen dialogue arena.
@@ -110,6 +112,26 @@ impl Move {
             kind: MoveKind::Answer,
             justifier: Some(justifier),
             payload,
+        }
+    }
+
+    /// Construct a cut lemma assertion move.
+    pub fn assert_cut_lemma(
+        id: usize,
+        player: Polarity,
+        justifier: Option<usize>,
+        lemma_id: usize,
+        statement: impl Into<String>,
+    ) -> Self {
+        Self {
+            id,
+            player,
+            kind: MoveKind::Answer,
+            justifier,
+            payload: LogicalPayload::AssertCutLemma {
+                lemma_id,
+                statement: statement.into(),
+            },
         }
     }
 }

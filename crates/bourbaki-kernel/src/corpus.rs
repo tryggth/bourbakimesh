@@ -156,7 +156,9 @@ impl CorpusDecompiler {
         } else if let Some(a) = parsed_val.get("theorems").and_then(|v| v.as_array()) {
             a
         } else {
-            return Err(CorpusError::ValidationFailed("Expected JSON array of theorems".to_string()));
+            return Err(CorpusError::ValidationFailed(
+                "Expected JSON array of theorems".to_string(),
+            ));
         };
 
         let prop = Term::sort(Universe::Zero);
@@ -180,7 +182,11 @@ impl CorpusDecompiler {
             let (prop_type, proof_term, deps) = if name.contains("k_comb") {
                 (
                     prop.clone(),
-                    Term::lam("a", prop.clone(), Term::lam("b", prop.clone(), Term::var("a"))),
+                    Term::lam(
+                        "a",
+                        prop.clone(),
+                        Term::lam("b", prop.clone(), Term::var("a")),
+                    ),
                     1,
                 )
             } else if name.contains("modus_ponens") {
@@ -205,7 +211,10 @@ impl CorpusDecompiler {
                             Term::lam(
                                 "a",
                                 prop.clone(),
-                                Term::app(Term::var("g"), Term::app(Term::var("f"), Term::var("a"))),
+                                Term::app(
+                                    Term::var("g"),
+                                    Term::app(Term::var("f"), Term::var("a")),
+                                ),
                             ),
                         ),
                     ),
@@ -220,7 +229,11 @@ impl CorpusDecompiler {
                         Term::lam(
                             "hstep",
                             prop.clone(),
-                            Term::lam("n", prop.clone(), Term::app(Term::var("hstep"), Term::var("n"))),
+                            Term::lam(
+                                "n",
+                                prop.clone(),
+                                Term::app(Term::var("hstep"), Term::var("n")),
+                            ),
                         ),
                     ),
                     4,

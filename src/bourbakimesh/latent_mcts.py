@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 from pydantic import BaseModel, Field
 from bourbakimesh.models import BourbakiMuZero
+from bourbakimesh.hints.policy import PolicyWarper, LemmaHintOracle
 
 
 class MCTSConfig(BaseModel):
@@ -120,6 +121,8 @@ class LatentMCTS:
         current_player: int = 1,
         num_simulations: Optional[int] = None,
         is_latent: bool = False,
+        hint_warper: Optional[PolicyWarper] = None,
+        hint_prior: Optional[np.ndarray] = None,
     ) -> np.ndarray:
         """Execute latent MCTS search and return visit count distribution over actions."""
         sims = num_simulations or self.config.num_simulations
@@ -139,13 +142,17 @@ class LatentMCTS:
             else:
                 latent_root, policy_logits, value_tensor = self.model.initial_inference(root_input)
 
-            priors = F.softmax(policy_logits[0], dim=-1).cpu().numpy()
+            raw_priors = F.softmax(policy_logits[0], dim=-1).cpu().numpy()
 
-            # Inject Dirichlet exploration noise at root
-            if self.config.exploration_fraction > 0:
+            # Apply PolicyWarper if provided, otherwise default Dirichlet noise
+            if hint_warper is not None:
+                priors = hint_warper.warp_priors(raw_priors, hint_prior)
+            elif self.config.exploration_fraction > 0:
                 noise = np.random.dirichlet([self.config.dirichlet_alpha] * action_space_size)
                 eps = self.config.exploration_fraction
-                priors = (1 - eps) * priors + eps * noise
+                priors = (1 - eps) * raw_priors + eps * noise
+            else:
+                priors = raw_priors
 
             root = Node(player=current_player)
             action_priors = {a: float(priors[a]) for a in range(action_space_size)}
@@ -203,3 +210,27 @@ class LatentMCTS:
                     return powered / powered.sum()
             else:
                 return np.ones(action_space_size, dtype=np.float32) / action_space_size
+
+    def search_with_hints(
+        self,
+        root_obs_or_latent: torch.Tensor,
+        goal_statement: str,
+        oracle: Optional[LemmaHintOracle] = None,
+        warper: Optional[PolicyWarper] = None,
+        current_player: int = 1,
+        num_simulations: Optional[int] = None,
+        is_latent: bool = False,
+    ) -> np.ndarray:
+        """Execute latent MCTS search using automated oracle hint prior computation."""
+        warper = warper or PolicyWarper()
+        oracle = oracle or LemmaHintOracle(action_space_size=self.model.config.action_space_size)
+        hint_prior = oracle.compute_hint_prior(goal_statement)
+        return self.search(
+            root_obs_or_latent=root_obs_or_latent,
+            current_player=current_player,
+            num_simulations=num_simulations,
+            is_latent=is_latent,
+            hint_warper=warper,
+            hint_prior=hint_prior,
+        )
+

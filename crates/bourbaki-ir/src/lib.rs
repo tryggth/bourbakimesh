@@ -5,6 +5,7 @@
 //! and interaction net polarity reductions.
 
 pub mod arena;
+pub mod cut;
 pub mod moves;
 pub mod net;
 pub mod polarity;
@@ -12,6 +13,7 @@ pub mod trace;
 pub mod validator;
 
 pub use arena::{ArenaDialogue, StrategyNode, StrategyTree};
+pub use cut::ArenaCut;
 pub use moves::{ConjunctionBranch, LogicalPayload, Move, MoveKind};
 pub use net::{InteractionNet, NetAgent, Port};
 pub use polarity::Polarity;

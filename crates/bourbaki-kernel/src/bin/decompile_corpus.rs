@@ -1,9 +1,9 @@
 //! CLI tool for batch Mathlib proof term decompilation and binary corpus export.
 
+use bourbaki_kernel::corpus::CorpusDecompiler;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-use bourbaki_kernel::corpus::CorpusDecompiler;
 
 fn print_usage() {
     println!("Usage: decompile_corpus --input <input.json> --output <output.bin> [--threads <n>]");
@@ -65,8 +65,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fs::write(&json_meta_path, json_str)?;
 
     let meta = fs::metadata(&output_path)?;
-    println!("✅ Decompiled {} theorems into {} strategy nodes.", dataset.theorems.len(), dataset.total_nodes);
-    println!("💾 Binary corpus saved to: {:?} ({} bytes)", output_path, meta.len());
+    println!(
+        "✅ Decompiled {} theorems into {} strategy nodes.",
+        dataset.theorems.len(),
+        dataset.total_nodes
+    );
+    println!(
+        "💾 Binary corpus saved to: {:?} ({} bytes)",
+        output_path,
+        meta.len()
+    );
     println!("📄 JSON metadata saved to: {:?}", json_meta_path);
 
     Ok(())

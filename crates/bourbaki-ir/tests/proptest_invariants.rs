@@ -41,6 +41,12 @@ fn arb_logical_payload() -> impl Strategy<Value = LogicalPayload> {
         (0usize..100).prop_map(|premise_id| LogicalPayload::AxiomDischarge { premise_id }),
         (0usize..10)
             .prop_map(|constructor_idx| LogicalPayload::InductiveCaseDemand { constructor_idx }),
+        (0usize..50, "[a-zA-Z0-9_ ->]{1,15}").prop_map(|(lemma_id, statement)| {
+            LogicalPayload::AssertCutLemma {
+                lemma_id,
+                statement,
+            }
+        }),
     ]
 }
 
