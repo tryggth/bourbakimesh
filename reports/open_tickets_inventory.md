@@ -1,5 +1,5 @@
 # BourbakiMesh Open Tickets Inventory
-**Generated:** Mon Aug 17 09:40:40 PM UTC 2026
+**Generated:** Mon Aug 17 09:56:55 PM UTC 2026
 **Repository:** https://github.com/tryggth/bourbakimesh
 
 ## Issue #28: feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine
@@ -80,52 +80,6 @@ Establish automated distribution, versioning, and download pipelines for trained
 
 #### 3. Commit
 `feat(infra): implement multi-tier model pull CLI, HF sync, and P2P weight chunking (fixes #21)`
-```
-
-
----
-
-## Issue #20: feat(ml): R&D — Neural and Game-Semantic Hinting Mechanisms for BourbakiMuZero
-**URL:** https://github.com/tryggth/bourbakimesh/issues/20
-**Labels:** enhancement, ml, rfc
-
-### Current Body
-### Objective
-Design and implement a pluggable hinting architecture allowing external mathematical heuristics, SMT solvers, and asynchronous LLM teachers (e.g. Qwen-2.5-Math) to bias Latent MCTS search without violating zero-trust Lean 4 kernel soundness.
-
----
-
-### Architectural Invariants
-1. **Search Guidance Only:** Hints modify action priors ($\pi_{\text{hint}}$), state transitions, or initial arena graphs, but all extracted CIC terms $\mathcal{E}(\sigma)$ must pass unmodified zero-trust validation in Lean 4.
-2. **Four Hint Modalities:**
-   - **Policy Prior Warping:** Injecting external move priors into root MCTS: $\pi_{\text{root}}(a) \propto \pi_\theta(a)^{1-\lambda} \cdot \pi_{\text{hint}}(a)^\lambda$.
-   - **Arena Cut Injection:** Adding auxiliary Proponent lemma hypotheses $\phi \implies \psi$ with typed justification pointers to the game graph.
-   - **Conditioned Latent Dynamics:** Conditioning $g_\theta(s, a, h_{\text{hint}})$ on a dense mathematical intent vector.
-   - **SMT Refutation Clues:** Using first-order tableau refutation branches to prune Opponent search subtrees.
-
----
-
-### Embedded `agy` Execution Blueprint
-
-```markdown
-#### 1. Implementation Tasks
-1. **Design RFC-0002 (`rfcs/0002-neural-game-semantic-hinting.md`):**
-   - Formalize mathematical formulations for prior warping and arena cut injections.
-2. **Policy Prior Warper (`src/bourbakimesh/hints/policy.py`):**
-   - Implement `PolicyWarper` with temperature scaling, Dirichlet blending, and support for external action distributions.
-3. **MCTS Integration (`src/bourbakimesh/latent_mcts.py`):**
-   - Add optional `hint_warper: Optional[PolicyWarper]` to `LatentMCTS.search()`.
-4. **Integration Test Suite (`tests/test_hinting.py`):**
-   - Test that injected valid lemma hints accelerate search convergence to target theorems.
-   - Test that injecting adversarial/false hints fails gracefully without causing invalid proof extraction.
-
-#### 2. Verification Commands
-- `.venv/bin/pytest tests/test_hinting.py`
-- `.venv/bin/pytest tests/`
-- `cargo test --workspace`
-
-#### 3. Commit
-`feat(ml): implement neural policy prior warping and hinting engine (fixes #20)`
 ```
 
 
