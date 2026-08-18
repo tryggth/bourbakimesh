@@ -9,6 +9,14 @@
 
 BourbakiMesh is a high-performance, polyglot automated theorem proving and formal deduction ecosystem. It unifies **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Calculus of Inductive Constructions (CIC) proof-term extraction**, **PyTorch Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, a **libp2p peer-to-peer proof DAG ledger**, an **auto-updating WebGPU Progressive Web App (PWA)**, and a **zero-trust verification bridge targeting Lean 4, Coq, Isabelle/HOL, and Dedukti**.
 
+<p align="center">
+  <a href="https://tryggth.github.io/bourbakimesh/">
+    <img src="docs/assets/pwa-dashboard.png" alt="BourbakiMesh PWA Dialogue Arena & Visualizer" width="100%" />
+  </a>
+  <br/>
+  <em>Interactive Progressive Web App & Volunteer Prover Dashboard (<a href="https://tryggth.github.io/bourbakimesh/">tryggth.github.io/bourbakimesh</a>)</em>
+</p>
+
 ---
 
 ## 🏛️ System Architecture
