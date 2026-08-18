@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { DialogueArenaView } from './components/DialogueArenaView';
 import { ProofDagView } from './components/ProofDagView';
 import { LeaderboardView } from './components/LeaderboardView';
-import { TheoremProverView } from './components/TheoremProverView';
+import { LocalProverView } from './components/LocalProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
 import { UpdateNotification } from './components/UpdateNotification';
 import { TargetManager } from './components/TargetManager';
 import { VolunteerPanel } from './components/VolunteerPanel';
+import { GemmaEdgePanel } from './components/GemmaEdgePanel';
 import { initServiceWorker } from './registerServiceWorker';
 import {
   hydrateProofDag,
@@ -20,7 +21,6 @@ import {
   ProofBlockNode,
   ModelRanking,
   TelemetryEvent,
-  ProveResponse,
 } from './types';
 import {
   GitCommit,
@@ -32,6 +32,7 @@ import {
   Layers,
   Cpu,
   Sparkles,
+  Brain,
 } from 'lucide-react';
 
 const SAMPLE_MOVES: DialogueMove[] = [
@@ -168,13 +169,12 @@ const SAMPLE_MODELS: ModelRanking[] = [
 ];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'arena' | 'dag' | 'prover' | 'leaderboard' | 'telemetry' | 'volunteer'>('arena');
+  const [activeTab, setActiveTab] = useState<'arena' | 'dag' | 'gemma4' | 'prover' | 'leaderboard' | 'telemetry' | 'volunteer'>('arena');
   const [moves, setMoves] = useState<DialogueMove[]>(SAMPLE_MOVES);
   const [blocks, setBlocks] = useState<ProofBlockNode[]>(SAMPLE_BLOCKS);
   const [models, setModels] = useState<ModelRanking[]>(SAMPLE_MODELS);
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [isSearching, setIsSearching] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [status, setStatus] = useState<DaemonStatus>({
     status: "online",
@@ -283,39 +283,6 @@ export function App() {
     };
   }, []);
 
-  const handleProve = async (theoremName: string, proposition: string): Promise<ProveResponse | null> => {
-    setIsSearching(true);
-    try {
-      const res = await fetch('/api/prove', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theorem_name: theoremName, proposition }),
-      });
-      if (res.ok) {
-        const data: ProveResponse = await res.json();
-        if (data.dialogue && data.dialogue.length > 0) {
-          setMoves(data.dialogue);
-        }
-        return data;
-      }
-    } catch {
-      // Mock search response for standalone UI
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      return {
-        success: true,
-        theorem_name: theoremName,
-        proposition: proposition,
-        dialogue: SAMPLE_MOVES,
-        lean_code: `theorem ${theoremName.split('.').pop()} : ${proposition} := by\n  exact (fun a => fun b => And.intro a b)`,
-        verified_in_lean: true,
-        time_ms: 12.4,
-      };
-    } finally {
-      setIsSearching(false);
-    }
-    return null;
-  };
-
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100">
       {/* Top Navbar */}
@@ -373,6 +340,17 @@ export function App() {
             Proof DAG
           </button>
           <button
+            onClick={() => setActiveTab('gemma4')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+              activeTab === 'gemma4'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow shadow-emerald-500/20'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Brain className="w-3.5 h-3.5 text-emerald-400" />
+            Gemma 4 Edge
+          </button>
+          <button
             onClick={() => setActiveTab('prover')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
               activeTab === 'prover'
@@ -384,17 +362,6 @@ export function App() {
             Interactive Prover
           </button>
           <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'leaderboard'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            Leaderboard
-          </button>
-          <button
             onClick={() => setActiveTab('volunteer')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
               activeTab === 'volunteer'
@@ -404,6 +371,17 @@ export function App() {
           >
             <Sparkles className="w-3.5 h-3.5 text-blue-400" />
             Contribute Cycles
+          </button>
+          <button
+            onClick={() => setActiveTab('leaderboard')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+              activeTab === 'leaderboard'
+                ? 'bg-blue-600 text-white shadow'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Trophy className="w-3.5 h-3.5" />
+            Leaderboard
           </button>
           <button
             onClick={() => setActiveTab('telemetry')}
@@ -437,9 +415,8 @@ export function App() {
             edges={blocks.flatMap((b) => b.parents.map((p) => ({ source: p, target: b.id })))}
           />
         )}
-        {activeTab === 'prover' && (
-          <TheoremProverView onProve={handleProve} isSearching={isSearching} />
-        )}
+        {activeTab === 'gemma4' && <GemmaEdgePanel />}
+        {activeTab === 'prover' && <LocalProverView />}
         {activeTab === 'volunteer' && <VolunteerPanel />}
         {activeTab === 'leaderboard' && <LeaderboardView models={models} />}
         {activeTab === 'telemetry' && (
