@@ -25,10 +25,11 @@ import {
   SearchResult,
   TreeUpdatedEvent,
 } from '../types/proverEvents';
-import { Expr } from '../config/models';
+import { Expr, CicExpr } from '../config/models';
 import { proofSearchEngine, DEFAULT_SEARCH_CONFIG } from '../services/proofSearchEngine';
 import { gemmaEdgeController } from '../services/llmController';
 import { eventTracer, TraceEvent } from '../services/eventTracer';
+import * as kernelWasm from '../wasm/kernel/kernel_wasm';
 
 interface PresetItem {
   name: string;
@@ -36,6 +37,14 @@ interface PresetItem {
   goalStr: string;
   hyps: Record<string, Expr>;
   target: Expr;
+}
+
+interface CicPresetItem {
+  name: string;
+  desc: string;
+  context: [string, CicExpr][];
+  goalType: CicExpr;
+  proofTerm: CicExpr;
 }
 
 const BENCHMARK_PRESETS: PresetItem[] = [
@@ -73,10 +82,89 @@ const BENCHMARK_PRESETS: PresetItem[] = [
   },
 ];
 
+const CIC_BENCHMARK_PRESETS: CicPresetItem[] = [
+  {
+    name: 'Identity (A → A)',
+    desc: 'λ (x : A) => x : A → A',
+    context: [['A', { Sort: 'Zero' }]],
+    goalType: { ForallE: ['_', { FVar: 'A' }, { FVar: 'A' }] },
+    proofTerm: { Lam: ['x', { FVar: 'A' }, { BVar: 0 }] },
+  },
+  {
+    name: 'Modus Ponens Term Application',
+    desc: 'h1 : A → B, h2 : A ⊢ h1 h2 : B',
+    context: [
+      ['A', { Sort: 'Zero' }],
+      ['B', { Sort: 'Zero' }],
+      ['h1', { ForallE: ['_', { FVar: 'A' }, { FVar: 'B' }] }],
+      ['h2', { FVar: 'A' }],
+    ],
+    goalType: { FVar: 'B' },
+    proofTerm: { App: [{ FVar: 'h1' }, { FVar: 'h2' }] },
+  },
+  {
+    name: 'Conjunction Commutativity (AndComm)',
+    desc: 'λ (h : And A B) => And.intro B A (And.right A B h) (And.left A B h)',
+    context: [
+      ['A', { Sort: 'Zero' }],
+      ['B', { Sort: 'Zero' }],
+    ],
+    goalType: {
+      ForallE: [
+        'h',
+        { App: [{ App: [{ Const: ['And', []] }, { FVar: 'A' }] }, { FVar: 'B' }] },
+        { App: [{ App: [{ Const: ['And', []] }, { FVar: 'B' }] }, { FVar: 'A' }] },
+      ],
+    },
+    proofTerm: {
+      Lam: [
+        'h',
+        { App: [{ App: [{ Const: ['And', []] }, { FVar: 'A' }] }, { FVar: 'B' }] },
+        {
+          App: [
+            {
+              App: [
+                {
+                  App: [
+                    { App: [{ Const: ['And.intro', []] }, { FVar: 'B' }] },
+                    { FVar: 'A' },
+                  ],
+                },
+                {
+                  App: [
+                    { App: [{ App: [{ Const: ['And.right', []] }, { FVar: 'A' }] }, { FVar: 'B' }] },
+                    { BVar: 0 },
+                  ],
+                },
+              ],
+            },
+            {
+              App: [
+                { App: [{ App: [{ Const: ['And.left', []] }, { FVar: 'A' }] }, { FVar: 'B' }] },
+                { BVar: 0 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+];
+
 export const LocalProverView: React.FC = () => {
+  // Mode State: 'deduction' vs 'cic_term'
+  const [proverMode, setProverMode] = useState<'deduction' | 'cic_term'>('deduction');
+
   // Goal & Preset State
   const [selectedPreset, setSelectedPreset] = useState<string>(BENCHMARK_PRESETS[0].name);
   const [activePreset, setActivePreset] = useState<PresetItem>(BENCHMARK_PRESETS[0]);
+  const [selectedCicPreset, setSelectedCicPreset] = useState<CicPresetItem>(CIC_BENCHMARK_PRESETS[0]);
+  const [cicValidationResult, setCicValidationResult] = useState<{
+    valid: boolean;
+    inferredType?: string;
+    elapsedUs?: number;
+    error?: string;
+  } | null>(null);
 
   // Search Engine Configuration
   const [config, setConfig] = useState<SearchConfig>({ ...DEFAULT_SEARCH_CONFIG });
@@ -143,6 +231,37 @@ export const LocalProverView: React.FC = () => {
     setSelectedPreset(preset.name);
     setActivePreset(preset);
     handleReset();
+  };
+
+  const handleSelectCicPreset = (preset: CicPresetItem) => {
+    setSelectedCicPreset(preset);
+    setCicValidationResult(null);
+  };
+
+  const handleVerifyCicTerm = () => {
+    const t0 = performance.now();
+    try {
+      const contextJson = JSON.stringify(selectedCicPreset.context);
+      const proofTermJson = JSON.stringify(selectedCicPreset.proofTerm);
+      const goalTypeJson = JSON.stringify(selectedCicPreset.goalType);
+
+      const isValid = kernelWasm.check_cic_term(contextJson, proofTermJson, goalTypeJson);
+      const inferred = kernelWasm.infer_cic_type(contextJson, proofTermJson);
+      const elapsedUs = Math.max(1, Math.round((performance.now() - t0) * 1000));
+
+      setCicValidationResult({
+        valid: isValid,
+        inferredType: inferred,
+        elapsedUs,
+      });
+    } catch (err: any) {
+      const elapsedUs = Math.max(1, Math.round((performance.now() - t0) * 1000));
+      setCicValidationResult({
+        valid: false,
+        error: err?.message || String(err),
+        elapsedUs,
+      });
+    }
   };
 
   const handleStartSearch = async () => {
@@ -269,88 +388,234 @@ export const LocalProverView: React.FC = () => {
         </div>
       </div>
 
+      {/* Mode Switcher Tabs */}
+      <div className="px-6 pt-4 pb-0 bg-slate-950/70 border-b border-slate-800 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setProverMode('deduction')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold rounded-t-lg border-t border-x transition-all ${
+            proverMode === 'deduction'
+              ? 'bg-slate-900 border-slate-700 text-blue-400 font-bold border-b-2 border-b-blue-500'
+              : 'bg-transparent border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Workflow className="w-3.5 h-3.5" />
+          <span>Deduction Steps (Propositional / FOL)</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setProverMode('cic_term')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-mono font-semibold rounded-t-lg border-t border-x transition-all ${
+            proverMode === 'cic_term'
+              ? 'bg-slate-900 border-slate-700 text-purple-400 font-bold border-b-2 border-b-purple-500'
+              : 'bg-transparent border-transparent text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <Brain className="w-3.5 h-3.5" />
+          <span>Pure CIC λΠ Proof-Terms (Lean 4 Core)</span>
+        </button>
+      </div>
+
       {/* Main Content Area */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Preset Selector Chips */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Benchmark Propositional Deduction Presets
-            </label>
-            <span className="text-[11px] text-slate-500 font-mono">Select benchmark preset</span>
+        {proverMode === 'cic_term' ? (
+          /* Pure CIC Proof-Term Mode View */
+          <div className="space-y-6">
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  CIC Kernel Proof-Term Benchmark Presets
+                </label>
+                <span className="text-[11px] text-purple-400 font-mono">Lean 4 Core λΠ-Calculus</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {CIC_BENCHMARK_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => handleSelectCicPreset(preset)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      selectedCicPreset.name === preset.name
+                        ? 'bg-purple-950/80 border-purple-600 text-purple-200 shadow-md'
+                        : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="text-xs font-mono font-bold">{preset.name}</div>
+                    <div className="text-[11px] text-purple-300 font-mono mt-0.5">{preset.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* CIC Verification Action Bar */}
+            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleVerifyCicTerm}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-mono font-bold rounded-lg shadow-lg shadow-purple-950/40 transition-all"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>Verify Proof-Term in WASM Kernel</span>
+                </button>
+              </div>
+
+              {cicValidationResult && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg border font-mono text-xs">
+                  {cicValidationResult.valid ? (
+                    <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Valid CIC Proof-Term! ({cicValidationResult.elapsedUs} µs)</span>
+                    </span>
+                  ) : (
+                    <span className="text-rose-400 font-bold">
+                      Type Error: {cicValidationResult.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* CIC Inspector Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Context & Goal */}
+              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col space-y-4">
+                <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
+                  <Terminal className="w-4 h-4 text-purple-400" />
+                  <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                    Goal Type & Hypothesis Context
+                  </h3>
+                </div>
+
+                <div className="space-y-3 font-mono text-xs">
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Target Goal Type (CIC):</span>
+                    <pre className="p-3 bg-slate-900 rounded border border-slate-800 text-purple-300 overflow-x-auto">
+                      {JSON.stringify(selectedCicPreset.goalType, null, 2)}
+                    </pre>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Local Hypothesis Context:</span>
+                    <div className="space-y-1.5">
+                      {selectedCicPreset.context.map(([id, ty]) => (
+                        <div key={id} className="p-2 rounded border bg-slate-900 border-slate-800 text-slate-200">
+                          <span className="font-bold text-purple-400">{id} :</span> {JSON.stringify(ty)}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Synthesized Proof Term */}
+              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div className="flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
+                      Synthesized λ-Term AST
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyProofScript(JSON.stringify(selectedCicPreset.proofTerm, null, 2))}
+                    className="flex items-center gap-1 text-[11px] font-mono text-slate-400 hover:text-slate-200"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy JSON</span>
+                  </button>
+                </div>
+
+                <pre className="flex-1 p-4 bg-slate-900 rounded border border-slate-800 text-emerald-300 font-mono text-xs overflow-x-auto leading-relaxed">
+                  {JSON.stringify(selectedCicPreset.proofTerm, null, 2)}
+                </pre>
+              </div>
+            </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {BENCHMARK_PRESETS.map((preset) => (
+        ) : (
+          /* Deduction Step BFS Mode View */
+          <>
+            {/* Preset Selector Chips */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  Benchmark Propositional Deduction Presets
+                </label>
+                <span className="text-[11px] text-slate-500 font-mono">Select benchmark preset</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {BENCHMARK_PRESETS.map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => handleSelectPreset(preset)}
+                    className={`p-3 rounded-lg border text-left transition-all ${
+                      selectedPreset === preset.name
+                        ? 'bg-blue-950/80 border-blue-600 text-blue-200 shadow-md'
+                        : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="text-xs font-mono font-bold">{preset.name}</div>
+                    <div className="text-[11px] text-emerald-400 font-mono mt-0.5">{preset.desc}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Controls & Parameters */}
+            <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={isSearching}
+                  onClick={handleStartSearch}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-mono font-bold rounded-lg shadow-lg shadow-blue-950/40 transition-all disabled:opacity-50"
+                >
+                  <Play className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
+                  <span>{isSearching ? 'Solving...' : 'Run Prover (BFS)'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={isSearching}
+                  onClick={handleStepOnce}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-semibold rounded-lg border border-slate-700 transition-all disabled:opacity-50"
+                >
+                  <StepForward className="w-4 h-4 text-blue-400" />
+                  <span>Step Once</span>
+                </button>
+
+                {isSearching && (
+                  <button
+                    type="button"
+                    onClick={handleStopSearch}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-700 text-rose-200 text-xs font-mono font-semibold rounded-lg transition-all"
+                  >
+                    <Square className="w-4 h-4 text-rose-400" />
+                    <span>Abort</span>
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono rounded-lg border border-slate-800"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Reset</span>
+                </button>
+              </div>
+
               <button
-                key={preset.name}
                 type="button"
-                onClick={() => handleSelectPreset(preset)}
-                className={`p-3 rounded-lg border text-left transition-all ${
-                  selectedPreset === preset.name
-                    ? 'bg-blue-950/80 border-blue-600 text-blue-200 shadow-md'
-                    : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
-                }`}
+                onClick={() => setShowConfig(!showConfig)}
+                className="flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-slate-200 bg-slate-900 px-3 py-2 rounded-lg border border-slate-800"
               >
-                <div className="text-xs font-mono font-bold">{preset.name}</div>
-                <div className="text-[11px] text-emerald-400 font-mono mt-0.5">{preset.desc}</div>
+                <Sliders className="w-3.5 h-3.5 text-blue-400" />
+                <span>{showConfig ? 'Hide Config' : 'Search Parameters'}</span>
               </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Action Controls & Parameters */}
-        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={isSearching}
-              onClick={handleStartSearch}
-              className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-mono font-bold rounded-lg shadow-lg shadow-blue-950/40 transition-all disabled:opacity-50"
-            >
-              <Play className={`w-4 h-4 ${isSearching ? 'animate-spin' : ''}`} />
-              <span>{isSearching ? 'Solving...' : 'Run Prover (BFS)'}</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isSearching}
-              onClick={handleStepOnce}
-              className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-mono font-semibold rounded-lg border border-slate-700 transition-all disabled:opacity-50"
-            >
-              <StepForward className="w-4 h-4 text-blue-400" />
-              <span>Step Once</span>
-            </button>
-
-            {isSearching && (
-              <button
-                type="button"
-                onClick={handleStopSearch}
-                className="flex items-center gap-2 px-4 py-2.5 bg-rose-950/80 hover:bg-rose-900 border border-rose-700 text-rose-200 text-xs font-mono font-semibold rounded-lg transition-all"
-              >
-                <Square className="w-4 h-4 text-rose-400" />
-                <span>Abort</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={handleReset}
-              className="flex items-center gap-1.5 px-3 py-2.5 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 text-xs font-mono rounded-lg border border-slate-800"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </button>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowConfig(!showConfig)}
-            className="flex items-center gap-1.5 text-xs font-mono text-slate-400 hover:text-slate-200 bg-slate-900 px-3 py-2 rounded-lg border border-slate-800"
-          >
-            <Sliders className="w-3.5 h-3.5 text-blue-400" />
-            <span>{showConfig ? 'Hide Config' : 'Search Parameters'}</span>
-          </button>
-        </div>
+            </div>
 
         {/* Expandable Configuration */}
         {showConfig && (
@@ -641,30 +906,32 @@ export const LocalProverView: React.FC = () => {
           </div>
         </div>
 
-        {/* Proven Solution Banner */}
-        {searchResult?.success && (
-          <div className="bg-slate-950 p-5 rounded-xl border border-emerald-800/80 shadow-2xl space-y-3">
-            <div className="flex items-center justify-between border-b border-emerald-900/60 pb-3">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                <h3 className="text-sm font-bold text-white font-mono">
-                  Autonomous Proof Successfully Closed! ({searchResult.elapsedMs.toFixed(0)} ms)
-                </h3>
-              </div>
-              <button
-                type="button"
-                onClick={() => copyProofScript(searchResult.tacticScript)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-700 text-emerald-300 text-xs font-mono rounded-lg hover:bg-emerald-900 transition-all"
-              >
-                {copiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedScript ? 'Copied' : 'Copy Lean 4 Script'}</span>
-              </button>
-            </div>
+            {/* Proven Solution Banner */}
+            {searchResult?.success && (
+              <div className="bg-slate-950 p-5 rounded-xl border border-emerald-800/80 shadow-2xl space-y-3">
+                <div className="flex items-center justify-between border-b border-emerald-900/60 pb-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    <h3 className="text-sm font-bold text-white font-mono">
+                      Autonomous Proof Successfully Closed! ({searchResult.elapsedMs.toFixed(0)} ms)
+                    </h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => copyProofScript(searchResult.tacticScript)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-950 border border-emerald-700 text-emerald-300 text-xs font-mono rounded-lg hover:bg-emerald-900 transition-all"
+                  >
+                    {copiedScript ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedScript ? 'Copied' : 'Copy Lean 4 Script'}</span>
+                  </button>
+                </div>
 
-            <pre className="p-4 bg-slate-900 rounded-lg border border-slate-800 text-emerald-300 font-mono text-xs overflow-x-auto leading-relaxed">
-              {searchResult.tacticScript}
-            </pre>
-          </div>
+                <pre className="p-4 bg-slate-900 rounded-lg border border-slate-800 text-emerald-300 font-mono text-xs overflow-x-auto leading-relaxed">
+                  {searchResult.tacticScript}
+                </pre>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

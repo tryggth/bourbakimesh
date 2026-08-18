@@ -4,7 +4,8 @@
  * Standardized on compact, quantized Gemma 4 edge models running locally in-browser
  * via WebGPU with shader-f16 and W4A16 quantization.
  *
- * Provides typed AST deduction schemas matching crates/kernel/src/ast.rs.
+ * Provides typed AST deduction schemas matching crates/kernel/src/ast.rs
+ * and Lean 4 core Calculus of Inductive Constructions (CIC) schemas.
  */
 
 export interface ModelEndpointConfig {
@@ -86,7 +87,7 @@ export const DEPRECATED_MODELS = [
 ] as const;
 
 /**
- * Kernel AST Expression and Deduction Step Types (matching crates/kernel/src/ast.rs).
+ * Propositional and First-Order Logic AST Types (crates/kernel/src/ast.rs).
  */
 export type Term =
   | { Var: string }
@@ -125,10 +126,31 @@ export type DeductionStep =
   | { rule: 'Rewrite'; eq_hyp: string; target_hyp: string };
 
 /**
+ * Calculus of Inductive Constructions (CIC) Core AST (crates/kernel/src/cic/).
+ * Implements 8-constructor Lean 4 core AST with 0-based De Bruijn indices.
+ */
+export type CicLevel =
+  | 'Zero'
+  | { Succ: CicLevel }
+  | { Max: [CicLevel, CicLevel] }
+  | { IMax: [CicLevel, CicLevel] }
+  | { Param: string };
+
+export type CicExpr =
+  | { BVar: number }
+  | { FVar: string }
+  | { Sort: CicLevel }
+  | { Const: [string, CicLevel[]] }
+  | { App: [CicExpr, CicExpr] }
+  | { Lam: [string, CicExpr, CicExpr] }
+  | { ForallE: [string, CicExpr, CicExpr] }
+  | { LetE: [string, CicExpr, CicExpr, CicExpr] };
+
+/**
  * Machine-First Bourbaki Proof Kernel System Prompt.
  */
 export const BOURBAKI_KERNEL_SYSTEM_PROMPT = `You are an autonomous deduction worker for the BourbakiMesh machine-first proof kernel.
-Your objective is to emit deterministic AST deduction steps that transition the current Proof State toward goal closure.
+Your objective is to emit deterministic AST deduction steps or pure CIC λ-terms that transition the current Proof State toward goal closure.
 
 ### FORMAL DEDUCTION RULES (JSON AST)
 - {"rule": "AndElimL", "hyp": "<hyp_id>"}
@@ -147,40 +169,32 @@ Your objective is to emit deterministic AST deduction steps that transition the 
 - {"rule": "ExistsElim", "hyp_exists": "<hyp_id>", "hyp_impl": "<hyp_id>"}
 - {"rule": "Rewrite", "eq_hyp": "<hyp_id>", "target_hyp": "<hyp_id>"}
 
-### FEW-SHOT EXAMPLES
-1. Universal Modus Ponens (Specialization & Application):
-   Hypotheses: h0: {"Forall": {"var": "x", "body": {"Impl": [{"Pred": ["P", [{"Var": "x"}]]}, {"Pred": ["Q", [{"Var": "x"}]]}]}}}, h1: {"Pred": ["P", [{"Const": "c"}]]}
-   Target: {"Pred": ["Q", [{"Const": "c"}]]}
-   Step 1: {"rule": "ForallElim", "hyp": "h0", "term": {"Const": "c"}} -> derives h2: {"Impl": [{"Pred": ["P", [{"Const": "c"}]]}, {"Pred": ["Q", [{"Const": "c"}]]}]}
-   Step 2: {"rule": "ModusPonens", "impl": "h2", "arg": "h1"} -> derives h3: {"Pred": ["Q", [{"Const": "c"}]]}
-   Step 3: {"rule": "Exact", "hyp": "h3"} -> closes proof
+### PURE CIC PROOF-TERM CONSTRUCTORS
+- {"BVar": <index>}
+- {"FVar": "<fvar_id>"}
+- {"Sort": "Zero" | {"Succ": ...}}
+- {"Const": ["<name>", []]}
+- {"App": [<func_expr>, <arg_expr>]}
+- {"Lam": ["<binder>", <domain_type>, <body_expr>]}
+- {"ForallE": ["<binder>", <domain_type>, <body_expr>]}
+- {"LetE": ["<binder>", <type>, <value>, <body_expr>]}
 
-2. Existential Generalization (Witness Construction):
-   Hypotheses: h0: {"Pred": ["P", [{"Const": "c"}]]}
-   Target: {"Exists": {"var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}}}
-   Step 1: {"rule": "ExistsIntro", "hyp": "h0", "var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}} -> derives h1: {"Exists": {"var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}}}
-   Step 2: {"rule": "Exact", "hyp": "h1"} -> closes proof
+### CIC FEW-SHOT PROOF-TERM EXAMPLES
+1. Identity Term (A → A):
+   Target: {"ForallE": ["_", {"FVar": "A"}, {"FVar": "A"}]}
+   Proof Term: {"Lam": ["x", {"FVar": "A"}, {"BVar": 0}]}
 
-3. Leibniz Equality Rewriting:
-   Hypotheses: h0: {"Eq": [{"Const": "a"}, {"Const": "b"}]}, h1: {"Pred": ["P", [{"Const": "a"}]]}
-   Target: {"Pred": ["P", [{"Const": "b"}]]}
-   Step 1: {"rule": "Rewrite", "eq_hyp": "h0", "target_hyp": "h1"} -> derives h2: {"Pred": ["P", [{"Const": "b"}]]}
-   Step 2: {"rule": "Exact", "hyp": "h2"} -> closes proof
+2. Modus Ponens Term Application (h1 : A → B, h2 : A ⊢ B):
+   Target: {"FVar": "B"}
+   Proof Term: {"App": [{"FVar": "h1"}, {"FVar": "h2"}]}
 
-4. Disjunction Elimination (Case Analysis / OrComm):
-   Hypotheses: h0: {"Or": [{"Prop": "A"}, {"Prop": "B"}]}, h1: {"Impl": [{"Prop": "A"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}, h2: {"Impl": [{"Prop": "B"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}
-   Target: {"Or": [{"Prop": "B"}, {"Prop": "A"}]}
-   Output: {"rule": "OrElim", "hyp_or": "h0", "left_impl": "h1", "right_impl": "h2"}
-
-5. Contradiction & Ex Falso (Principle of Explosion):
-   Hypotheses: h0: {"Prop": "P"}, h1: {"Not": {"Prop": "P"}}
-   Step 1: {"rule": "Contradiction", "pos_hyp": "h0", "neg_hyp": "h1"} -> derives h2: "False"
-   Step 2: {"rule": "FalseElim", "hyp_false": "h2"} -> closes proof
+3. Conjunction Commutativity (And A B → And B A):
+   Target: {"ForallE": ["h", {"App": [{"App": [{"Const": ["And", []]}, {"FVar": "A"}]}, {"FVar": "B"}]}, {"App": [{"App": [{"Const": ["And", []]}, {"FVar": "B"}]}, {"FVar": "A"}]}]}
+   Proof Term: {"Lam": ["h", {"App": [{"App": [{"Const": ["And", []]}, {"FVar": "A"}]}, {"FVar": "B"}]}, {"App": [{"App": [{"App": [{"App": [{"Const": ["And.intro", []]}, {"FVar": "B"}]}, {"FVar": "A"}]}, {"App": [{"App": [{"App": [{"Const": ["And.right", []]}, {"FVar": "A"}]}, {"FVar": "B"}]}, {"BVar": 0}]}]}, {"App": [{"App": [{"App": [{"Const": ["And.left", []]}, {"FVar": "A"}]}, {"FVar": "B"}]}, {"BVar": 0}]}]}]}
 
 ### OPERATIONAL INSTRUCTIONS
-1. Analyze hypotheses and target goal.
-2. In ACTOR mode, output reasoning inside <think>...</think> tags, followed by exactly one JSON code block containing the step AST.
-3. In CRITIC mode, evaluate if the step is valid and makes progress. Output exactly one token: "Yes" or "No".`;
+1. In ACTOR mode, output reasoning inside <think>...</think> tags, followed by exactly one JSON code block containing the step AST or CIC proof term.
+2. In CRITIC mode, evaluate if the step is valid and makes progress. Output exactly one token: "Yes" or "No".`;
 
 export function formatActorPrompt(hyps: Record<string, any>, target: any): string {
   const hypLines = Object.entries(hyps)
@@ -196,6 +210,22 @@ Target Goal:
 
 [MODE: ACTOR]
 Propose the next valid deduction step:`;
+}
+
+export function formatCicProofPrompt(context: [string, CicExpr][], goalType: CicExpr): string {
+  const ctxLines = context
+    .map(([id, ty]) => `  ${id} : ${JSON.stringify(ty)}`)
+    .join('\n');
+  return `${BOURBAKI_KERNEL_SYSTEM_PROMPT}
+
+[CURRENT CIC CONTEXT]
+Hypotheses:
+${ctxLines || '  (none)'}
+Goal Type:
+  ⊢ ${JSON.stringify(goalType)}
+
+[MODE: CIC PROOF SYNTHESIS]
+Synthesize a pure CIC λ-term that typechecks to the Goal Type:`;
 }
 
 export function formatCriticPrompt(hyps: Record<string, any>, target: any, candidateStep: any): string {
@@ -222,10 +252,8 @@ Does this step make valid progress toward closing the target goal? Answer Yes or
  */
 export const PROMPT_TEMPLATES = {
   formatActorPrompt,
+  formatCicProofPrompt,
   formatCriticPrompt,
-  /**
-   * String-based fallback prompt for legacy propositional text goals.
-   */
   formatLegacyActorPrompt: (params: {
     theoremName: string;
     goalState: string;

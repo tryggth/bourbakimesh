@@ -10,6 +10,7 @@ Validates:
 
 import http.server
 import os
+import shutil
 import socketserver
 import subprocess
 import sys
@@ -24,35 +25,28 @@ def find_worker_filename(assets_dir: str) -> str:
     raise FileNotFoundError(f"llm-worker chunk not found in {assets_dir}")
 
 
-def find_wasm_js_filename(assets_dir: str) -> str:
-    for fname in os.listdir(assets_dir):
-        if fname.startswith("kernel_wasm-") and fname.endswith(".js"):
-            return fname
-    raise FileNotFoundError(f"kernel_wasm js chunk not found in {assets_dir}")
-
-
-def find_wasm_bg_filename(assets_dir: str) -> str:
-    for fname in os.listdir(assets_dir):
-        if fname.startswith("kernel_wasm_bg-") and fname.endswith(".wasm"):
-            return fname
-    raise FileNotFoundError(f"kernel_wasm_bg wasm chunk not found in {assets_dir}")
-
-
 def run_stage5_fol_test():
     root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     ui_dir = os.path.join(root_dir, "ui")
     dist_dir = os.path.join(ui_dir, "dist")
     assets_dir = os.path.join(dist_dir, "assets")
+    wasm_src_dir = os.path.join(ui_dir, "src", "wasm", "kernel")
+    wasm_dist_dir = os.path.join(dist_dir, "wasm")
 
     if not os.path.exists(dist_dir) or not os.path.exists(assets_dir):
         print("[Build] Building ui/dist bundle...")
         subprocess.run(["npm", "run", "build"], cwd=ui_dir, check=True)
 
+    os.makedirs(wasm_dist_dir, exist_ok=True)
+    for fname in ["kernel_wasm.js", "kernel_wasm_bg.wasm"]:
+        src = os.path.join(wasm_src_dir, fname)
+        dst = os.path.join(wasm_dist_dir, fname)
+        if os.path.exists(src):
+            shutil.copy2(src, dst)
+
     worker_file = find_worker_filename(assets_dir)
-    wasm_js_file = find_wasm_js_filename(assets_dir)
-    wasm_bg_file = find_wasm_bg_filename(assets_dir)
     print(f"[Worker Asset] Found Gemma 4 worker: {worker_file}")
-    print(f"[WASM Asset] Found Kernel WASM bridge: {wasm_js_file} with {wasm_bg_file}")
+    print(f"[WASM Asset] Prepared Kernel WASM at /wasm/kernel_wasm.js")
 
     passed_flag = [False]
 
@@ -138,9 +132,9 @@ def run_stage5_fol_test():
       const initRes = await sendLLM({{ type: 'INIT_LLM', modelId: 'gemma-4-2b-it-q4f16-webgpu' }});
       log('INIT_LLM:' + JSON.stringify(initRes));
 
-      // Import WASM Kernel
-      const wasmMod = await import('./assets/{wasm_js_file}');
-      await wasmMod.default(new URL('./assets/{wasm_bg_file}', window.location.href));
+      // Import WASM Kernel directly from /wasm/kernel_wasm.js
+      const wasmMod = await import('./wasm/kernel_wasm.js');
+      await wasmMod.default('./wasm/kernel_wasm_bg.wasm');
       log('WASM_INIT_COMPLETE');
 
       // ==============================================================
