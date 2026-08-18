@@ -12,12 +12,12 @@
 | :--- | :--- | :--- | :---: | :---: |
 | **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Unit + Integration + **Cut Elimination / Lemma Injection** + **Tier 3a Proptest** + **Criterion Bench** | 17 / 17 passed | 🟢 Clean |
 | **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Unit + Extractor + **Cut Lemma Let-Binding Extraction** + **Tier 1 Lean 4 Bridge** + **Tier 3b Round-Trip** + **Corpus Decompiler** + **`decompile_corpus` CLI** + **Universal Multi-Target Emitters (Lean 4, Coq, Isabelle/HOL, Dedukti)** + **Criterion Bench** | 31 / 31 passed | 🟢 Clean |
-| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **Criterion Bench** | 22 / 22 passed | 🟢 Clean |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_api_server.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_tournament.py`, `test_training.py`) | 62 / 62 passed | 🟢 Clean |
-| **`ui/` (PWA Frontend)** | Vite + React + TypeScript + Tailwind + `vite-plugin-pwa` | PWA Production Build, Workbox SW precaching, IndexedDB DAG caching, GitHub Actions CI/CD | Built clean (16 assets) | 🟢 Clean |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Unit + RPC + Proof DAG + **Async Tokio IPC** + **libp2p GossipSub / Kademlia DHT Swarm** + **Byzantine Attestation Engine** + **`bourbaki-daemon` CLI & P2P Worker** + **P2P Model Weight Chunker** + **5-Node Cluster Consensus Benchmark** + **P2P Model Hot-Reload Sync** + **Criterion Bench** | 23 / 23 passed | 🟢 Clean |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, NetworkX, FastAPI) | PyTest Suite (`test_adversarial_hunt.py`, `test_api_server.py`, `test_benchmarks.py`, `test_bootstrap.py`, `test_browser_gateway.py`, `test_champion_gating.py`, `test_checkpoint_compat.py`, `test_corpus_pipeline.py`, `test_hinting.py`, `test_latent_mcts.py`, `test_mathlib_corpus.py`, `test_mesh_bridge.py`, `test_model_registry.py`, `test_onnx_export.py`, `test_prioritized_replay.py`, `test_relational_model.py`, `test_smoke.py`, `test_target_injection.py`, `test_tournament.py`, `test_train_loop.py`, `test_training.py`) | 69 / 69 passed | 🟢 Clean |
+| **`ui/` (PWA Frontend)** | Vite + React + TypeScript + Tailwind + `vite-plugin-pwa` | PWA Production Build, Workbox SW precaching, IndexedDB DAG caching, GitHub Actions CI/CD | Built clean (18 assets) | 🟢 Clean |
 | **`lean_target/`** | Lean 4 (Lake, `leanprover/lean4:v4.33.0`) | Reference CIC Kernel + **MetaTheory Formalization** + **`export_mathlib` Executable** | 12 / 12 jobs | 🟢 Clean |
 
-**Total Workspace Test Count:** **132 passed (70 Rust + 62 Python, 0 failed, 0 warnings)**
+**Total Workspace Test Count:** **140 passed (71 Rust + 69 Python, 0 failed, 0 warnings)**
 
 ---
 
@@ -98,14 +98,24 @@
 
 ---
 
+- [x] **#30 [`feat(crypto): Web Crypto Ephemeral Ed25519 Node Identity & Signed Proof Attestation`](https://github.com/tryggth/bourbakimesh/issues/30)**  
+  *Delivered in-browser Web Crypto ECDSA P-256 ephemeral keypair generation, deterministic `peer_id` derivation, SHA-256 hashing, and signed `ProofBlock` attestation payload generation.*
+- [x] **#31 [`feat(ui): 'Contribute Cycles' Toggle, Resource Throttle Slider & Contributor Dashboard`](https://github.com/tryggth/bourbakimesh/issues/31)**  
+  *Delivered interactive "Contribute Cycles" worker toggle, Eco/Balanced/Max throttle presets, Battery and Visibility API guards with thermal pause/override, real-time MCTS sims/sec gauge, and signed proof history.*
+- [x] **#32 [`feat(mesh): WebSocket/WebRTC Gateway Bridge for Browser Worker Task Claiming`](https://github.com/tryggth/bourbakimesh/issues/32)**  
+  *Delivered bidirectional FastAPI WebSocket (`/ws/telemetry`) & REST (`/api/tasks/claim`, `/api/proofs/submit`, `/api/workers/register`) gateway bridge for worker capabilities registration, atomic obligation claiming, zero-trust verification, and real-time DAG commit broadcasting.*
+- [x] **#33 [`feat(mesh): Top-Level Target Theorem Injection & Swarm Focus Protocol`](https://github.com/tryggth/bourbakimesh/issues/33)**  
+  *Delivered dynamic target theorem injection CLI, REST (`/api/target/set`), WebSocket broadcast, and TargetManager UI modal.*
+- [x] **#34 [`feat(mesh): Automated P2P Model Weight Hot-Reloading & Swarm Sync Protocol`](https://github.com/tryggth/bourbakimesh/issues/34)**  
+  *Delivered P2P model weight discovery over GossipSub `/bourbaki/1.0.0/models`, chunk pulling, and zero-downtime hot-reloading across Rust daemons and Web Workers.*
+
+---
+
 ## 4. Macro-Level Roadmap Epics & Active R&D
 
 | Epic / Issue | Title | Subsystem Focus | Status |
 | :--- | :--- | :--- | :---: |
 | **[#28](https://github.com/tryggth/bourbakimesh/issues/28)** | **`feat(ml): R&D — In-Browser WebGPU & WebAssembly Latent MCTS Inference Engine`** | WebGPU / Wasm SIMD / ONNX / RFC 0003 | 🔬 Active R&D |
-| **[#30](https://github.com/tryggth/bourbakimesh/issues/30)** | **`feat(crypto): Web Crypto Ephemeral Ed25519 Node Identity & Signed Proof Attestation`** | Web Crypto API / Submissions / Attestation | 📋 Backlog |
-| **[#31](https://github.com/tryggth/bourbakimesh/issues/31)** | **`feat(ui): 'Contribute Cycles' Toggle, Resource Throttle Slider & Contributor Dashboard`** | React UI / Battery & Visibility APIs / Throttling | 📋 Backlog |
-| **[#32](https://github.com/tryggth/bourbakimesh/issues/32)** | **`feat(mesh): WebSocket/WebRTC Gateway Bridge for Browser Worker Task Claiming`** | FastAPI Bridge / GossipSub Gateway / Attestation Gate | 📋 Backlog |
 ---
 
 ## 5. Ingested Mathlib Curriculum Datasets

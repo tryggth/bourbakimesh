@@ -6,6 +6,7 @@ import { TheoremProverView } from './components/TheoremProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
 import { UpdateNotification } from './components/UpdateNotification';
 import { TargetManager } from './components/TargetManager';
+import { VolunteerPanel } from './components/VolunteerPanel';
 import { initServiceWorker } from './registerServiceWorker';
 import {
   hydrateProofDag,
@@ -30,6 +31,7 @@ import {
   Server,
   Layers,
   Cpu,
+  Sparkles,
 } from 'lucide-react';
 
 const SAMPLE_MOVES: DialogueMove[] = [
@@ -166,7 +168,7 @@ const SAMPLE_MODELS: ModelRanking[] = [
 ];
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<'arena' | 'dag' | 'prover' | 'leaderboard' | 'telemetry'>('arena');
+  const [activeTab, setActiveTab] = useState<'arena' | 'dag' | 'prover' | 'leaderboard' | 'telemetry' | 'volunteer'>('arena');
   const [moves, setMoves] = useState<DialogueMove[]>(SAMPLE_MOVES);
   const [blocks, setBlocks] = useState<ProofBlockNode[]>(SAMPLE_BLOCKS);
   const [models, setModels] = useState<ModelRanking[]>(SAMPLE_MODELS);
@@ -393,6 +395,17 @@ export function App() {
             Leaderboard
           </button>
           <button
+            onClick={() => setActiveTab('volunteer')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
+              activeTab === 'volunteer'
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow shadow-blue-500/20'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
+            Contribute Cycles
+          </button>
+          <button
             onClick={() => setActiveTab('telemetry')}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
               activeTab === 'telemetry'
@@ -410,7 +423,7 @@ export function App() {
       <TargetManager />
 
       {/* Main View Area */}
-      <main className="flex-1 p-6 overflow-hidden">
+      <main className="flex-1 p-6 overflow-y-auto">
         {activeTab === 'arena' && (
           <DialogueArenaView
             moves={moves}
@@ -427,6 +440,7 @@ export function App() {
         {activeTab === 'prover' && (
           <TheoremProverView onProve={handleProve} isSearching={isSearching} />
         )}
+        {activeTab === 'volunteer' && <VolunteerPanel />}
         {activeTab === 'leaderboard' && <LeaderboardView models={models} />}
         {activeTab === 'telemetry' && (
           <TelemetryFeed events={telemetryEvents} isConnected={isConnected} />

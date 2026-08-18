@@ -30,6 +30,7 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'robots.txt', 'apple-touch-icon.png', 'data/ledger_snapshot.json'],
       workbox: {
         cleanupOutdatedCaches: true,
+        maximumFileSizeToCacheInBytes: 35 * 1024 * 1024,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,json,wasm}'],
         clientsClaim: true,
         skipWaiting: true,
