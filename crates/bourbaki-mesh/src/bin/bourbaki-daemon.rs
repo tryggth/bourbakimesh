@@ -132,6 +132,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     Ok(Some(WorkerDaemonEvent::ChunkReceived { chunk, sender })) => {
                         println!("🧩 [CHUNK] Received chunk {}/{} for {} from peer {}", chunk.chunk_index + 1, chunk.total_chunks, chunk.model_name, sender);
                     }
+                    Ok(Some(WorkerDaemonEvent::ModelUpgradeAnnounced { version, root_hash, total_chunks })) => {
+                        println!("🚀 [MODEL UPGRADE] Swarm announced model {} (Merkle root: {}, total chunks: {})", version, &root_hash.to_hex()[..12], total_chunks);
+                    }
+                    Ok(Some(WorkerDaemonEvent::ModelHotReloaded { version, root_hash, total_bytes })) => {
+                        println!("🎉 [HOT-RELOAD] Successfully hot-reloaded model {} ({} bytes, Merkle root: {}) into memory!", version, total_bytes, &root_hash.to_hex()[..12]);
+                    }
                     Ok(None) => {}
                     Err(err) => {
                         eprintln!("⚠️  [P2P ERROR] {}", err);

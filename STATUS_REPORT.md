@@ -93,6 +93,8 @@
   *Delivered PyTorch-to-ONNX exporter (`scripts/export_onnx.py`), WebGPU/Wasm web worker (`prover.worker.ts`), in-browser `BrowserLatentMCTS`, and `idb-keyval` IndexedDB weight caching.*
 - [x] **#33 [`feat(mesh): Top-Level Target Theorem Injection & Swarm Focus Protocol`](https://github.com/tryggth/bourbakimesh/issues/33)**  
   *Delivered target injection REST endpoints (`POST /api/target/set`, `GET /api/target/current`), WebSocket broadcast directive (`swarm_target_set`), and Web UI `TargetManager` objective bar.*
+- [x] **#34 [`feat(mesh): Automated P2P Model Weight Hot-Reloading & Swarm Sync Protocol`](https://github.com/tryggth/bourbakimesh/issues/34)**  
+  *Delivered `/bourbaki/1.0.0/models` GossipSub announcement topic, Merkle root verification, chunk streaming & reassembly, daemon in-memory zero-downtime hot-reloading, and browser Web Worker cache invalidation (`UPGRADE_MODEL`).*
 
 ---
 

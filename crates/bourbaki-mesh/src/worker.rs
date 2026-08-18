@@ -108,6 +108,16 @@ pub enum WorkerDaemonEvent {
         chunk: crate::chunks::ModelChunk,
         sender: String,
     },
+    ModelUpgradeAnnounced {
+        version: String,
+        root_hash: crate::chunks::ModelRootHash,
+        total_chunks: usize,
+    },
+    ModelHotReloaded {
+        version: String,
+        root_hash: crate::chunks::ModelRootHash,
+        total_bytes: usize,
+    },
 }
 
 /// Autonomous background worker daemon that subscribes to GossipSub task obligations,
@@ -116,6 +126,11 @@ pub struct MeshWorkerDaemon {
     pub node: P2PNode,
     pub simulations: usize,
     pub model_path: Option<String>,
+    pub active_model_version: String,
+    pub active_model_hash: Option<crate::chunks::ModelRootHash>,
+    pub pending_upgrade: Option<crate::p2p::ModelAnnouncementMessage>,
+    pub received_chunks: HashMap<usize, crate::chunks::ModelChunk>,
+    pub active_model_bytes: Option<Vec<u8>>,
     pub active_tasks: HashMap<Uuid, String>,
     pub published_proofs: HashMap<Uuid, BlockId>,
     pub extractor: StrategyExtractor,
@@ -128,6 +143,11 @@ impl MeshWorkerDaemon {
             node,
             simulations,
             model_path: None,
+            active_model_version: "v2.0.0".into(),
+            active_model_hash: None,
+            pending_upgrade: None,
+            received_chunks: HashMap::new(),
+            active_model_bytes: None,
             active_tasks: HashMap::new(),
             published_proofs: HashMap::new(),
             extractor: StrategyExtractor::new(),
@@ -243,6 +263,42 @@ impl MeshWorkerDaemon {
         (tree, term)
     }
 
+    /// Announce a new certified model version to the swarm.
+    pub fn announce_model_update(
+        &mut self,
+        version: impl Into<String>,
+        model_name: impl Into<String>,
+        manifest: &crate::chunks::ChunkManifest,
+    ) -> Result<crate::chunks::ModelRootHash, P2PError> {
+        let announcement = crate::p2p::ModelAnnouncementMessage {
+            version: version.into(),
+            model_name: model_name.into(),
+            root_hash: manifest.root_hash,
+            total_chunks: manifest.total_chunks,
+            chunk_hashes: manifest.chunk_hashes.clone(),
+            sender_peer_id: self.local_peer_id().to_string(),
+            timestamp_secs: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_secs(),
+        };
+        self.node.broadcast_model_announcement(announcement)
+    }
+
+    /// Hot-reload the active neural model in memory with verified binary payload.
+    pub fn hot_reload_model(
+        &mut self,
+        version: impl Into<String>,
+        root_hash: crate::chunks::ModelRootHash,
+        model_bytes: Vec<u8>,
+    ) {
+        self.active_model_version = version.into();
+        self.active_model_hash = Some(root_hash);
+        self.active_model_bytes = Some(model_bytes);
+        self.pending_upgrade = None;
+        self.received_chunks.clear();
+    }
+
     /// Step the daemon event loop, handling task claims, automated proof search, and gossip broadcasts.
     pub async fn step(&mut self) -> Result<Option<WorkerDaemonEvent>, P2PError> {
         let p2p_event = self.node.step().await?;
@@ -314,8 +370,54 @@ impl MeshWorkerDaemon {
                 tracing::warn!("Proof rejected during gossip: {}", reason);
                 Ok(None)
             }
+            Some(P2PEvent::ModelAnnounced { announcement, .. }) => {
+                let version = announcement.version.clone();
+                let root_hash = announcement.root_hash;
+                let total_chunks = announcement.total_chunks;
+                self.pending_upgrade = Some(announcement);
+                self.received_chunks.clear();
+                Ok(Some(WorkerDaemonEvent::ModelUpgradeAnnounced {
+                    version,
+                    root_hash,
+                    total_chunks,
+                }))
+            }
             Some(P2PEvent::ChunkReceived { chunk, sender }) => {
-                Ok(Some(WorkerDaemonEvent::ChunkReceived { chunk, sender }))
+                let chunk_copy = chunk.clone();
+                self.received_chunks.insert(chunk.chunk_index, chunk);
+
+                if let Some(ref pending) = self.pending_upgrade {
+                    if self.received_chunks.len() >= pending.total_chunks {
+                        let mut ordered_chunks = Vec::with_capacity(pending.total_chunks);
+                        let mut all_present = true;
+                        for i in 0..pending.total_chunks {
+                            if let Some(c) = self.received_chunks.get(&i) {
+                                ordered_chunks.push(c.clone());
+                            } else {
+                                all_present = false;
+                                break;
+                            }
+                        }
+
+                        if all_present {
+                            if let Ok(bytes) = crate::chunks::ModelChunker::assemble_chunks(ordered_chunks) {
+                                let version = pending.version.clone();
+                                let root_hash = pending.root_hash;
+                                self.hot_reload_model(version.clone(), root_hash, bytes.clone());
+                                return Ok(Some(WorkerDaemonEvent::ModelHotReloaded {
+                                    version,
+                                    root_hash,
+                                    total_bytes: bytes.len(),
+                                }));
+                            }
+                        }
+                    }
+                }
+
+                Ok(Some(WorkerDaemonEvent::ChunkReceived {
+                    chunk: chunk_copy,
+                    sender,
+                }))
             }
             None => Ok(None),
         }

@@ -25,7 +25,14 @@ interface StopMessage {
   type: 'STOP';
 }
 
-type WorkerIncomingMessage = InitMessage | StartSearchMessage | StopMessage;
+interface UpgradeModelMessage {
+  type: 'UPGRADE_MODEL';
+  version: string;
+  modelsUrl?: string;
+  hash?: string;
+}
+
+type WorkerIncomingMessage = InitMessage | StartSearchMessage | StopMessage | UpgradeModelMessage;
 
 interface MCTSNode {
   latentState: Float32Array;
@@ -47,15 +54,21 @@ let isStopping = false;
 /**
  * Fetch model ArrayBuffer with IndexedDB key-value persistence.
  */
-async function loadOrFetchModelBuffer(modelName: string, baseUrl: string): Promise<ArrayBuffer> {
+async function loadOrFetchModelBuffer(
+  modelName: string,
+  baseUrl: string,
+  forceReload: boolean = false
+): Promise<ArrayBuffer> {
   const dbKey = `bourbaki_onnx_${modelName}_v2`;
-  try {
-    const cached = await get<ArrayBuffer>(dbKey);
-    if (cached && cached.byteLength > 0) {
-      return cached;
+  if (!forceReload) {
+    try {
+      const cached = await get<ArrayBuffer>(dbKey);
+      if (cached && cached.byteLength > 0) {
+        return cached;
+      }
+    } catch (err) {
+      console.warn(`[Worker IDB] Failed to read cached model ${modelName}:`, err);
     }
-  } catch (err) {
-    console.warn(`[Worker IDB] Failed to read cached model ${modelName}:`, err);
   }
 
   const fetchUrl = `${baseUrl.replace(/\/$/, '')}/${modelName}.onnx`;
@@ -77,13 +90,16 @@ async function loadOrFetchModelBuffer(modelName: string, baseUrl: string): Promi
 /**
  * Initialize ONNX Runtime Inference Sessions.
  */
-async function initSessions(baseUrl: string = './models'): Promise<string> {
+async function initSessions(
+  baseUrl: string = './models',
+  forceReload: boolean = false
+): Promise<string> {
   const providers: ort.InferenceSession.ExecutionProviderConfig[] = ['webgpu', 'wasm'];
 
   const [repBuf, dynBuf, predBuf] = await Promise.all([
-    loadOrFetchModelBuffer('representation', baseUrl),
-    loadOrFetchModelBuffer('dynamics', baseUrl),
-    loadOrFetchModelBuffer('prediction', baseUrl),
+    loadOrFetchModelBuffer('representation', baseUrl, forceReload),
+    loadOrFetchModelBuffer('dynamics', baseUrl, forceReload),
+    loadOrFetchModelBuffer('prediction', baseUrl, forceReload),
   ]);
 
   try {
@@ -385,6 +401,21 @@ self.onmessage = async (e: MessageEvent<WorkerIncomingMessage>) => {
       });
     } catch (err: any) {
       self.postMessage({ type: 'ERROR', error: err.message || String(err) });
+    }
+  } else if (msg.type === 'UPGRADE_MODEL') {
+    try {
+      const provider = await initSessions(msg.modelsUrl || './models', true);
+      self.postMessage({
+        type: 'MODEL_UPGRADED',
+        version: msg.version,
+        provider,
+        hash: msg.hash,
+      });
+    } catch (err: any) {
+      self.postMessage({
+        type: 'ERROR',
+        error: `Model hot-reload failed: ${err.message || String(err)}`,
+      });
     }
   } else if (msg.type === 'STOP') {
     isStopping = true;

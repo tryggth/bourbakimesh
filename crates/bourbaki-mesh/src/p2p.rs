@@ -25,6 +25,9 @@ pub const TOPIC_TASKS: &str = "/bourbaki/1.0.0/tasks";
 /// GossipSub topic for candidate ProofBlock strategy DAG broadcasts.
 pub const TOPIC_PROOFS: &str = "/bourbaki/1.0.0/proofs";
 
+/// GossipSub topic for certified model update announcements.
+pub const TOPIC_MODELS: &str = "/bourbaki/1.0.0/models";
+
 /// Errors occurring during P2P network operations.
 #[derive(Debug, Error)]
 pub enum P2PError {
@@ -73,6 +76,18 @@ pub struct ProofGossipMessage {
     pub signature: Option<String>,
 }
 
+/// Broadcast message payload for certified model weight updates.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ModelAnnouncementMessage {
+    pub version: String,
+    pub model_name: String,
+    pub root_hash: crate::chunks::ModelRootHash,
+    pub total_chunks: usize,
+    pub chunk_hashes: Vec<[u8; 32]>,
+    pub sender_peer_id: String,
+    pub timestamp_secs: u64,
+}
+
 /// Unified network behaviour combining GossipSub, Kademlia DHT, Identify, and Ping.
 #[derive(NetworkBehaviour)]
 pub struct BourbakiBehaviour {
@@ -110,6 +125,7 @@ pub enum P2PEvent {
     ProofReceived { block_id: BlockId, prover: String },
     ProofRejected { reason: String },
     ChunkReceived { chunk: ModelChunk, sender: String },
+    ModelAnnounced { announcement: ModelAnnouncementMessage, sender: String },
 }
 
 /// Decentralized P2P node participating in the Bourbaki proof discovery swarm.
@@ -120,6 +136,7 @@ pub struct P2PNode {
     pub tasks_topic: IdentTopic,
     pub proofs_topic: IdentTopic,
     pub chunks_topic: IdentTopic,
+    pub models_topic: IdentTopic,
 }
 
 impl P2PNode {
@@ -158,9 +175,11 @@ impl P2PNode {
         let tasks_topic = IdentTopic::new(TOPIC_TASKS);
         let proofs_topic = IdentTopic::new(TOPIC_PROOFS);
         let chunks_topic = IdentTopic::new(TOPIC_CHUNKS);
+        let models_topic = IdentTopic::new(TOPIC_MODELS);
         gossipsub.subscribe(&tasks_topic)?;
         gossipsub.subscribe(&proofs_topic)?;
         gossipsub.subscribe(&chunks_topic)?;
+        gossipsub.subscribe(&models_topic)?;
 
         // 2. Configure Kademlia DHT
         let store = MemoryStore::new(local_peer_id);
@@ -205,6 +224,7 @@ impl P2PNode {
             tasks_topic,
             proofs_topic,
             chunks_topic,
+            models_topic,
         };
 
         node.swarm.listen_on(config.listen_addr)?;
@@ -313,6 +333,20 @@ impl P2PNode {
         Ok(chunk_hash)
     }
 
+    /// Broadcast a certified ModelAnnouncementMessage to the swarm.
+    pub fn broadcast_model_announcement(
+        &mut self,
+        announcement: ModelAnnouncementMessage,
+    ) -> Result<crate::chunks::ModelRootHash, P2PError> {
+        let root_hash = announcement.root_hash;
+        let encoded = serde_json::to_vec(&announcement)?;
+        self.swarm
+            .behaviour_mut()
+            .gossipsub
+            .publish(self.models_topic.clone(), encoded)?;
+        Ok(root_hash)
+    }
+
     /// Step the swarm event loop and handle incoming GossipSub/Kademlia/Ping messages.
     pub async fn step(&mut self) -> Result<Option<P2PEvent>, P2PError> {
         tokio::select! {
@@ -351,13 +385,13 @@ impl P2PNode {
                                 match self.attestation_engine.verify_and_commit(proof_msg.block) {
                                     Ok(block_id) => {
                                         return Ok(Some(P2PEvent::ProofReceived {
-                                            block_id,
-                                            prover: proof_msg.prover_peer_id,
+                                             block_id,
+                                             prover: proof_msg.prover_peer_id,
                                         }));
                                     }
                                     Err(err) => {
                                         return Ok(Some(P2PEvent::ProofRejected {
-                                            reason: err.to_string(),
+                                             reason: err.to_string(),
                                         }));
                                     }
                                 }
@@ -370,6 +404,13 @@ impl P2PNode {
                                         sender: chunk_msg.sender_peer_id,
                                     }));
                                 }
+                            }
+                        } else if message.topic == self.models_topic.hash() {
+                            if let Ok(model_msg) = serde_json::from_slice::<ModelAnnouncementMessage>(&message.data) {
+                                return Ok(Some(P2PEvent::ModelAnnounced {
+                                    announcement: model_msg.clone(),
+                                    sender: model_msg.sender_peer_id,
+                                }));
                             }
                         }
                         Ok(None)
