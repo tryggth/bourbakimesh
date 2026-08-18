@@ -400,7 +400,9 @@ impl MeshWorkerDaemon {
                         }
 
                         if all_present {
-                            if let Ok(bytes) = crate::chunks::ModelChunker::assemble_chunks(ordered_chunks) {
+                            if let Ok(bytes) =
+                                crate::chunks::ModelChunker::assemble_chunks(ordered_chunks)
+                            {
                                 let version = pending.version.clone();
                                 let root_hash = pending.root_hash;
                                 self.hot_reload_model(version.clone(), root_hash, bytes.clone());

@@ -120,12 +120,26 @@ impl Default for P2PConfig {
 pub enum P2PEvent {
     PeerConnected(PeerId),
     PeerDisconnected(PeerId),
-    PeerSubscribed { peer_id: PeerId, topic: String },
+    PeerSubscribed {
+        peer_id: PeerId,
+        topic: String,
+    },
     TaskReceived(TaskGossipMessage),
-    ProofReceived { block_id: BlockId, prover: String },
-    ProofRejected { reason: String },
-    ChunkReceived { chunk: ModelChunk, sender: String },
-    ModelAnnounced { announcement: ModelAnnouncementMessage, sender: String },
+    ProofReceived {
+        block_id: BlockId,
+        prover: String,
+    },
+    ProofRejected {
+        reason: String,
+    },
+    ChunkReceived {
+        chunk: ModelChunk,
+        sender: String,
+    },
+    ModelAnnounced {
+        announcement: ModelAnnouncementMessage,
+        sender: String,
+    },
 }
 
 /// Decentralized P2P node participating in the Bourbaki proof discovery swarm.

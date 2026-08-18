@@ -50,7 +50,10 @@ async fn test_automated_p2p_model_weight_sync_and_hot_reload() {
     let (mut daemon_b, _addr_b) = create_test_daemon().await;
 
     // Node B dials Node A
-    daemon_b.node_mut().dial(addr_a).expect("Daemon B dial failed");
+    daemon_b
+        .node_mut()
+        .dial(addr_a)
+        .expect("Daemon B dial failed");
 
     // 1. Wait for connection establishment & GossipSub subscription
     let connected = timeout(Duration::from_secs(10), async {
@@ -78,15 +81,19 @@ async fn test_automated_p2p_model_weight_sync_and_hot_reload() {
     })
     .await;
 
-    assert!(connected.is_ok(), "Timed out waiting for GossipSub peer subscription");
+    assert!(
+        connected.is_ok(),
+        "Timed out waiting for GossipSub peer subscription"
+    );
 
     // Give GossipSub mesh time to stabilize
     tokio::time::sleep(Duration::from_millis(150)).await;
 
     // 2. Prepare new model weight binary (e.g. 64KB synthetic weight buffer)
     let fake_weights = (0..65536).map(|i| (i % 256) as u8).collect::<Vec<u8>>();
-    let (manifest, chunks) = ModelChunker::chunk_bytes("bourbaki_v2.1.pt", &fake_weights, Some(16 * 1024))
-        .expect("Failed to chunk model data");
+    let (manifest, chunks) =
+        ModelChunker::chunk_bytes("bourbaki_v2.1.pt", &fake_weights, Some(16 * 1024))
+            .expect("Failed to chunk model data");
 
     assert_eq!(manifest.total_chunks, 4);
     assert!(manifest.verify_merkle_root());
@@ -114,7 +121,10 @@ async fn test_automated_p2p_model_weight_sync_and_hot_reload() {
     })
     .await;
 
-    assert!(announced.is_ok(), "Timed out waiting for ModelUpgradeAnnounced event on Node B");
+    assert!(
+        announced.is_ok(),
+        "Timed out waiting for ModelUpgradeAnnounced event on Node B"
+    );
 
     // 5. Node A broadcasts all chunks
     for chunk in chunks {
@@ -142,12 +152,18 @@ async fn test_automated_p2p_model_weight_sync_and_hot_reload() {
     })
     .await;
 
-    assert!(reloaded.is_ok(), "Timed out waiting for ModelHotReloaded event on Node B");
+    assert!(
+        reloaded.is_ok(),
+        "Timed out waiting for ModelHotReloaded event on Node B"
+    );
 
     // 7. Verify Node B's active in-memory model state
     assert_eq!(daemon_b.active_model_version, "v2.1.0-alpha");
     assert_eq!(daemon_b.active_model_hash, Some(manifest.root_hash));
-    assert_eq!(daemon_b.active_model_bytes.as_deref(), Some(fake_weights.as_slice()));
+    assert_eq!(
+        daemon_b.active_model_bytes.as_deref(),
+        Some(fake_weights.as_slice())
+    );
 
     // 8. Ensure Node B can execute theorem proving seamlessly after hot-reload
     let (strategy, term) = daemon_b.solve_goal("Mathlib.Logic.Identity", "P -> P");
