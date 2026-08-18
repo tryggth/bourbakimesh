@@ -51,9 +51,9 @@ flowchart TD
         Dedukti["Dedukti (.dk)"]
     end
 
-    BrowserClient <== "WebSocket / REST" ==> MeshGateway
-    MeshGateway <== "Async Tokio IPC" ==> RustCore
-    MLSubsystem <== "AsyncMeshClient" ==> RustCore
+    WebClient <-->|"WebSocket / REST"| GatewayServer
+    GatewayServer <-->|"Async Tokio IPC"| Mesh
+    LatentMCTS <-->|"AsyncMeshClient"| Mesh
     Kernel --> Lean4
     Kernel --> Coq
     Kernel --> Isabelle

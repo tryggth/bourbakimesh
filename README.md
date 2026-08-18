@@ -78,9 +78,9 @@ flowchart TD
         DeduktiTarget["Dedukti Emitter (.dk)"]
     end
 
-    BrowserUI <== "WebSocket / REST Gateway" ==> FastAPIGateway
-    FastAPIGateway <== "Framed Async IPC" ==> RustCore
-    PythonML <== "AsyncMeshClient (TCP/UDS)" ==> RustCore
+    WebPWA <-->|"WebSocket / REST Gateway"| WSBridge
+    Server <-->|"Framed Async IPC"| Daemon
+    MCTS <-->|"AsyncMeshClient (TCP/UDS)"| Daemon
     Kernel --> LeanTarget
     Kernel --> CoqTarget
     Kernel --> IsabelleTarget
