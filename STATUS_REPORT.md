@@ -91,13 +91,6 @@
   *Delivered 40-iteration continuous training run certified as `checkpoints/bourbaki_v2.pt` with PER, temperature scaling ($\tau=0.5$), champion gating, and 3-way tournament benchmark.*
 - [x] **#29 [`feat(worker): In-Browser Web Worker with ONNX Runtime WebGPU & IndexedDB Weight Caching`](https://github.com/tryggth/bourbakimesh/issues/29)**  
   *Delivered PyTorch-to-ONNX exporter (`scripts/export_onnx.py`), WebGPU/Wasm web worker (`prover.worker.ts`), in-browser `BrowserLatentMCTS`, and `idb-keyval` IndexedDB weight caching.*
-- [x] **#33 [`feat(mesh): Top-Level Target Theorem Injection & Swarm Focus Protocol`](https://github.com/tryggth/bourbakimesh/issues/33)**  
-  *Delivered target injection REST endpoints (`POST /api/target/set`, `GET /api/target/current`), WebSocket broadcast directive (`swarm_target_set`), and Web UI `TargetManager` objective bar.*
-- [x] **#34 [`feat(mesh): Automated P2P Model Weight Hot-Reloading & Swarm Sync Protocol`](https://github.com/tryggth/bourbakimesh/issues/34)**  
-  *Delivered `/bourbaki/1.0.0/models` GossipSub announcement topic, Merkle root verification, chunk streaming & reassembly, daemon in-memory zero-downtime hot-reloading, and browser Web Worker cache invalidation (`UPGRADE_MODEL`).*
-
----
-
 - [x] **#30 [`feat(crypto): Web Crypto Ephemeral Ed25519 Node Identity & Signed Proof Attestation`](https://github.com/tryggth/bourbakimesh/issues/30)**  
   *Delivered in-browser Web Crypto ECDSA P-256 ephemeral keypair generation, deterministic `peer_id` derivation, SHA-256 hashing, and signed `ProofBlock` attestation payload generation.*
 - [x] **#31 [`feat(ui): 'Contribute Cycles' Toggle, Resource Throttle Slider & Contributor Dashboard`](https://github.com/tryggth/bourbakimesh/issues/31)**  
@@ -107,7 +100,7 @@
 - [x] **#33 [`feat(mesh): Top-Level Target Theorem Injection & Swarm Focus Protocol`](https://github.com/tryggth/bourbakimesh/issues/33)**  
   *Delivered dynamic target theorem injection CLI, REST (`/api/target/set`), WebSocket broadcast, and TargetManager UI modal.*
 - [x] **#34 [`feat(mesh): Automated P2P Model Weight Hot-Reloading & Swarm Sync Protocol`](https://github.com/tryggth/bourbakimesh/issues/34)**  
-  *Delivered P2P model weight discovery over GossipSub `/bourbaki/1.0.0/models`, chunk pulling, and zero-downtime hot-reloading across Rust daemons and Web Workers.*
+  *Delivered `/bourbaki/1.0.0/models` GossipSub announcement topic, Merkle root verification, chunk streaming & reassembly, daemon in-memory zero-downtime hot-reloading, and browser Web Worker cache invalidation (`UPGRADE_MODEL`).*
 
 ---
 

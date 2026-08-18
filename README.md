@@ -1,6 +1,14 @@
 # BourbakiMesh: Game-Semantic Dialogue Proving & Distributed Proof Ledger
 
-BourbakiMesh is a high-performance, polyglot automated theorem proving and formal deduction ecosystem. It unifies **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Calculus of Inductive Constructions (CIC) proof-term extraction**, **PyTorch Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, and a **cryptographic peer-to-peer proof DAG ledger** targeting Lean 4.
+[![CI](https://github.com/tryggth/bourbakimesh/actions/workflows/deploy-pwa.yml/badge.svg)](https://github.com/tryggth/bourbakimesh/actions)
+[![Rust 1.80+](https://img.shields.io/badge/Rust-1.80+-orange.svg)](https://www.rust-lang.org)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org)
+[![Lean 4](https://img.shields.io/badge/Lean_4-v4.33.0-purple.svg)](https://leanprover.github.io)
+[![Tests](https://img.shields.io/badge/Tests-140%20passing-brightgreen.svg)](STATUS_REPORT.md)
+[![PWA](https://img.shields.io/badge/PWA-Auto--Updating-emerald.svg)](ui/)
+[![License](https://img.shields.io/badge/License-Apache_2.0_OR_MIT-blue.svg)](#-license)
+
+BourbakiMesh is a high-performance, polyglot automated theorem proving and formal deduction ecosystem. It unifies **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Calculus of Inductive Constructions (CIC) proof-term extraction**, **PyTorch Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, a **libp2p peer-to-peer proof DAG ledger**, an **auto-updating WebGPU Progressive Web App (PWA)**, and a **zero-trust verification bridge targeting Lean 4, Coq, Isabelle/HOL, and Dedukti**.
 
 ---
 
@@ -8,41 +16,68 @@ BourbakiMesh is a high-performance, polyglot automated theorem proving and forma
 
 ```mermaid
 flowchart TD
-    subgraph PythonML ["Python ML & Dynamics Subsystem (bourbakimesh)"]
-        MCTS["Latent MCTS Self-Play Engine"]
-        MuZero["BourbakiMuZero (h_θ, g_θ, f_θ)"]
-        Tableau["Semantic Tableau Seed Generator"]
-        AsyncClient["AsyncMeshClient (TCP/UDS)"]
-        Bench["Profiling & CSE Benchmarking"]
+    subgraph BrowserUI ["Progressive Web App & Volunteer Prover (ui/)"]
+        WebPWA["Vite + React PWA Dashboard<br/>(Proof DAG, Arena, Telemetry)"]
+        WebWorker["Web Worker (prover.worker.ts)<br/>ONNX Runtime WebGPU & Wasm SIMD"]
+        WebCrypto["Web Crypto API<br/>ECDSA P-256 Ephemeral Identity"]
+        IDBCache["IndexedDB (idb-keyval)<br/>Offline Weight & DAG Cache"]
+        TargetModal["TargetManager UI Modal<br/>Dynamic Goal Injection"]
+        
+        WebPWA <--> WebWorker
+        WebWorker <--> IDBCache
+        WebWorker --> WebCrypto
+        TargetModal --> WebPWA
+    end
+
+    subgraph FastAPIGateway ["FastAPI Telemetry & Gateway Bridge (src/bourbakimesh/api/)"]
+        Server["FastAPI Server (:8000)<br/>REST & WebSocket Hub"]
+        WSBridge["/ws/telemetry WebSocket<br/>Task Claiming & Proof Attestation"]
+        RESTAPI["/api/target/set & /api/proofs/submit"]
+        
+        Server --- WSBridge
+        Server --- RESTAPI
+    end
+
+    subgraph PythonML ["Python ML & Dynamics Subsystem (src/bourbakimesh)"]
+        MCTS["Polarity-Inverting Latent MCTS"]
+        MuZero["RelationalArenaTransformer (25M)<br/>(h_θ, g_θ, f_θ)"]
+        Trainer["BourbakiTrainer & PER<br/>Champion Gating & Pacing"]
+        Tableau["Semantic Tableau Generator"]
+        Bench["Profiling, CSE & Elo Tournament"]
         
         Tableau --> MCTS
         MuZero --> MCTS
-        MCTS --> AsyncClient
+        MCTS --> Trainer
         MCTS --> Bench
     end
 
     subgraph RustCore ["Rust Core Subsystem (crates/)"]
-        IPC["crates/bourbaki-mesh<br/>MeshIpcServer & Coordinator"]
-        IR["crates/bourbaki-ir<br/>Arena Data Structures & P-Views"]
-        Kernel["crates/bourbaki-kernel<br/>CIC Translation & Strategy Extractor"]
-        Ledger["ProofLedger & Content-Addressed DAG"]
+        Daemon["bourbaki-daemon & MeshWorker<br/>libp2p GossipSub & Kademlia Swarm"]
+        P2PChunker["P2P Model Chunker & Hot-Reload<br/>Topic: /bourbaki/1.0.0/models"]
+        IR["crates/bourbaki-ir<br/>Arena Game AST & P-Views"]
+        Kernel["crates/bourbaki-kernel<br/>CIC AST, Extractor & Decompiler"]
+        Ledger["ProofLedger & DAG<br/>Byzantine Attestation Engine"]
         
-        IPC --> IR
+        Daemon <--> P2PChunker
+        Daemon --> IR
         IR --> Kernel
         Kernel --> Ledger
     end
 
-    subgraph LeanTarget ["Lean 4 Verification Target (lean_target/)"]
-        Lake["Lake Harness Bridge (lake env lean)"]
-        KernelCheck["CIC Kernel Validation Gate"]
-        MetaTheory["LeanTarget.MetaTheory (Soundness Proof)"]
-        
-        Lake --> KernelCheck
-        MetaTheory -. "Formal Soundness Guarantee" .-> KernelCheck
+    subgraph MultiTargetVerif ["Zero-Trust Verification Targets"]
+        LeanTarget["Lean 4 Kernel Harness<br/>(lean_target/ + MetaTheory)"]
+        CoqTarget["Coq Emitter (Gallina .v)"]
+        IsabelleTarget["Isabelle/HOL Emitter (Isar .thy)"]
+        DeduktiTarget["Dedukti Emitter (.dk)"]
     end
 
-    AsyncClient -- "Framed JSON-RPC" --> IPC
-    Kernel -- "Extracted Lean 4 Terms" --> LeanTarget
+    BrowserUI <== "WebSocket / REST Gateway" ==> FastAPIGateway
+    FastAPIGateway <== "Framed Async IPC" ==> RustCore
+    PythonML <== "AsyncMeshClient (TCP/UDS)" ==> RustCore
+    Kernel --> LeanTarget
+    Kernel --> CoqTarget
+    Kernel --> IsabelleTarget
+    Kernel --> DeduktiTarget
 ```
 
 ---
@@ -51,97 +86,121 @@ flowchart TD
 
 | Subsystem Path | Toolchain | Core Responsibility |
 | :--- | :--- | :--- |
-| **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Dialogue arena AST, Hyland-Ong / Lorenzen play traces, polarities ($P$ vs $O$), P-view/O-view calculation, and well-bracketing stack discipline. |
-| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Minimal Calculus of Inductive Constructions (CIC) AST, Lean 4 term emitter, 5-rule strategy extraction compiler $\mathcal{E}(\sigma)$, and term decompiler. |
-| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Content-addressed cryptographic proof DAG (`ProofBlock`, `BlockId`), `ProofLedger`, Tokio async IPC server (TCP/UDS), and coordinator RPC. |
-| **`src/bourbakimesh`** | Python 3.11+ (Torch, PyTest) | `BourbakiMuZero` neural dynamics ($h_\theta, g_\theta, f_\theta$), polarity-inverting Latent MCTS, semantic tableau cold-start generator, and `AsyncMeshClient`. |
-| **`lean_target/`** | Lean 4 (`lake`, v4.33.0) | Zero-trust Lean 4 kernel verification harness and mechanized meta-theoretic soundness formalization (`LeanTarget.MetaTheory`). |
+| **`crates/bourbaki-ir`** | Rust 1.80+ (2021/2024 ed.) | Dialogue arena AST, Hyland-Ong / Lorenzen play traces, polarities ($P$ vs $O$), P-view/O-view calculation, arena cuts, and well-bracketing stack discipline. |
+| **`crates/bourbaki-kernel`** | Rust 1.80+ (2021/2024 ed.) | Minimal Calculus of Inductive Constructions (CIC) AST, 5-rule strategy extraction compiler $\mathcal{E}(\sigma)$, batch corpus decompiler (`decompile_corpus`), and universal multi-target emitters (**Lean 4, Coq, Isabelle/HOL, Dedukti**). |
+| **`crates/bourbaki-mesh`** | Rust 1.80+ (2021/2024 ed.) | Content-addressed cryptographic proof DAG (`ProofBlock`, `BlockId`), `ProofLedger`, Byzantine attestation engine, standalone `bourbaki-daemon` binary, libp2p GossipSub & Kademlia DHT swarm, and P2P model weight chunking & hot-reloading. |
+| **`src/bourbakimesh`** | Python 3.11+ (Torch, FastAPI) | 25M-parameter `RelationalArenaTransformer`, `BourbakiMuZero` neural dynamics ($h_\theta, g_\theta, f_\theta$), polarity-inverting Latent MCTS, Prioritized Experience Replay (PER), champion tournament gating, and FastAPI telemetry server. |
+| **`ui/` (PWA Dashboard)** | Vite + React + TypeScript + Tailwind | Auto-updating Progressive Web App, real-time proof DAG visualizer, interactive dialogue tree view, **"Contribute Cycles" volunteer WebGPU prover**, and top-level target theorem injection manager. |
+| **`lean_target/`** | Lean 4 (`lake`, v4.33.0) | Zero-trust Lean 4 kernel verification harness, mechanized meta-theoretic soundness formalization (`LeanTarget.MetaTheory`), and Mathlib export tool (`export_mathlib`). |
 
 ---
 
-## 🚀 Quickstart & Verification
+## 🌐 Interactive Web UI & In-Browser Volunteer Solver
 
-### Prerequisites
-- **Rust Toolchain:** 1.80+ (`rustup component add clippy rustfmt`)
-- **Python Environment:** 3.11+ (`torch`, `pydantic`, `pytest`)
-- **Lean 4:** [`elan`](https://github.com/leanprover/elan) with `leanprover/lean4:v4.33.0`
+BourbakiMesh features a complete Progressive Web App located in `ui/` that connects directly to the distributed proving mesh.
 
-### 1. Python Environment Setup
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
+# Launch both FastAPI backend and Vite frontend simultaneously:
+./scripts/launch_live_ui_demo.sh
 
-# Run full Python test suite (16 tests)
-pytest tests/
+# Or run frontend independently:
+cd ui && npm install && npm run dev
+# Accessible at http://localhost:5173
 ```
 
-### 2. Rust Workspace Build & Tests
-```bash
-# Lint checks (zero warnings policy)
-cargo fmt --check
-cargo check --workspace
-cargo clippy --workspace -- -D warnings
+### Key UI Features
 
-# Run all Rust unit, integration, and Tier 3a proptests (42 tests)
+1. **"Contribute Cycles" Volunteer Engine ([`ui/src/components/VolunteerPanel.tsx`](file:///home/tryggth2009/bourbakimesh/ui/src/components/VolunteerPanel.tsx)):**
+   - **In-Browser Proving:** Runs MCTS tree search directly in a dedicated Web Worker using ONNX Runtime WebGPU and WebAssembly SIMD (`prover.worker.ts`).
+   - **Web Crypto Identity:** Generates an ephemeral ECDSA P-256 keypair in browser memory and derives a deterministic cryptographic `peer_id` (`cryptoIdentity.ts`).
+   - **Power Profiles:** Switch between *Eco* ($25\text{ sims/move}$), *Balanced* ($100\text{ sims/move}$), and *Max* ($250\text{ sims/move}$).
+   - **Thermal & Battery Protection:** Hooks into `navigator.getBattery?.()` and `document.visibilityState` to auto-pause when unmetered power drops below 20% or tab is backgrounded.
+   - **Signed Proof Submission:** Extracts winning strategies $\mathcal{E}(\sigma)$, signs the payload with Web Crypto, and submits it to the mesh gateway for Lean 4 verification and DAG commitment.
+
+2. **Top-Level Swarm Target Injection ([`ui/src/components/TargetManager.tsx`](file:///home/tryggth2009/bourbakimesh/ui/src/components/TargetManager.tsx)):**
+   - Allows users and operators to specify active top-level target theorems (e.g., from Mathlib or custom propositions) with priority weighting.
+   - Immediately broadcasts a `swarm_target_set` directive across the WebSocket mesh to focus all daemon and volunteer worker rollouts.
+
+3. **Auto-Updating PWA & Offline DAG Caching:**
+   - Configured with `vite-plugin-pwa` and Workbox for automatic background updates and Service Worker cache busting.
+   - Hydrates proof DAG state from local IndexedDB (`idb-keyval`) when offline.
+
+---
+
+## 🚀 Quickstart & Verification Matrix
+
+### 1. Verification Suite (140 tests)
+
+```bash
+# 1. Rust Workspace Check & Unit/Integration Tests (71 passed)
+cargo check --workspace
 cargo test --workspace
 
-# Run Criterion micro-benchmarks
-cargo bench --workspace -- --test
+# 2. Python Test Suite & Type Verification (69 passed)
+.venv/bin/pytest tests/
+
+# 3. PWA Frontend Production Build & Types
+cd ui && npm test && npm run build && cd ..
+
+# 4. Lean 4 Kernel Harness (12 jobs passed)
+cd lean_target && lake build && cd ..
 ```
 
-### 3. Lean 4 Verification Harness
+### 2. Standalone Rust Daemon & P2P Swarm
+
 ```bash
-cd lean_target
-lake build
-cd ..
+# Start a standalone Bourbaki daemon with embedded MCTS worker:
+cargo run --bin bourbaki-daemon -- --p2p-port 9000 --rpc-port 8080 --model-path checkpoints/bourbaki_v2.pt
 ```
 
-### 4. Performance & CSE Benchmark Run
+### 3. Top-Level Theorem Injection CLI
+
 ```bash
-# Run benchmark profile on promoted model
-.venv/bin/python -m bourbakimesh.benchmarks.cli --model-path checkpoints/bourbaki_v0.pt --simulations 50 --device cpu
+# Inject an active target theorem via CLI:
+.venv/bin/python -m bourbakimesh.api.target_cli \
+  --name "Mathlib.Algebra.Group.mul_left_inv" \
+  --lean-code "theorem mul_left_inv (a : G) : a⁻¹ * a = 1 := by sorry" \
+  --priority 150
 ```
 
 ---
 
-## 🧠 Model Registry & Fine-Tuning Baselines
+## 🧠 Model Registry & Baseline Tournaments
 
-| Model Checkpoint | Parameters & Architecture | Training Regimen | Search Throughput (CPU) | CSE Score | Latency (100 sims) | Status |
-| :--- | :--- | :--- | :---: | :---: | :---: | :---: |
-| `checkpoints/bourbaki_v0.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 60 iterations cold-start self-play + Tableau seeds + 3-Tier Curriculum | 1,490.3 sims/sec (50 sims) | 2.981x | 33.55 ms (50 sims) | 🟢 Promoted Baseline |
-| `checkpoints/bourbaki_v1.pt` | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$), Latent: 64, Hidden: 128 | 40 iterations fine-tuned from `v0` (12 games/iter, 120 sims/move) | 715.0 sims/sec (100 sims) | 1.430x | 139.85 ms (100 sims) | 🟢 Fine-Tuned Active |
+| Model Checkpoint | Parameters & Architecture | Elo Rating (±95% CI) | Match Record | Search Throughput (CPU) | CSE Score | Status |
+| :--- | :--- | :---: | :---: | :---: | :---: | :---: |
+| [`checkpoints/bourbaki_v0.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v0.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$) | **1485.0** (±86.1) | 28-32-0 (46.7%) | 1,490.3 sims/sec (50 sims) | 2.981x | 🟢 Baseline |
+| [`checkpoints/bourbaki_v1.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v1.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$) | **1530.0** (±86.5) | 34-26-0 (56.7%) | 715.0 sims/sec (100 sims) | 1.430x | 🟢 Fine-Tuned Active |
+| [`checkpoints/bourbaki_v2.pt`](file:///home/tryggth2009/bourbakimesh/checkpoints/bourbaki_v2.pt) | 25M Relational Transformer ($h_\theta, g_\theta, f_\theta$) | **1485.0** (±86.1) | 28-32-0 (46.7%) | 1,002.2 sims/sec (100 sims) | 1.580x | 🟢 Gated PER Active |
 
-### Download Pre-Trained Weights
-Model weights and verification checksums are distributed as release assets under [`v0.1.0-alpha`](https://github.com/tryggth/bourbakimesh/releases/tag/v0.1.0-alpha):
-```bash
-# Pull model checkpoints into checkpoints/
-gh release download v0.1.0-alpha --dir checkpoints/
-```
+### Automated P2P Model Sync & Hot-Reloading
+- **GossipSub Topic:** `/bourbaki/1.0.0/models`
+- **Zero-Downtime:** Daemons reassemble Merkle-verified chunks in the background and hot-swap in-memory model sessions without restarting or dropping active searches.
 
 ---
 
-## 🛡️ 3-Tiered Soundness Architecture
+## 🛡️ Zero-Trust Verification & Multi-Target Emitters
 
-BourbakiMesh eliminates unsound proofs through three orthogonal defense tiers:
-1. **Tier 1 (Operational Runtime Gate):** Every extracted proof term is submitted to `lake env lean` to pass the official Lean 4 type-checker without `sorry` or unverified axioms.
-2. **Tier 2 (Mechanized Meta-Theory):** Formalization of arena dialogue syntax, P-views, deep CIC embeddings, and the Master Soundness Theorem in Lean 4 (`LeanTarget.MetaTheory`).
-3. **Tier 3 (Empirical Testing):**
-   - **Tier 3a:** Generative property-based fuzzing (`proptest`) verifying alternation, pointer acyclicity, and stack discipline.
-   - **Tier 3b:** Adversarial falsification hunt targeting $\bot$ (False) and round-trip isomorphism ($\text{CIC} \to \text{StrategyTree} \to \text{CIC} \to \text{Lean 4 Kernel}$).
+BourbakiMesh enforces constructive soundness without trusting neural networks or heuristics:
+1. **Dialogue Game Alternation:** Opponent ($O$) and Proponent ($P$) moves strictly alternate with valid justification pointers.
+2. **Deterministic Extraction:** Winning strategies $\sigma$ are deterministically compiled to CIC terms via $\mathcal{E}(\sigma)$.
+3. **Pluggable Multi-Target Verification:**
+   - **Lean 4:** Kernel check via `lake env lean` with zero unverified axioms.
+   - **Coq:** Emitted Gallina `.v` proof scripts.
+   - **Isabelle/HOL:** Emitted Isar `.thy` proof scripts.
+   - **Dedukti:** Emitted higher-order rewrite signatures (`.dk`).
 
 ---
 
-## 🤝 Contributing & Community
+## 🤝 Contributing & Documentation
 
-We welcome contributions across formal logic, category theory, neural dynamics, and distributed systems!
-
-- **[Contributing Guidelines](CONTRIBUTING.md):** Detailed environment setup, commit conventions, and pull request checklist.
-- **[Request for Comments (RFCs)](rfcs/):** Review active proposals:
-  - [`rfcs/0000-template.md`](rfcs/0000-template.md): Standard architectural RFC template.
-  - [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md): Neural and Game-Semantic Hinting Mechanisms.
-- **[GitHub Discussions](https://github.com/tryggth/bourbakimesh/discussions):** Join discussions on theoretical foundations and system architecture.
-- **[GitHub Wiki](https://github.com/tryggth/bourbakimesh/wiki):** Comprehensive technical specifications, API guides, and theoretical papers.
+- **[Contributing Guidelines](CONTRIBUTING.md):** Quality gates, Conventional Commits, and development setup.
+- **[System Status Report](STATUS_REPORT.md):** Complete issue tracking matrix and benchmark records.
+- **[Wiki Documentation](docs/wiki/):**
+  - [`docs/wiki/Volunteer-Computing.md`](docs/wiki/Volunteer-Computing.md): Architecture of browser Web Workers, WebGPU, and Web Crypto.
+  - [`docs/wiki/Target-Injection-Protocol.md`](docs/wiki/Target-Injection-Protocol.md): Top-level swarm objective injection API and CLI.
+  - [`docs/wiki/Model-Distribution-and-Hot-Reloading.md`](docs/wiki/Model-Distribution-and-Hot-Reloading.md): P2P chunk gossip and zero-downtime hot-reloading.
+- **[Request for Comments (RFCs)](rfcs/):** Architectural proposals including [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md) and [`rfcs/0003-webgpu-browser-inference.md`](rfcs/0003-webgpu-browser-inference.md).
 
 ---
 
