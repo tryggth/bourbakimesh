@@ -5,6 +5,7 @@ members = [
     "crates/bourbaki-kernel",
     "crates/bourbaki-mesh",
     "crates/kernel",
+    "crates/kernel-wasm",
 ]
 
 [workspace.package]

@@ -1,0 +1,18 @@
+[package]
+name = "kernel-wasm"
+version = "0.1.0"
+edition = "2021"
+authors = ["BourbakiMesh Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/tryggth/bourbakimesh"
+description = "WebAssembly bindings for BourbakiMesh deterministic proof kernel"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+serde-wasm-bindgen = "0.6"
+serde = { workspace = true }
+serde_json = { workspace = true }
+kernel = { path = "../kernel" }
