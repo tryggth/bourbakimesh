@@ -3,8 +3,7 @@
 [![CI](https://github.com/tryggth/bourbakimesh/actions/workflows/deploy-pwa.yml/badge.svg)](https://github.com/tryggth/bourbakimesh/actions)
 [![Rust 1.80+](https://img.shields.io/badge/Rust-1.80+-orange.svg)](https://www.rust-lang.org)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org)
-[![Lean 4](https://img.shields.io/badge/Lean_4-v4.33.0-purple.svg)](https://leanprover.github.io)
-[![Tests](https://img.shields.io/badge/Tests-140%20passing-brightgreen.svg)](STATUS_REPORT.md)
+[![Tests](https://img.shields.io/badge/Tests-140%20passing%20(71%20Rust%20%2B%2069%20Python%20%2B%2012%20Lean%204)-brightgreen.svg)](STATUS_REPORT.md)
 [![PWA](https://img.shields.io/badge/PWA-Auto--Updating-emerald.svg)](ui/)
 [![License](https://img.shields.io/badge/License-Apache_2.0_OR_MIT-blue.svg)](#-license)
 
@@ -197,10 +196,56 @@ BourbakiMesh enforces constructive soundness without trusting neural networks or
 - **[Contributing Guidelines](CONTRIBUTING.md):** Quality gates, Conventional Commits, and development setup.
 - **[System Status Report](STATUS_REPORT.md):** Complete issue tracking matrix and benchmark records.
 - **[Wiki Documentation](docs/wiki/):**
+  - [`docs/wiki/Home.md`](docs/wiki/Home.md): System overview and formal verification pipeline.
   - [`docs/wiki/Volunteer-Computing.md`](docs/wiki/Volunteer-Computing.md): Architecture of browser Web Workers, WebGPU, and Web Crypto.
   - [`docs/wiki/Target-Injection-Protocol.md`](docs/wiki/Target-Injection-Protocol.md): Top-level swarm objective injection API and CLI.
-  - [`docs/wiki/Model-Distribution-and-Hot-Reloading.md`](docs/wiki/Model-Distribution-and-Hot-Reloading.md): P2P chunk gossip and zero-downtime hot-reloading.
+  - [`docs/wiki/P2P-Model-Distribution.md`](docs/wiki/P2P-Model-Distribution.md): P2P chunk gossip, Merkle trees, and zero-downtime hot-reloading.
+  - [`docs/wiki/Multi-Target-Compilers.md`](docs/wiki/Multi-Target-Compilers.md): Game-semantic strategy extraction to Lean 4, Coq, Isabelle/HOL, and Dedukti.
 - **[Request for Comments (RFCs)](rfcs/):** Architectural proposals including [`rfcs/0002-neural-game-semantic-hinting.md`](rfcs/0002-neural-game-semantic-hinting.md) and [`rfcs/0003-webgpu-browser-inference.md`](rfcs/0003-webgpu-browser-inference.md).
+
+---
+
+## 📂 Monorepo Structure
+
+```
+bourbakimesh/
+├── Cargo.toml                                 # Rust workspace configuration (2021/2024 ed.)
+├── pyproject.toml                             # Python package specification & dependencies
+├── CONTRIBUTING.md                            # Contributor guidelines & style guide
+├── README.md                                  # System overview & quickstart
+├── STATUS_REPORT.md                           # Verification & issue tracking matrix
+├── .github/
+│   ├── workflows/deploy-pwa.yml               # GitHub Actions PWA automated deployment
+│   ├── ISSUE_TEMPLATE/                        # Issue & RFC templates
+│   └── pull_request_template.md               # PR verification checklist
+├── docs/
+│   └── wiki/                                  # Comprehensive technical specifications & wiki
+│       ├── Home.md                            # Wiki landing page
+│       ├── Volunteer-Computing.md             # In-browser WebGPU prover documentation
+│       ├── Target-Injection-Protocol.md       # Swarm objective injection specification
+│       ├── P2P-Model-Distribution.md          # P2P weight chunking & hot-reloading
+│       └── Multi-Target-Compilers.md          # Universal multi-target extraction
+├── rfcs/                                      # Architectural Requests for Comments (RFCs)
+├── checkpoints/                               # Pre-trained models (bourbaki_v0, v1, v2)
+├── data/                                      # Mathlib exports & curriculum corpora
+├── crates/
+│   ├── bourbaki-ir/                           # Dialogue Arena AST, views & polarities
+│   ├── bourbaki-kernel/                       # CIC AST, strategy extraction & emitters
+│   └── bourbaki-mesh/                         # Proof DAG, libp2p swarm & bourbaki-daemon
+├── src/bourbakimesh/                          # Python ML & Dynamics Engine
+│   ├── api/                                   # FastAPI REST/WebSocket telemetry & CLI
+│   ├── corpus/                                # Mathlib curriculum ingestion pipeline
+│   ├── training/                              # MuZero training, PER & champion gating
+│   ├── models.py                              # RelationalArenaTransformer & BourbakiMuZero
+│   └── latent_mcts.py                         # Polarity-inverting Latent MCTS search
+├── ui/                                        # Vite + React + TypeScript + Tailwind PWA
+│   ├── src/components/                        # DAG, Arena, Prover, Volunteer & Target views
+│   ├── src/workers/                           # Web Worker (ONNX WebGPU & Wasm SIMD)
+│   ├── src/services/                          # Web Crypto identity & WebSocket client
+│   └── vite.config.ts                         # PWA & Workbox service worker configuration
+├── tests/                                     # End-to-end Python integration tests
+└── lean_target/                               # Zero-Trust Lean 4 verification harness
+```
 
 ---
 
