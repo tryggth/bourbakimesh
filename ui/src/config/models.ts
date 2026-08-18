@@ -91,13 +91,21 @@ export const DEPRECATED_MODELS = [
 export type Expr =
   | { Prop: string }
   | { And: [Expr, Expr] }
+  | { Or: [Expr, Expr] }
   | { Impl: [Expr, Expr] }
+  | { Not: Expr }
+  | 'False'
   | { Eq: [string, string] };
 
 export type DeductionStep =
   | { rule: 'AndElimL'; hyp: string }
   | { rule: 'AndElimR'; hyp: string }
   | { rule: 'AndIntro'; left: string; right: string }
+  | { rule: 'OrIntroL'; hyp: string; right: Expr }
+  | { rule: 'OrIntroR'; left: Expr; hyp: string }
+  | { rule: 'OrElim'; hyp_or: string; left_impl: string; right_impl: string }
+  | { rule: 'Contradiction'; pos_hyp: string; neg_hyp: string }
+  | { rule: 'FalseElim'; hyp_false: string }
   | { rule: 'ModusPonens'; impl: string; arg: string }
   | { rule: 'Exact'; hyp: string }
   | { rule: 'Reflexivity'; term: string };
@@ -112,9 +120,30 @@ Your objective is to emit deterministic AST deduction steps that transition the 
 - {"rule": "AndElimL", "hyp": "<hyp_id>"}
 - {"rule": "AndElimR", "hyp": "<hyp_id>"}
 - {"rule": "AndIntro", "left": "<hyp_id>", "right": "<hyp_id>"}
+- {"rule": "OrIntroL", "hyp": "<hyp_id>", "right": <expr>}
+- {"rule": "OrIntroR", "left": <expr>, "hyp": "<hyp_id>"}
+- {"rule": "OrElim", "hyp_or": "<hyp_id>", "left_impl": "<hyp_id>", "right_impl": "<hyp_id>"}
+- {"rule": "Contradiction", "pos_hyp": "<hyp_id>", "neg_hyp": "<hyp_id>"}
+- {"rule": "FalseElim", "hyp_false": "<hyp_id>"}
 - {"rule": "ModusPonens", "impl": "<hyp_id>", "arg": "<hyp_id>"}
 - {"rule": "Exact", "hyp": "<hyp_id>"}
 - {"rule": "Reflexivity", "term": "<expr>"}
+
+### FEW-SHOT EXAMPLES
+1. Disjunction Introduction (Left):
+   Hypotheses: h0: {"Prop": "A"}
+   Target: {"Or": [{"Prop": "A"}, {"Prop": "B"}]}
+   Output: {"rule": "OrIntroL", "hyp": "h0", "right": {"Prop": "B"}}
+
+2. Disjunction Elimination (Case Analysis / OrComm):
+   Hypotheses: h0: {"Or": [{"Prop": "A"}, {"Prop": "B"}]}, h1: {"Impl": [{"Prop": "A"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}, h2: {"Impl": [{"Prop": "B"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}
+   Target: {"Or": [{"Prop": "B"}, {"Prop": "A"}]}
+   Output: {"rule": "OrElim", "hyp_or": "h0", "left_impl": "h1", "right_impl": "h2"}
+
+3. Contradiction & Ex Falso (Principle of Explosion):
+   Hypotheses: h0: {"Prop": "P"}, h1: {"Not": {"Prop": "P"}}
+   Step 1: {"rule": "Contradiction", "pos_hyp": "h0", "neg_hyp": "h1"} -> derives h2: "False"
+   Step 2: {"rule": "FalseElim", "hyp_false": "h2"} -> closes proof
 
 ### OPERATIONAL INSTRUCTIONS
 1. Analyze hypotheses and target goal.

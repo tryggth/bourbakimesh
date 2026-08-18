@@ -70,7 +70,7 @@ class PureJsProofState {
     switch (step.rule) {
       case 'AndElimL': {
         const expr = this.hyps[step.hyp];
-        if (!expr || !('And' in expr)) {
+        if (!expr || typeof expr !== 'object' || !('And' in expr)) {
           return { newHyp: null, error: `Hypothesis ${step.hyp} is not And(_, _)` };
         }
         const newId = `h${this.nextHypIdx++}`;
@@ -79,7 +79,7 @@ class PureJsProofState {
       }
       case 'AndElimR': {
         const expr = this.hyps[step.hyp];
-        if (!expr || !('And' in expr)) {
+        if (!expr || typeof expr !== 'object' || !('And' in expr)) {
           return { newHyp: null, error: `Hypothesis ${step.hyp} is not And(_, _)` };
         }
         const newId = `h${this.nextHypIdx++}`;
@@ -102,10 +102,82 @@ class PureJsProofState {
         }
         return { newHyp: newId };
       }
+      case 'OrIntroL': {
+        const expr = this.hyps[step.hyp];
+        if (!expr) return { newHyp: null, error: `Hypothesis not found: ${step.hyp}` };
+        const newExpr: Expr = { Or: [expr, step.right] };
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = newExpr;
+        if (JSON.stringify(newExpr) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'OrIntroR': {
+        const expr = this.hyps[step.hyp];
+        if (!expr) return { newHyp: null, error: `Hypothesis not found: ${step.hyp}` };
+        const newExpr: Expr = { Or: [step.left, expr] };
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = newExpr;
+        if (JSON.stringify(newExpr) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'OrElim': {
+        const orExpr = this.hyps[step.hyp_or];
+        const leftExpr = this.hyps[step.left_impl];
+        const rightExpr = this.hyps[step.right_impl];
+        if (!orExpr || typeof orExpr !== 'object' || !('Or' in orExpr)) {
+          return { newHyp: null, error: `Hypothesis ${step.hyp_or} is not Or(_, _)` };
+        }
+        if (!leftExpr || typeof leftExpr !== 'object' || !('Impl' in leftExpr)) {
+          return { newHyp: null, error: `Hypothesis ${step.left_impl} is not Impl(_, _)` };
+        }
+        if (!rightExpr || typeof rightExpr !== 'object' || !('Impl' in rightExpr)) {
+          return { newHyp: null, error: `Hypothesis ${step.right_impl} is not Impl(_, _)` };
+        }
+        if (JSON.stringify(orExpr.Or[0]) !== JSON.stringify(leftExpr.Impl[0])) {
+          return { newHyp: null, error: `Left disjunct does not match left implication antecedent` };
+        }
+        if (JSON.stringify(orExpr.Or[1]) !== JSON.stringify(rightExpr.Impl[0])) {
+          return { newHyp: null, error: `Right disjunct does not match right implication antecedent` };
+        }
+        if (JSON.stringify(leftExpr.Impl[1]) !== JSON.stringify(rightExpr.Impl[1])) {
+          return { newHyp: null, error: `Implication conclusions do not match` };
+        }
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = leftExpr.Impl[1];
+        if (JSON.stringify(leftExpr.Impl[1]) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'Contradiction': {
+        const posExpr = this.hyps[step.pos_hyp];
+        const negExpr = this.hyps[step.neg_hyp];
+        if (!posExpr || !negExpr || typeof negExpr !== 'object' || !('Not' in negExpr)) {
+          return { newHyp: null, error: `Invalid hypotheses for Contradiction` };
+        }
+        if (JSON.stringify(negExpr.Not) !== JSON.stringify(posExpr)) {
+          return { newHyp: null, error: `Hypotheses are not contradictory` };
+        }
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = 'False';
+        return { newHyp: newId };
+      }
+      case 'FalseElim': {
+        const falseExpr = this.hyps[step.hyp_false];
+        if (falseExpr === 'False' || (typeof falseExpr === 'object' && falseExpr && 'False' in falseExpr)) {
+          this.status = 'Proven';
+          return { newHyp: null };
+        }
+        return { newHyp: null, error: `Hypothesis ${step.hyp_false} is not False` };
+      }
       case 'ModusPonens': {
         const implExpr = this.hyps[step.impl];
         const argExpr = this.hyps[step.arg];
-        if (!implExpr || !('Impl' in implExpr) || !argExpr) {
+        if (!implExpr || typeof implExpr !== 'object' || !('Impl' in implExpr) || !argExpr) {
           return { newHyp: null, error: `Hypothesis not found for ModusPonens` };
         }
         if (JSON.stringify(implExpr.Impl[0]) !== JSON.stringify(argExpr)) {
@@ -130,12 +202,14 @@ class PureJsProofState {
         return { newHyp: null, error: `TypeMismatch in Exact` };
       }
       case 'Reflexivity': {
-        if ('Eq' in this.target && this.target.Eq[0] === step.term && this.target.Eq[1] === step.term) {
+        if (typeof this.target === 'object' && this.target !== null && 'Eq' in this.target && this.target.Eq[0] === step.term && this.target.Eq[1] === step.term) {
           this.status = 'Proven';
           return { newHyp: null };
         }
         return { newHyp: null, error: `TypeMismatch in Reflexivity` };
       }
+      default:
+        return { newHyp: null, error: 'Unknown deduction step rule' };
     }
   }
 }
@@ -363,8 +437,55 @@ export class ProofSearchEngine {
       }
     };
 
+    // Check False elimination
+    for (const [id, expr] of hypEntries) {
+      if (expr === 'False' || (typeof expr === 'object' && expr !== null && 'False' in expr)) {
+        addStep({ rule: 'FalseElim', hyp_false: id }, `Hypothesis ${id} is False. Applying FalseElim.`);
+      }
+    }
+
+    // Check Contradiction
+    for (const [id1, expr1] of hypEntries) {
+      for (const [id2, expr2] of hypEntries) {
+        if (expr2 && typeof expr2 === 'object' && 'Not' in expr2 && JSON.stringify(expr2.Not) === JSON.stringify(expr1)) {
+          addStep({ rule: 'Contradiction', pos_hyp: id1, neg_hyp: id2 }, `Contradiction between ${id1} and ${id2}`);
+        }
+      }
+    }
+
+    // Check Or elimination
+    const orHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Or' in expr);
+    if (orHyp) {
+      const [orA, orB] = (orHyp[1] as any).Or;
+      let leftImplId: string | null = null;
+      let rightImplId: string | null = null;
+      for (const [id, expr] of hypEntries) {
+        if (expr && typeof expr === 'object' && 'Impl' in expr) {
+          const [ante, _conseq] = (expr as any).Impl;
+          if (JSON.stringify(ante) === JSON.stringify(orA)) leftImplId = id;
+          if (JSON.stringify(ante) === JSON.stringify(orB)) rightImplId = id;
+        }
+      }
+      if (leftImplId && rightImplId) {
+        addStep({ rule: 'OrElim', hyp_or: orHyp[0], left_impl: leftImplId, right_impl: rightImplId }, `Case analysis on ${orHyp[0]} with ${leftImplId} and ${rightImplId}`);
+      }
+    }
+
+    // Check Or introduction
+    if (target && typeof target === 'object' && 'Or' in target) {
+      const [tL, tR] = target.Or;
+      for (const [id, expr] of hypEntries) {
+        if (JSON.stringify(expr) === JSON.stringify(tL)) {
+          addStep({ rule: 'OrIntroL', hyp: id, right: tR }, `Left disjunct matches ${id}. Applying OrIntroL.`);
+        }
+        if (JSON.stringify(expr) === JSON.stringify(tR)) {
+          addStep({ rule: 'OrIntroR', left: tL, hyp: id }, `Right disjunct matches ${id}. Applying OrIntroR.`);
+        }
+      }
+    }
+
     // Check And introduction
-    if (target && 'And' in target) {
+    if (target && typeof target === 'object' && 'And' in target) {
       const [tL, tR] = target.And;
       let leftId: string | null = null;
       let rightId: string | null = null;
@@ -379,7 +500,7 @@ export class ProofSearchEngine {
 
     // Check And elimination
     for (const [id, expr] of hypEntries) {
-      if (expr && 'And' in expr) {
+      if (expr && typeof expr === 'object' && 'And' in expr) {
         addStep({ rule: 'AndElimR', hyp: id }, `Extracting right conjunct from ${id}`);
         addStep({ rule: 'AndElimL', hyp: id }, `Extracting left conjunct from ${id}`);
       }

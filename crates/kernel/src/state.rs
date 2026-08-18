@@ -91,6 +91,104 @@ impl ProofState {
                 self.hyps.insert(new_id.clone(), new_expr);
                 Ok(Some(new_id))
             }
+            DeductionStep::OrIntroL { hyp, right } => {
+                let expr = self.hyps.get(hyp).ok_or_else(|| KernelError::HypothesisNotFound(hyp.clone()))?;
+                let new_expr = Expr::Or(Box::new(expr.clone()), Box::new(right.clone()));
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), new_expr);
+                Ok(Some(new_id))
+            }
+            DeductionStep::OrIntroR { left, hyp } => {
+                let expr = self.hyps.get(hyp).ok_or_else(|| KernelError::HypothesisNotFound(hyp.clone()))?;
+                let new_expr = Expr::Or(Box::new(left.clone()), Box::new(expr.clone()));
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), new_expr);
+                Ok(Some(new_id))
+            }
+            DeductionStep::OrElim { hyp_or, left_impl, right_impl } => {
+                let or_expr = self.hyps.get(hyp_or).ok_or_else(|| KernelError::HypothesisNotFound(hyp_or.clone()))?;
+                let (a_or, b_or) = match or_expr {
+                    Expr::Or(a, b) => (a, b),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Or(_, _)".to_string(),
+                        found: format!("{:?}", or_expr),
+                    }),
+                };
+
+                let left_expr = self.hyps.get(left_impl).ok_or_else(|| KernelError::HypothesisNotFound(left_impl.clone()))?;
+                let (a_impl, c_left) = match left_expr {
+                    Expr::Impl(a, c) => (a, c),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Impl(_, _)".to_string(),
+                        found: format!("{:?}", left_expr),
+                    }),
+                };
+
+                let right_expr = self.hyps.get(right_impl).ok_or_else(|| KernelError::HypothesisNotFound(right_impl.clone()))?;
+                let (b_impl, c_right) = match right_expr {
+                    Expr::Impl(b, c) => (b, c),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Impl(_, _)".to_string(),
+                        found: format!("{:?}", right_expr),
+                    }),
+                };
+
+                if **a_or != **a_impl {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("Impl({:?}, _)", a_or),
+                        found: format!("{:?}", left_expr),
+                    });
+                }
+
+                if **b_or != **b_impl {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("Impl({:?}, _)", b_or),
+                        found: format!("{:?}", right_expr),
+                    });
+                }
+
+                if **c_left != **c_right {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("matching conclusion {:?}", c_left),
+                        found: format!("{:?}", c_right),
+                    });
+                }
+
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), (**c_left).clone());
+                Ok(Some(new_id))
+            }
+            DeductionStep::Contradiction { pos_hyp, neg_hyp } => {
+                let pos_expr = self.hyps.get(pos_hyp).ok_or_else(|| KernelError::HypothesisNotFound(pos_hyp.clone()))?;
+                let neg_expr = self.hyps.get(neg_hyp).ok_or_else(|| KernelError::HypothesisNotFound(neg_hyp.clone()))?;
+                match neg_expr {
+                    Expr::Not(inner) if **inner == *pos_expr => {
+                        let new_id = format!("h{}", self.next_hyp_idx);
+                        self.next_hyp_idx += 1;
+                        self.hyps.insert(new_id.clone(), Expr::False);
+                        Ok(Some(new_id))
+                    }
+                    _ => Err(KernelError::TypeMismatch {
+                        expected: format!("Not({:?})", pos_expr),
+                        found: format!("{:?}", neg_expr),
+                    }),
+                }
+            }
+            DeductionStep::FalseElim { hyp_false } => {
+                let expr = self.hyps.get(hyp_false).ok_or_else(|| KernelError::HypothesisNotFound(hyp_false.clone()))?;
+                if *expr == Expr::False {
+                    self.status = ProofStatus::Proven;
+                    Ok(None)
+                } else {
+                    Err(KernelError::TypeMismatch {
+                        expected: "False".to_string(),
+                        found: format!("{:?}", expr),
+                    })
+                }
+            }
             DeductionStep::ModusPonens { r#impl, arg } => {
                 let impl_expr = self.hyps.get(r#impl).ok_or_else(|| KernelError::HypothesisNotFound(r#impl.clone()))?;
                 let arg_expr = self.hyps.get(arg).ok_or_else(|| KernelError::HypothesisNotFound(arg.clone()))?;
@@ -225,6 +323,73 @@ mod tests {
             term: "x".to_string(),
         });
         assert_eq!(res, Ok(None));
+        assert_eq!(state.status, ProofStatus::Proven);
+    }
+
+    #[test]
+    fn test_or_intro_and_elim() {
+        let a = Expr::Prop("A".to_string());
+        let b = Expr::Prop("B".to_string());
+        let c = Expr::Prop("C".to_string());
+
+        let mut state = ProofState::new(
+            vec![
+                ("h0".to_string(), a.clone()),
+                ("h1".to_string(), Expr::Impl(Box::new(a.clone()), Box::new(c.clone()))),
+                ("h2".to_string(), Expr::Impl(Box::new(b.clone()), Box::new(c.clone()))),
+            ],
+            c.clone(),
+        );
+
+        // OrIntroL: from h0: A create h3: A ∨ B
+        let h3 = state.apply_step(&DeductionStep::OrIntroL {
+            hyp: "h0".to_string(),
+            right: b.clone(),
+        }).unwrap().unwrap();
+        assert_eq!(h3, "h3");
+        assert_eq!(state.hyps.get("h3"), Some(&Expr::Or(Box::new(a.clone()), Box::new(b.clone()))));
+
+        // OrElim: from h3: A ∨ B, h1: A -> C, h2: B -> C create h4: C
+        let h4 = state.apply_step(&DeductionStep::OrElim {
+            hyp_or: "h3".to_string(),
+            left_impl: "h1".to_string(),
+            right_impl: "h2".to_string(),
+        }).unwrap().unwrap();
+        assert_eq!(h4, "h4");
+        assert_eq!(state.hyps.get("h4"), Some(&c));
+
+        // Exact(h4) closes goal
+        state.apply_step(&DeductionStep::Exact { hyp: "h4".to_string() }).unwrap();
+        assert_eq!(state.status, ProofStatus::Proven);
+    }
+
+    #[test]
+    fn test_contradiction_and_false_elim() {
+        let p = Expr::Prop("P".to_string());
+        let not_p = Expr::Not(Box::new(p.clone()));
+        let target = Expr::Prop("Q".to_string());
+
+        let mut state = ProofState::new(
+            vec![
+                ("h0".to_string(), p.clone()),
+                ("h1".to_string(), not_p),
+            ],
+            target,
+        );
+
+        // Contradiction(h0, h1) -> h2: False
+        let h2 = state.apply_step(&DeductionStep::Contradiction {
+            pos_hyp: "h0".to_string(),
+            neg_hyp: "h1".to_string(),
+        }).unwrap().unwrap();
+        assert_eq!(h2, "h2");
+        assert_eq!(state.hyps.get("h2"), Some(&Expr::False));
+
+        // FalseElim(h2) -> closes proof
+        let res = state.apply_step(&DeductionStep::FalseElim {
+            hyp_false: "h2".to_string(),
+        }).unwrap();
+        assert_eq!(res, None);
         assert_eq!(state.status, ProofStatus::Proven);
     }
 }

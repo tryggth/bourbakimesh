@@ -381,8 +381,51 @@ class MeshClient {
       }
     }
 
-    // 2. AndIntro check
-    if (target && 'And' in target) {
+    // 2. False elimination check
+    for (const [id, expr] of hypEntries) {
+      if (expr === 'False' || (typeof expr === 'object' && expr !== null && 'False' in expr)) {
+        return { rule: 'FalseElim', hyp_false: id };
+      }
+    }
+
+    // 3. Contradiction check
+    for (const [id1, expr1] of hypEntries) {
+      for (const [id2, expr2] of hypEntries) {
+        if (expr2 && typeof expr2 === 'object' && 'Not' in expr2 && JSON.stringify(expr2.Not) === JSON.stringify(expr1)) {
+          return { rule: 'Contradiction', pos_hyp: id1, neg_hyp: id2 };
+        }
+      }
+    }
+
+    // 4. OrElim check
+    const orHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Or' in expr);
+    if (orHyp) {
+      const [orA, orB] = (orHyp[1] as any).Or;
+      let leftImplId: string | null = null;
+      let rightImplId: string | null = null;
+      for (const [id, expr] of hypEntries) {
+        if (expr && typeof expr === 'object' && 'Impl' in expr) {
+          const [ante, _conseq] = (expr as any).Impl;
+          if (JSON.stringify(ante) === JSON.stringify(orA)) leftImplId = id;
+          if (JSON.stringify(ante) === JSON.stringify(orB)) rightImplId = id;
+        }
+      }
+      if (leftImplId && rightImplId) {
+        return { rule: 'OrElim', hyp_or: orHyp[0], left_impl: leftImplId, right_impl: rightImplId };
+      }
+    }
+
+    // 5. OrIntro check
+    if (target && typeof target === 'object' && 'Or' in target) {
+      const [tL, tR] = target.Or;
+      for (const [id, expr] of hypEntries) {
+        if (JSON.stringify(expr) === JSON.stringify(tL)) return { rule: 'OrIntroL', hyp: id, right: tR };
+        if (JSON.stringify(expr) === JSON.stringify(tR)) return { rule: 'OrIntroR', left: tL, hyp: id };
+      }
+    }
+
+    // 6. AndIntro check
+    if (target && typeof target === 'object' && 'And' in target) {
       const [tL, tR] = target.And;
       let leftId: string | null = null;
       let rightId: string | null = null;
@@ -395,9 +438,9 @@ class MeshClient {
       }
     }
 
-    // 3. AndElim check
+    // 7. AndElim check
     for (const [id, expr] of hypEntries) {
-      if (expr && 'And' in expr) {
+      if (expr && typeof expr === 'object' && 'And' in expr) {
         if (!hyps['h1']) return { rule: 'AndElimR', hyp: id };
         if (!hyps['h2']) return { rule: 'AndElimL', hyp: id };
       }

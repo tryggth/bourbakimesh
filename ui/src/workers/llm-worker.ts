@@ -125,17 +125,24 @@ async function initializeWebGpuRuntime(): Promise<{
   shaderF16: boolean;
   vramMB: number;
 }> {
-  if (typeof navigator !== 'undefined' && 'gpu' in navigator && (navigator as any).gpu) {
+  const isHeadless = typeof navigator !== 'undefined' && (
+    navigator.userAgent?.includes('HeadlessChrome') ||
+    navigator.userAgent?.includes('Headless')
+  );
+
+  if (!isHeadless && typeof navigator !== 'undefined' && 'gpu' in navigator && (navigator as any).gpu) {
     try {
-      const adapter = await (navigator as any).gpu.requestAdapter();
+      const adapterPromise = (navigator as any).gpu.requestAdapter();
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('GPU adapter request timeout')), 500));
+      const adapter = await Promise.race([adapterPromise, timeoutPromise]);
       if (adapter) {
-        hasShaderF16 = adapter.features?.has?.('shader-f16') || false;
+        hasShaderF16 = (adapter as any).features?.has?.('shader-f16') || false;
         activeProvider = 'webgpu';
         vramAllocatedMB = 1842; // ~1.84 GB within 4 GB envelope
         return { provider: 'webgpu', shaderF16: hasShaderF16, vramMB: vramAllocatedMB };
       }
     } catch (gpuErr) {
-      console.warn('[LLM Worker] WebGPU adapter request failed, falling back to Wasm SIMD:', gpuErr);
+      console.warn('[LLM Worker] WebGPU adapter request failed/timed out, falling back to Wasm SIMD:', gpuErr);
     }
   }
 
@@ -161,6 +168,28 @@ function validateDeductionStep(obj: any): DeductionStep | null {
     case 'AndIntro':
       return typeof obj.left === 'string' && typeof obj.right === 'string'
         ? { rule: 'AndIntro', left: obj.left, right: obj.right }
+        : null;
+    case 'OrIntroL':
+      return typeof obj.hyp === 'string' && obj.right
+        ? { rule: 'OrIntroL', hyp: obj.hyp, right: obj.right }
+        : null;
+    case 'OrIntroR':
+      return typeof obj.hyp === 'string' && obj.left
+        ? { rule: 'OrIntroR', left: obj.left, hyp: obj.hyp }
+        : null;
+    case 'OrElim':
+      return typeof obj.hyp_or === 'string' &&
+        typeof obj.left_impl === 'string' &&
+        typeof obj.right_impl === 'string'
+        ? { rule: 'OrElim', hyp_or: obj.hyp_or, left_impl: obj.left_impl, right_impl: obj.right_impl }
+        : null;
+    case 'Contradiction':
+      return typeof obj.pos_hyp === 'string' && typeof obj.neg_hyp === 'string'
+        ? { rule: 'Contradiction', pos_hyp: obj.pos_hyp, neg_hyp: obj.neg_hyp }
+        : null;
+    case 'FalseElim':
+      return typeof obj.hyp_false === 'string'
+        ? { rule: 'FalseElim', hyp_false: obj.hyp_false }
         : null;
     case 'ModusPonens':
       return typeof obj.impl === 'string' && typeof obj.arg === 'string'
@@ -250,6 +279,68 @@ function synthesizeTacticAndAst(
       stepAst = { rule: 'Exact', hyp: id };
       tacticStr = `exact ${id}`;
       return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 2. False elimination check (Ex Falso / Principle of Explosion)
+  for (const [id, expr] of hypEntries) {
+    if (expr === 'False' || (typeof expr === 'object' && expr && 'False' in expr)) {
+      reasoning = `Hypothesis ${id} is False. Applying Principle of Explosion (FalseElim) to close the proof.`;
+      stepAst = { rule: 'FalseElim', hyp_false: id };
+      tacticStr = `cases ${id}`;
+      return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 3. Contradiction check (P and Not(P))
+  for (const [id1, expr1] of hypEntries) {
+    for (const [id2, expr2] of hypEntries) {
+      if (expr2 && typeof expr2 === 'object' && 'Not' in expr2 && JSON.stringify(expr2.Not) === JSON.stringify(expr1)) {
+        reasoning = `Hypotheses ${id1} and ${id2} are contradictory. Deriving False via Contradiction(${id1}, ${id2}).`;
+        stepAst = { rule: 'Contradiction', pos_hyp: id1, neg_hyp: id2 };
+        tacticStr = `exact ${id2} ${id1}`;
+        return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+      }
+    }
+  }
+
+  // 4. Disjunction elimination check (OrElim / Case Analysis)
+  const orHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Or' in expr);
+  if (orHyp) {
+    const [orA, orB] = (orHyp[1] as any).Or;
+    let leftImplId: string | null = null;
+    let rightImplId: string | null = null;
+    for (const [id, expr] of hypEntries) {
+      if (expr && typeof expr === 'object' && 'Impl' in expr) {
+        const [ante, _conseq] = (expr as any).Impl;
+        if (JSON.stringify(ante) === JSON.stringify(orA)) leftImplId = id;
+        if (JSON.stringify(ante) === JSON.stringify(orB)) rightImplId = id;
+      }
+    }
+    if (leftImplId && rightImplId) {
+      reasoning = `Disjunctive hypothesis ${orHyp[0]} matches implication branches ${leftImplId} and ${rightImplId}. Applying OrElim.`;
+      stepAst = { rule: 'OrElim', hyp_or: orHyp[0], left_impl: leftImplId, right_impl: rightImplId };
+      tacticStr = `cases ${orHyp[0]} <;> ...`;
+      return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 5. Disjunction introduction check (OrIntroL, OrIntroR)
+  if (target && typeof target === 'object' && 'Or' in target) {
+    const [targetL, targetR] = target.Or;
+    for (const [id, expr] of hypEntries) {
+      if (JSON.stringify(expr) === JSON.stringify(targetL)) {
+        reasoning = `Target is a disjunction ⊢ Or(${JSON.stringify(targetL)}, ${JSON.stringify(targetR)}). Context contains left disjunct in hypothesis ${id}. Applying OrIntroL.`;
+        stepAst = { rule: 'OrIntroL', hyp: id, right: targetR };
+        tacticStr = `apply Or.inl ${id}`;
+        return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+      }
+      if (JSON.stringify(expr) === JSON.stringify(targetR)) {
+        reasoning = `Target is a disjunction ⊢ Or(${JSON.stringify(targetL)}, ${JSON.stringify(targetR)}). Context contains right disjunct in hypothesis ${id}. Applying OrIntroR.`;
+        stepAst = { rule: 'OrIntroR', left: targetL, hyp: id };
+        tacticStr = `apply Or.inr ${id}`;
+        return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+      }
     }
   }
 
@@ -453,6 +544,72 @@ function evaluateCandidateCritic(params: EvaluateCandidateMessage): GenRmResult 
           }
         } else {
           baseScore = 0.92;
+        }
+        break;
+      }
+      case 'OrIntroL': {
+        const hypExpr = hyps[step.hyp];
+        if (hypExpr && target && typeof target === 'object' && 'Or' in target) {
+          const [tLeft] = target.Or;
+          if (JSON.stringify(hypExpr) === JSON.stringify(tLeft)) {
+            baseScore = 0.96;
+          } else {
+            baseScore = 0.88;
+          }
+        } else if (hypExpr) {
+          baseScore = 0.92;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'OrIntroR': {
+        const hypExpr = hyps[step.hyp];
+        if (hypExpr && target && typeof target === 'object' && 'Or' in target) {
+          const [_tLeft, tRight] = target.Or;
+          if (JSON.stringify(hypExpr) === JSON.stringify(tRight)) {
+            baseScore = 0.96;
+          } else {
+            baseScore = 0.88;
+          }
+        } else if (hypExpr) {
+          baseScore = 0.92;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'OrElim': {
+        const orExpr = hyps[step.hyp_or];
+        const leftExpr = hyps[step.left_impl];
+        const rightExpr = hyps[step.right_impl];
+        if (
+          orExpr && typeof orExpr === 'object' && 'Or' in orExpr &&
+          leftExpr && typeof leftExpr === 'object' && 'Impl' in leftExpr &&
+          rightExpr && typeof rightExpr === 'object' && 'Impl' in rightExpr
+        ) {
+          baseScore = 0.97;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'Contradiction': {
+        const posExpr = hyps[step.pos_hyp];
+        const negExpr = hyps[step.neg_hyp];
+        if (posExpr && negExpr && typeof negExpr === 'object' && 'Not' in negExpr && JSON.stringify(negExpr.Not) === JSON.stringify(posExpr)) {
+          baseScore = 0.98;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'FalseElim': {
+        const falseExpr = hyps[step.hyp_false];
+        if (falseExpr === 'False' || (typeof falseExpr === 'object' && falseExpr && 'False' in falseExpr)) {
+          baseScore = 0.99;
+        } else {
+          baseScore = 0.05;
         }
         break;
       }

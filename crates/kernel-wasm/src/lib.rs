@@ -1,6 +1,16 @@
+use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
 use kernel::state::ProofState;
 use kernel::ast::{DeductionStep, Expr};
+use serde::{Deserialize, Serialize};
+
+#[derive(Serialize, Deserialize)]
+pub struct WasmStepResult {
+    pub status: String,
+    pub new_hyp: Option<String>,
+    pub hyps: HashMap<String, Expr>,
+    pub target: Expr,
+}
 
 #[wasm_bindgen]
 pub struct WasmProofState {
@@ -24,13 +34,14 @@ impl WasmProofState {
             .map_err(|e| JsValue::from_str(&format!("Invalid step AST: {}", e)))?;
         match self.inner.apply_step(&step) {
             Ok(new_hyp_opt) => {
-                let res = serde_json::json!({
-                    "status": format!("{:?}", self.inner.status),
-                    "new_hyp": new_hyp_opt,
-                    "hyps": self.inner.hyps,
-                    "target": self.inner.target
-                });
-                serde_wasm_bindgen::to_value(&res).map_err(|e| JsValue::from_str(&e.to_string()))
+                let res = WasmStepResult {
+                    status: format!("{:?}", self.inner.status),
+                    new_hyp: new_hyp_opt,
+                    hyps: self.inner.hyps.clone(),
+                    target: self.inner.target.clone(),
+                };
+                let serializer = serde_wasm_bindgen::Serializer::json_compatible();
+                res.serialize(&serializer).map_err(|e| JsValue::from_str(&e.to_string()))
             }
             Err(err) => Err(JsValue::from_str(&format!("KernelError: {:?}", err)))
         }
