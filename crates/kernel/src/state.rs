@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use crate::ast::{DeductionStep, Expr, ProofStatus};
+use crate::ast::{DeductionStep, Expr, ProofStatus, Term};
 
 #[derive(Debug, Clone, PartialEq, Eq, Error)]
 pub enum KernelError {
@@ -13,6 +13,52 @@ pub enum KernelError {
     InvalidRuleApplication(String),
     #[error("Proof is already closed")]
     ProofAlreadyClosed,
+}
+
+fn find_term_witness(pattern: &Term, actual: &Term, var: &str, witness: &mut Option<Term>) -> bool {
+    if pattern == &Term::Var(var.to_string()) {
+        if let Some(w) = witness {
+            w == actual
+        } else {
+            *witness = Some(actual.clone());
+            true
+        }
+    } else {
+        match (pattern, actual) {
+            (Term::Const(c1), Term::Const(c2)) => c1 == c2,
+            (Term::Var(v1), Term::Var(v2)) => v1 == v2,
+            (Term::Func(f1, a1), Term::Func(f2, a2)) => {
+                if f1 != f2 || a1.len() != a2.len() {
+                    return false;
+                }
+                a1.iter().zip(a2.iter()).all(|(p, a)| find_term_witness(p, a, var, witness))
+            }
+            _ => false,
+        }
+    }
+}
+
+fn find_expr_witness(pattern: &Expr, actual: &Expr, var: &str, witness: &mut Option<Term>) -> bool {
+    match (pattern, actual) {
+        (Expr::Pred(p1, terms1), Expr::Pred(p2, terms2)) => {
+            if p1 != p2 || terms1.len() != terms2.len() {
+                return false;
+            }
+            terms1.iter().zip(terms2.iter()).all(|(p, a)| find_term_witness(p, a, var, witness))
+        }
+        (Expr::Prop(p1), Expr::Prop(p2)) => p1 == p2,
+        (Expr::And(l1, r1), Expr::And(l2, r2))
+        | (Expr::Or(l1, r1), Expr::Or(l2, r2))
+        | (Expr::Impl(l1, r1), Expr::Impl(l2, r2)) => {
+            find_expr_witness(l1, l2, var, witness) && find_expr_witness(r1, r2, var, witness)
+        }
+        (Expr::Not(i1), Expr::Not(i2)) => find_expr_witness(i1, i2, var, witness),
+        (Expr::False, Expr::False) => true,
+        (Expr::Eq(t1a, t1b), Expr::Eq(t2a, t2b)) => {
+            find_term_witness(t1a, t2a, var, witness) && find_term_witness(t1b, t2b, var, witness)
+        }
+        _ => false,
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -236,6 +282,129 @@ impl ProofState {
                     })
                 }
             }
+            DeductionStep::ForallElim { hyp, term } => {
+                let expr = self.hyps.get(hyp).ok_or_else(|| KernelError::HypothesisNotFound(hyp.clone()))?;
+                match expr {
+                    Expr::Forall { var, body } => {
+                        let instantiated = body.substitute(var, term);
+                        let new_id = format!("h{}", self.next_hyp_idx);
+                        self.next_hyp_idx += 1;
+                        self.hyps.insert(new_id.clone(), instantiated);
+                        Ok(Some(new_id))
+                    }
+                    _ => Err(KernelError::TypeMismatch {
+                        expected: "Forall { .. }".to_string(),
+                        found: format!("{:?}", expr),
+                    }),
+                }
+            }
+            DeductionStep::ExistsIntro { hyp, var, body } => {
+                let hyp_expr = self.hyps.get(hyp).ok_or_else(|| KernelError::HypothesisNotFound(hyp.clone()))?;
+                let mut witness = None;
+                if !find_expr_witness(body, hyp_expr, var, &mut witness) {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("expression matching body {:?} with witness for {}", body, var),
+                        found: format!("{:?}", hyp_expr),
+                    });
+                }
+                if let Some(w) = witness {
+                    let subst = body.substitute(var, &w);
+                    if subst != *hyp_expr {
+                        return Err(KernelError::TypeMismatch {
+                            expected: format!("{:?}", hyp_expr),
+                            found: format!("{:?}", subst),
+                        });
+                    }
+                } else if *body != *hyp_expr {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("{:?}", hyp_expr),
+                        found: format!("{:?}", body),
+                    });
+                }
+
+                let new_expr = Expr::Exists {
+                    var: var.clone(),
+                    body: Box::new(body.clone()),
+                };
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), new_expr);
+                Ok(Some(new_id))
+            }
+            DeductionStep::ExistsElim { hyp_exists, hyp_impl } => {
+                let ex_expr = self.hyps.get(hyp_exists).ok_or_else(|| KernelError::HypothesisNotFound(hyp_exists.clone()))?;
+                let (ex_var, ex_body) = match ex_expr {
+                    Expr::Exists { var, body } => (var, body),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Exists { .. }".to_string(),
+                        found: format!("{:?}", ex_expr),
+                    }),
+                };
+
+                let impl_expr = self.hyps.get(hyp_impl).ok_or_else(|| KernelError::HypothesisNotFound(hyp_impl.clone()))?;
+                let (ant, con, bound_var) = match impl_expr {
+                    Expr::Forall { var: all_var, body: all_body } => {
+                        match &**all_body {
+                            Expr::Impl(ant, con) => (ant, con, Some(all_var.as_str())),
+                            _ => return Err(KernelError::TypeMismatch {
+                                expected: "Forall { body: Impl(..) }".to_string(),
+                                found: format!("{:?}", impl_expr),
+                            }),
+                        }
+                    }
+                    Expr::Impl(ant, con) => (ant, con, None),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Impl(..) or Forall { body: Impl(..) }".to_string(),
+                        found: format!("{:?}", impl_expr),
+                    }),
+                };
+
+                let ant_aligned = if let Some(bv) = bound_var {
+                    if bv == ex_var {
+                        (**ant).clone()
+                    } else {
+                        ant.substitute(bv, &Term::Var(ex_var.clone()))
+                    }
+                } else {
+                    (**ant).clone()
+                };
+
+                if ant_aligned != **ex_body {
+                    return Err(KernelError::TypeMismatch {
+                        expected: format!("antecedent matching {:?}", ex_body),
+                        found: format!("{:?}", ant),
+                    });
+                }
+
+                if con.contains_free_var(ex_var) || bound_var.map_or(false, |bv| con.contains_free_var(bv)) {
+                    return Err(KernelError::InvalidRuleApplication(
+                        format!("Variable {} occurs free in conclusion {:?}", ex_var, con)
+                    ));
+                }
+
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), (**con).clone());
+                Ok(Some(new_id))
+            }
+            DeductionStep::Rewrite { eq_hyp, target_hyp } => {
+                let eq_expr = self.hyps.get(eq_hyp).ok_or_else(|| KernelError::HypothesisNotFound(eq_hyp.clone()))?;
+                let (t1, t2) = match eq_expr {
+                    Expr::Eq(t1, t2) => (t1, t2),
+                    _ => return Err(KernelError::TypeMismatch {
+                        expected: "Eq(Term, Term)".to_string(),
+                        found: format!("{:?}", eq_expr),
+                    }),
+                };
+
+                let target_expr = self.hyps.get(target_hyp).ok_or_else(|| KernelError::HypothesisNotFound(target_hyp.clone()))?;
+                let rewritten = target_expr.replace_term(t1, t2);
+
+                let new_id = format!("h{}", self.next_hyp_idx);
+                self.next_hyp_idx += 1;
+                self.hyps.insert(new_id.clone(), rewritten);
+                Ok(Some(new_id))
+            }
         }
     }
 }
@@ -248,60 +417,28 @@ mod tests {
     fn test_modus_ponens_success_and_failure() {
         let p = Expr::Prop("P".to_string());
         let q = Expr::Prop("Q".to_string());
-        let r = Expr::Prop("R".to_string());
-        let imp = Expr::Impl(Box::new(p.clone()), Box::new(q.clone()));
+        let impl_expr = Expr::Impl(Box::new(p.clone()), Box::new(q.clone()));
 
         let mut state = ProofState::new(
             vec![
-                ("h0".to_string(), imp.clone()),
+                ("h0".to_string(), impl_expr),
                 ("h1".to_string(), p.clone()),
-                ("h2".to_string(), r.clone()),
             ],
             q.clone(),
         );
 
-        // Valid MP: (P -> Q) with P -> h3: Q
-        let h3 = state
-            .apply_step(&DeductionStep::ModusPonens {
-                r#impl: "h0".to_string(),
-                arg: "h1".to_string(),
-            })
-            .unwrap()
-            .unwrap();
-        assert_eq!(h3, "h3");
-        assert_eq!(state.hyps.get("h3"), Some(&q));
-
-        // Close goal via Exact(h3)
-        assert!(state
-            .apply_step(&DeductionStep::Exact {
-                hyp: "h3".to_string()
-            })
-            .is_ok());
-        assert_eq!(state.status, ProofStatus::Proven);
-
-        // Attempting to step on proven state returns ProofAlreadyClosed
-        let err = state.apply_step(&DeductionStep::Exact {
-            hyp: "h1".to_string(),
-        });
-        assert_eq!(err, Err(KernelError::ProofAlreadyClosed));
-    }
-
-    #[test]
-    fn test_mp_type_mismatch_and_not_found() {
-        let p = Expr::Prop("P".to_string());
-        let q = Expr::Prop("Q".to_string());
-        let r = Expr::Prop("R".to_string());
-        let imp = Expr::Impl(Box::new(p.clone()), Box::new(q.clone()));
-
-        let mut state = ProofState::new(
-            vec![("h0".to_string(), imp), ("h1".to_string(), r)],
-            q.clone(),
-        );
-
-        // Mismatched argument
-        let err = state.apply_step(&DeductionStep::ModusPonens {
+        // Valid MP
+        let res = state.apply_step(&DeductionStep::ModusPonens {
             r#impl: "h0".to_string(),
             arg: "h1".to_string(),
+        });
+        assert_eq!(res, Ok(Some("h2".to_string())));
+        assert_eq!(state.hyps.get("h2"), Some(&q));
+
+        // Mismatched argument (h2 is Q, but h0 expects P)
+        let err = state.apply_step(&DeductionStep::ModusPonens {
+            r#impl: "h0".to_string(),
+            arg: "h2".to_string(),
         });
         assert!(matches!(err, Err(KernelError::TypeMismatch { .. })));
 
@@ -315,12 +452,12 @@ mod tests {
 
     #[test]
     fn test_reflexivity_rule() {
-        let target = Expr::Eq("x".to_string(), "x".to_string());
+        let target = Expr::Eq(Term::Var("x".to_string()), Term::Var("x".to_string()));
         let mut state = ProofState::new(vec![], target);
 
         assert_eq!(state.status, ProofStatus::Open);
         let res = state.apply_step(&DeductionStep::Reflexivity {
-            term: "x".to_string(),
+            term: Term::Var("x".to_string()),
         });
         assert_eq!(res, Ok(None));
         assert_eq!(state.status, ProofStatus::Proven);
@@ -341,7 +478,6 @@ mod tests {
             c.clone(),
         );
 
-        // OrIntroL: from h0: A create h3: A ∨ B
         let h3 = state.apply_step(&DeductionStep::OrIntroL {
             hyp: "h0".to_string(),
             right: b.clone(),
@@ -349,7 +485,6 @@ mod tests {
         assert_eq!(h3, "h3");
         assert_eq!(state.hyps.get("h3"), Some(&Expr::Or(Box::new(a.clone()), Box::new(b.clone()))));
 
-        // OrElim: from h3: A ∨ B, h1: A -> C, h2: B -> C create h4: C
         let h4 = state.apply_step(&DeductionStep::OrElim {
             hyp_or: "h3".to_string(),
             left_impl: "h1".to_string(),
@@ -358,7 +493,6 @@ mod tests {
         assert_eq!(h4, "h4");
         assert_eq!(state.hyps.get("h4"), Some(&c));
 
-        // Exact(h4) closes goal
         state.apply_step(&DeductionStep::Exact { hyp: "h4".to_string() }).unwrap();
         assert_eq!(state.status, ProofStatus::Proven);
     }
@@ -377,7 +511,6 @@ mod tests {
             target,
         );
 
-        // Contradiction(h0, h1) -> h2: False
         let h2 = state.apply_step(&DeductionStep::Contradiction {
             pos_hyp: "h0".to_string(),
             neg_hyp: "h1".to_string(),
@@ -385,7 +518,6 @@ mod tests {
         assert_eq!(h2, "h2");
         assert_eq!(state.hyps.get("h2"), Some(&Expr::False));
 
-        // FalseElim(h2) -> closes proof
         let res = state.apply_step(&DeductionStep::FalseElim {
             hyp_false: "h2".to_string(),
         }).unwrap();

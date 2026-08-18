@@ -397,7 +397,58 @@ class MeshClient {
       }
     }
 
-    // 4. OrElim check
+    // 4. Leibniz Rewrite check
+    const eqHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Eq' in expr);
+    if (eqHyp) {
+      for (const [id] of hypEntries) {
+        if (id !== eqHyp[0]) {
+          return { rule: 'Rewrite', eq_hyp: eqHyp[0], target_hyp: id };
+        }
+      }
+    }
+
+    // 5. Modus Ponens check
+    for (const [idImpl, exprImpl] of hypEntries) {
+      if (exprImpl && typeof exprImpl === 'object' && 'Impl' in exprImpl) {
+        const [antecedent] = (exprImpl as any).Impl;
+        for (const [idArg, exprArg] of hypEntries) {
+          if (JSON.stringify(antecedent) === JSON.stringify(exprArg)) {
+            return { rule: 'ModusPonens', impl: idImpl, arg: idArg };
+          }
+        }
+      }
+    }
+
+    // 6. ForallElim check
+    const forallHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Forall' in expr);
+    if (forallHyp) {
+      let chosenTerm: any = null;
+      for (const [_, otherExpr] of hypEntries) {
+        if (otherExpr && typeof otherExpr === 'object' && 'Pred' in otherExpr) {
+          chosenTerm = otherExpr.Pred[1]?.[0];
+          if (chosenTerm) break;
+        }
+      }
+      if (!chosenTerm && target && typeof target === 'object' && 'Pred' in target) {
+        chosenTerm = target.Pred[1]?.[0];
+      }
+      if (!chosenTerm) {
+        chosenTerm = { Const: 'c' };
+      }
+      return { rule: 'ForallElim', hyp: forallHyp[0], term: chosenTerm };
+    }
+
+    // 7. ExistsIntro check
+    if (target && typeof target === 'object' && 'Exists' in target) {
+      const { var: varName, body } = target.Exists;
+      for (const [id, expr] of hypEntries) {
+        if (expr && typeof expr === 'object' && 'Pred' in expr) {
+          return { rule: 'ExistsIntro', hyp: id, var: varName, body };
+        }
+      }
+    }
+
+    // 8. OrElim check
     const orHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Or' in expr);
     if (orHyp) {
       const [orA, orB] = (orHyp[1] as any).Or;
@@ -415,7 +466,7 @@ class MeshClient {
       }
     }
 
-    // 5. OrIntro check
+    // 9. OrIntro check
     if (target && typeof target === 'object' && 'Or' in target) {
       const [tL, tR] = target.Or;
       for (const [id, expr] of hypEntries) {
@@ -424,7 +475,7 @@ class MeshClient {
       }
     }
 
-    // 6. AndIntro check
+    // 10. AndIntro check
     if (target && typeof target === 'object' && 'And' in target) {
       const [tL, tR] = target.And;
       let leftId: string | null = null;
@@ -438,7 +489,7 @@ class MeshClient {
       }
     }
 
-    // 7. AndElim check
+    // 11. AndElim check
     for (const [id, expr] of hypEntries) {
       if (expr && typeof expr === 'object' && 'And' in expr) {
         if (!hyps['h1']) return { rule: 'AndElimR', hyp: id };

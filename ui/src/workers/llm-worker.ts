@@ -198,7 +198,23 @@ function validateDeductionStep(obj: any): DeductionStep | null {
     case 'Exact':
       return typeof obj.hyp === 'string' ? { rule: 'Exact', hyp: obj.hyp } : null;
     case 'Reflexivity':
-      return typeof obj.term === 'string' ? { rule: 'Reflexivity', term: obj.term } : null;
+      return obj.term && typeof obj.term === 'object' ? { rule: 'Reflexivity', term: obj.term } : null;
+    case 'ForallElim':
+      return typeof obj.hyp === 'string' && obj.term && typeof obj.term === 'object'
+        ? { rule: 'ForallElim', hyp: obj.hyp, term: obj.term }
+        : null;
+    case 'ExistsIntro':
+      return typeof obj.hyp === 'string' && typeof obj.var === 'string' && obj.body && typeof obj.body === 'object'
+        ? { rule: 'ExistsIntro', hyp: obj.hyp, var: obj.var, body: obj.body }
+        : null;
+    case 'ExistsElim':
+      return typeof obj.hyp_exists === 'string' && typeof obj.hyp_impl === 'string'
+        ? { rule: 'ExistsElim', hyp_exists: obj.hyp_exists, hyp_impl: obj.hyp_impl }
+        : null;
+    case 'Rewrite':
+      return typeof obj.eq_hyp === 'string' && typeof obj.target_hyp === 'string'
+        ? { rule: 'Rewrite', eq_hyp: obj.eq_hyp, target_hyp: obj.target_hyp }
+        : null;
     default:
       return null;
   }
@@ -257,6 +273,81 @@ function parseModelOutput(rawText: string): {
   return { reasoning, stepAst, tacticString };
 }
 
+function replaceVarInTerm(term: any, varName: string, rep: any): any {
+  if (!term || typeof term !== 'object') return term;
+  if ('Var' in term && term.Var === varName) return rep;
+  if ('Func' in term) {
+    const [fname, args] = term.Func;
+    return { Func: [fname, args.map((a: any) => replaceVarInTerm(a, varName, rep))] };
+  }
+  return term;
+}
+
+function replaceVarInExpr(expr: any, varName: string, rep: any): any {
+  if (!expr || typeof expr !== 'object') return expr;
+  if ('Pred' in expr) {
+    const [pname, terms] = expr.Pred;
+    return { Pred: [pname, terms.map((t: any) => replaceVarInTerm(t, varName, rep))] };
+  }
+  if ('Impl' in expr) {
+    return { Impl: [replaceVarInExpr(expr.Impl[0], varName, rep), replaceVarInExpr(expr.Impl[1], varName, rep)] };
+  }
+  if ('And' in expr) {
+    return { And: [replaceVarInExpr(expr.And[0], varName, rep), replaceVarInExpr(expr.And[1], varName, rep)] };
+  }
+  if ('Or' in expr) {
+    return { Or: [replaceVarInExpr(expr.Or[0], varName, rep), replaceVarInExpr(expr.Or[1], varName, rep)] };
+  }
+  if ('Not' in expr) {
+    return { Not: replaceVarInExpr(expr.Not, varName, rep) };
+  }
+  if ('Eq' in expr) {
+    return { Eq: [replaceVarInTerm(expr.Eq[0], varName, rep), replaceVarInTerm(expr.Eq[1], varName, rep)] };
+  }
+  if ('Forall' in expr) {
+    if (expr.Forall.var === varName) return expr;
+    return { Forall: { var: expr.Forall.var, body: replaceVarInExpr(expr.Forall.body, varName, rep) } };
+  }
+  if ('Exists' in expr) {
+    if (expr.Exists.var === varName) return expr;
+    return { Exists: { var: expr.Exists.var, body: replaceVarInExpr(expr.Exists.body, varName, rep) } };
+  }
+  return expr;
+}
+
+function replaceTermInTerm(term: any, target: any, rep: any): any {
+  if (JSON.stringify(term) === JSON.stringify(target)) return rep;
+  if (term && typeof term === 'object' && 'Func' in term) {
+    const [fname, args] = term.Func;
+    return { Func: [fname, args.map((a: any) => replaceTermInTerm(a, target, rep))] };
+  }
+  return term;
+}
+
+function replaceTermInExpr(expr: any, target: any, rep: any): any {
+  if (!expr || typeof expr !== 'object') return expr;
+  if ('Pred' in expr) {
+    const [pname, terms] = expr.Pred;
+    return { Pred: [pname, terms.map((t: any) => replaceTermInTerm(t, target, rep))] };
+  }
+  if ('Impl' in expr) {
+    return { Impl: [replaceTermInExpr(expr.Impl[0], target, rep), replaceTermInExpr(expr.Impl[1], target, rep)] };
+  }
+  if ('And' in expr) {
+    return { And: [replaceTermInExpr(expr.And[0], target, rep), replaceTermInExpr(expr.And[1], target, rep)] };
+  }
+  if ('Or' in expr) {
+    return { Or: [replaceTermInExpr(expr.Or[0], target, rep), replaceTermInExpr(expr.Or[1], target, rep)] };
+  }
+  if ('Not' in expr) {
+    return { Not: replaceTermInExpr(expr.Not, target, rep) };
+  }
+  if ('Eq' in expr) {
+    return { Eq: [replaceTermInTerm(expr.Eq[0], target, rep), replaceTermInTerm(expr.Eq[1], target, rep)] };
+  }
+  return expr;
+}
+
 /**
  * Domain-specific tactic and AST generator simulating quantized autoregressive edge inference.
  */
@@ -304,7 +395,92 @@ function synthesizeTacticAndAst(
     }
   }
 
-  // 4. Disjunction elimination check (OrElim / Case Analysis)
+  // 4. Leibniz Equality Rewriting
+  const eqHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Eq' in expr);
+  if (eqHyp) {
+    const [t1, t2] = (eqHyp[1] as any).Eq;
+    for (const [id, expr] of hypEntries) {
+      if (id !== eqHyp[0]) {
+        const rewritten = replaceTermInExpr(expr, t1, t2);
+        if (JSON.stringify(rewritten) !== JSON.stringify(expr)) {
+          reasoning = `Applying Leibniz equality rewrite from ${eqHyp[0]} onto hypothesis ${id}.`;
+          stepAst = { rule: 'Rewrite', eq_hyp: eqHyp[0], target_hyp: id };
+          tacticStr = `rw [${eqHyp[0]}] at ${id}`;
+          return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+        }
+      }
+    }
+  }
+
+  // 5. Modus Ponens check
+  for (const [idImpl, exprImpl] of hypEntries) {
+    if (exprImpl && typeof exprImpl === 'object' && 'Impl' in exprImpl) {
+      const [antecedent] = (exprImpl as any).Impl;
+      for (const [idArg, exprArg] of hypEntries) {
+        if (JSON.stringify(antecedent) === JSON.stringify(exprArg)) {
+          reasoning = `Implication ${idImpl} matches argument ${idArg}. Applying ModusPonens(${idImpl}, ${idArg}).`;
+          stepAst = { rule: 'ModusPonens', impl: idImpl, arg: idArg };
+          tacticStr = `have := ${idImpl} ${idArg}`;
+          return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+        }
+      }
+    }
+  }
+
+  // 6. Universal Instantiation (ForallElim)
+  for (const [idForall, exprForall] of hypEntries) {
+    if (exprForall && typeof exprForall === 'object' && 'Forall' in exprForall) {
+      // Search for candidate terms in other hypotheses or target
+      let chosenTerm: any = null;
+      for (const [_, otherExpr] of hypEntries) {
+        if (otherExpr && typeof otherExpr === 'object' && 'Pred' in otherExpr) {
+          chosenTerm = otherExpr.Pred[1]?.[0];
+          if (chosenTerm) break;
+        }
+      }
+      if (!chosenTerm && target && typeof target === 'object' && 'Pred' in target) {
+        chosenTerm = target.Pred[1]?.[0];
+      }
+      if (!chosenTerm) {
+        chosenTerm = { Const: 'c' };
+      }
+      reasoning = `Instantiating universal quantifier ${idForall} with term ${JSON.stringify(chosenTerm)} via ForallElim.`;
+      stepAst = { rule: 'ForallElim', hyp: idForall, term: chosenTerm };
+      tacticStr = `have := ${idForall} ${chosenTerm.Const || chosenTerm.Var || 'c'}`;
+      return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 7. Existential Introduction (ExistsIntro)
+  if (target && typeof target === 'object' && 'Exists' in target) {
+    const { var: varName, body } = target.Exists;
+    for (const [id, expr] of hypEntries) {
+      if (expr && typeof expr === 'object' && 'Pred' in expr) {
+        const witness = expr.Pred[1]?.[0] || { Const: 'c' };
+        const substituted = replaceVarInExpr(body, varName, witness);
+        if (JSON.stringify(substituted) === JSON.stringify(expr)) {
+          reasoning = `Target is existential ∃${varName}. Witness ${JSON.stringify(witness)} in hypothesis ${id} satisfies body. Applying ExistsIntro.`;
+          stepAst = { rule: 'ExistsIntro', hyp: id, var: varName, body };
+          tacticStr = `use ${witness.Const || witness.Var || 'c'}`;
+          return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+        }
+      }
+    }
+  }
+
+  // 8. Existential Elimination (ExistsElim)
+  const exHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Exists' in expr);
+  if (exHyp) {
+    const forallImplHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Forall' in expr);
+    if (forallImplHyp) {
+      reasoning = `Eliminating existential hypothesis ${exHyp[0]} using universal implication ${forallImplHyp[0]} via ExistsElim.`;
+      stepAst = { rule: 'ExistsElim', hyp_exists: exHyp[0], hyp_impl: forallImplHyp[0] };
+      tacticStr = `obtain ⟨x, hx⟩ := ${exHyp[0]}`;
+      return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 9. Disjunction elimination check (OrElim / Case Analysis)
   const orHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Or' in expr);
   if (orHyp) {
     const [orA, orB] = (orHyp[1] as any).Or;
@@ -325,7 +501,7 @@ function synthesizeTacticAndAst(
     }
   }
 
-  // 5. Disjunction introduction check (OrIntroL, OrIntroR)
+  // 10. Disjunction introduction check (OrIntroL, OrIntroR)
   if (target && typeof target === 'object' && 'Or' in target) {
     const [targetL, targetR] = target.Or;
     for (const [id, expr] of hypEntries) {
@@ -645,6 +821,44 @@ function evaluateCandidateCritic(params: EvaluateCandidateMessage): GenRmResult 
       }
       case 'Reflexivity': {
         baseScore = 0.96;
+        break;
+      }
+      case 'ForallElim': {
+        const hypExpr = hyps[step.hyp];
+        if (hypExpr && typeof hypExpr === 'object' && 'Forall' in hypExpr) {
+          baseScore = 0.97;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'ExistsIntro': {
+        const hypExpr = hyps[step.hyp];
+        if (hypExpr) {
+          baseScore = 0.97;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'ExistsElim': {
+        const exExpr = hyps[step.hyp_exists];
+        const implExpr = hyps[step.hyp_impl];
+        if (exExpr && implExpr) {
+          baseScore = 0.97;
+        } else {
+          baseScore = 0.05;
+        }
+        break;
+      }
+      case 'Rewrite': {
+        const eqExpr = hyps[step.eq_hyp];
+        const targetExpr = hyps[step.target_hyp];
+        if (eqExpr && typeof eqExpr === 'object' && 'Eq' in eqExpr && targetExpr) {
+          baseScore = 0.97;
+        } else {
+          baseScore = 0.05;
+        }
         break;
       }
     }

@@ -88,16 +88,25 @@ export const DEPRECATED_MODELS = [
 /**
  * Kernel AST Expression and Deduction Step Types (matching crates/kernel/src/ast.rs).
  */
+export type Term =
+  | { Var: string }
+  | { Const: string }
+  | { Func: [string, Term[]] };
+
 export type Expr =
   | { Prop: string }
+  | { Pred: [string, Term[]] }
   | { And: [Expr, Expr] }
   | { Or: [Expr, Expr] }
   | { Impl: [Expr, Expr] }
   | { Not: Expr }
   | 'False'
-  | { Eq: [string, string] };
+  | { Eq: [Term, Term] }
+  | { Forall: { var: string; body: Expr } }
+  | { Exists: { var: string; body: Expr } };
 
 export type DeductionStep =
+  // Propositional Primitives
   | { rule: 'AndElimL'; hyp: string }
   | { rule: 'AndElimR'; hyp: string }
   | { rule: 'AndIntro'; left: string; right: string }
@@ -108,7 +117,12 @@ export type DeductionStep =
   | { rule: 'FalseElim'; hyp_false: string }
   | { rule: 'ModusPonens'; impl: string; arg: string }
   | { rule: 'Exact'; hyp: string }
-  | { rule: 'Reflexivity'; term: string };
+  | { rule: 'Reflexivity'; term: Term }
+  // First-Order Logic Primitives
+  | { rule: 'ForallElim'; hyp: string; term: Term }
+  | { rule: 'ExistsIntro'; hyp: string; var: string; body: Expr }
+  | { rule: 'ExistsElim'; hyp_exists: string; hyp_impl: string }
+  | { rule: 'Rewrite'; eq_hyp: string; target_hyp: string };
 
 /**
  * Machine-First Bourbaki Proof Kernel System Prompt.
@@ -127,20 +141,38 @@ Your objective is to emit deterministic AST deduction steps that transition the 
 - {"rule": "FalseElim", "hyp_false": "<hyp_id>"}
 - {"rule": "ModusPonens", "impl": "<hyp_id>", "arg": "<hyp_id>"}
 - {"rule": "Exact", "hyp": "<hyp_id>"}
-- {"rule": "Reflexivity", "term": "<expr>"}
+- {"rule": "Reflexivity", "term": <term>}
+- {"rule": "ForallElim", "hyp": "<hyp_id>", "term": <term>}
+- {"rule": "ExistsIntro", "hyp": "<hyp_id>", "var": "<var_name>", "body": <expr>}
+- {"rule": "ExistsElim", "hyp_exists": "<hyp_id>", "hyp_impl": "<hyp_id>"}
+- {"rule": "Rewrite", "eq_hyp": "<hyp_id>", "target_hyp": "<hyp_id>"}
 
 ### FEW-SHOT EXAMPLES
-1. Disjunction Introduction (Left):
-   Hypotheses: h0: {"Prop": "A"}
-   Target: {"Or": [{"Prop": "A"}, {"Prop": "B"}]}
-   Output: {"rule": "OrIntroL", "hyp": "h0", "right": {"Prop": "B"}}
+1. Universal Modus Ponens (Specialization & Application):
+   Hypotheses: h0: {"Forall": {"var": "x", "body": {"Impl": [{"Pred": ["P", [{"Var": "x"}]]}, {"Pred": ["Q", [{"Var": "x"}]]}]}}}, h1: {"Pred": ["P", [{"Const": "c"}]]}
+   Target: {"Pred": ["Q", [{"Const": "c"}]]}
+   Step 1: {"rule": "ForallElim", "hyp": "h0", "term": {"Const": "c"}} -> derives h2: {"Impl": [{"Pred": ["P", [{"Const": "c"}]]}, {"Pred": ["Q", [{"Const": "c"}]]}]}
+   Step 2: {"rule": "ModusPonens", "impl": "h2", "arg": "h1"} -> derives h3: {"Pred": ["Q", [{"Const": "c"}]]}
+   Step 3: {"rule": "Exact", "hyp": "h3"} -> closes proof
 
-2. Disjunction Elimination (Case Analysis / OrComm):
+2. Existential Generalization (Witness Construction):
+   Hypotheses: h0: {"Pred": ["P", [{"Const": "c"}]]}
+   Target: {"Exists": {"var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}}}
+   Step 1: {"rule": "ExistsIntro", "hyp": "h0", "var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}} -> derives h1: {"Exists": {"var": "x", "body": {"Pred": ["P", [{"Var": "x"}]]}}}
+   Step 2: {"rule": "Exact", "hyp": "h1"} -> closes proof
+
+3. Leibniz Equality Rewriting:
+   Hypotheses: h0: {"Eq": [{"Const": "a"}, {"Const": "b"}]}, h1: {"Pred": ["P", [{"Const": "a"}]]}
+   Target: {"Pred": ["P", [{"Const": "b"}]]}
+   Step 1: {"rule": "Rewrite", "eq_hyp": "h0", "target_hyp": "h1"} -> derives h2: {"Pred": ["P", [{"Const": "b"}]]}
+   Step 2: {"rule": "Exact", "hyp": "h2"} -> closes proof
+
+4. Disjunction Elimination (Case Analysis / OrComm):
    Hypotheses: h0: {"Or": [{"Prop": "A"}, {"Prop": "B"}]}, h1: {"Impl": [{"Prop": "A"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}, h2: {"Impl": [{"Prop": "B"}, {"Or": [{"Prop": "B"}, {"Prop": "A"}]}]}
    Target: {"Or": [{"Prop": "B"}, {"Prop": "A"}]}
    Output: {"rule": "OrElim", "hyp_or": "h0", "left_impl": "h1", "right_impl": "h2"}
 
-3. Contradiction & Ex Falso (Principle of Explosion):
+5. Contradiction & Ex Falso (Principle of Explosion):
    Hypotheses: h0: {"Prop": "P"}, h1: {"Not": {"Prop": "P"}}
    Step 1: {"rule": "Contradiction", "pos_hyp": "h0", "neg_hyp": "h1"} -> derives h2: "False"
    Step 2: {"rule": "FalseElim", "hyp_false": "h2"} -> closes proof

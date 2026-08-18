@@ -18,6 +18,81 @@ import { DeductionStep, Expr } from '../config/models';
 import { gemmaEdgeController } from './llmController';
 import { eventTracer } from './eventTracer';
 
+function replaceVarInTerm(term: any, varName: string, rep: any): any {
+  if (!term || typeof term !== 'object') return term;
+  if ('Var' in term && term.Var === varName) return rep;
+  if ('Func' in term) {
+    const [fname, args] = term.Func;
+    return { Func: [fname, args.map((a: any) => replaceVarInTerm(a, varName, rep))] };
+  }
+  return term;
+}
+
+function replaceVarInExpr(expr: any, varName: string, rep: any): any {
+  if (!expr || typeof expr !== 'object') return expr;
+  if ('Pred' in expr) {
+    const [pname, terms] = expr.Pred;
+    return { Pred: [pname, terms.map((t: any) => replaceVarInTerm(t, varName, rep))] };
+  }
+  if ('Impl' in expr) {
+    return { Impl: [replaceVarInExpr(expr.Impl[0], varName, rep), replaceVarInExpr(expr.Impl[1], varName, rep)] };
+  }
+  if ('And' in expr) {
+    return { And: [replaceVarInExpr(expr.And[0], varName, rep), replaceVarInExpr(expr.And[1], varName, rep)] };
+  }
+  if ('Or' in expr) {
+    return { Or: [replaceVarInExpr(expr.Or[0], varName, rep), replaceVarInExpr(expr.Or[1], varName, rep)] };
+  }
+  if ('Not' in expr) {
+    return { Not: replaceVarInExpr(expr.Not, varName, rep) };
+  }
+  if ('Eq' in expr) {
+    return { Eq: [replaceVarInTerm(expr.Eq[0], varName, rep), replaceVarInTerm(expr.Eq[1], varName, rep)] };
+  }
+  if ('Forall' in expr) {
+    if (expr.Forall.var === varName) return expr;
+    return { Forall: { var: expr.Forall.var, body: replaceVarInExpr(expr.Forall.body, varName, rep) } };
+  }
+  if ('Exists' in expr) {
+    if (expr.Exists.var === varName) return expr;
+    return { Exists: { var: expr.Exists.var, body: replaceVarInExpr(expr.Exists.body, varName, rep) } };
+  }
+  return expr;
+}
+
+function replaceTermInTerm(term: any, target: any, rep: any): any {
+  if (JSON.stringify(term) === JSON.stringify(target)) return rep;
+  if (term && typeof term === 'object' && 'Func' in term) {
+    const [fname, args] = term.Func;
+    return { Func: [fname, args.map((a: any) => replaceTermInTerm(a, target, rep))] };
+  }
+  return term;
+}
+
+function replaceTermInExpr(expr: any, target: any, rep: any): any {
+  if (!expr || typeof expr !== 'object') return expr;
+  if ('Pred' in expr) {
+    const [pname, terms] = expr.Pred;
+    return { Pred: [pname, terms.map((t: any) => replaceTermInTerm(t, target, rep))] };
+  }
+  if ('Impl' in expr) {
+    return { Impl: [replaceTermInExpr(expr.Impl[0], target, rep), replaceTermInExpr(expr.Impl[1], target, rep)] };
+  }
+  if ('And' in expr) {
+    return { And: [replaceTermInExpr(expr.And[0], target, rep), replaceTermInExpr(expr.And[1], target, rep)] };
+  }
+  if ('Or' in expr) {
+    return { Or: [replaceTermInExpr(expr.Or[0], target, rep), replaceTermInExpr(expr.Or[1], target, rep)] };
+  }
+  if ('Not' in expr) {
+    return { Not: replaceTermInExpr(expr.Not, target, rep) };
+  }
+  if ('Eq' in expr) {
+    return { Eq: [replaceTermInTerm(expr.Eq[0], target, rep), replaceTermInTerm(expr.Eq[1], target, rep)] };
+  }
+  return expr;
+}
+
 export const DEFAULT_SEARCH_CONFIG: SearchConfig = {
   beamWidth: 4,
   expansionFactorK: 3,
@@ -202,11 +277,82 @@ class PureJsProofState {
         return { newHyp: null, error: `TypeMismatch in Exact` };
       }
       case 'Reflexivity': {
-        if (typeof this.target === 'object' && this.target !== null && 'Eq' in this.target && this.target.Eq[0] === step.term && this.target.Eq[1] === step.term) {
+        if (
+          typeof this.target === 'object' &&
+          this.target !== null &&
+          'Eq' in this.target &&
+          JSON.stringify(this.target.Eq[0]) === JSON.stringify(step.term) &&
+          JSON.stringify(this.target.Eq[1]) === JSON.stringify(step.term)
+        ) {
           this.status = 'Proven';
           return { newHyp: null };
         }
         return { newHyp: null, error: `TypeMismatch in Reflexivity` };
+      }
+      case 'ForallElim': {
+        const expr = this.hyps[step.hyp];
+        if (!expr || typeof expr !== 'object' || !('Forall' in expr)) {
+          return { newHyp: null, error: `Hypothesis not found or not Forall: ${step.hyp}` };
+        }
+        const instantiated = replaceVarInExpr(expr.Forall.body, expr.Forall.var, step.term);
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = instantiated;
+        if (JSON.stringify(instantiated) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'ExistsIntro': {
+        const hypExpr = this.hyps[step.hyp];
+        if (!hypExpr) {
+          return { newHyp: null, error: `Hypothesis not found: ${step.hyp}` };
+        }
+        const newExpr: Expr = {
+          Exists: { var: step.var, body: step.body },
+        };
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = newExpr;
+        if (JSON.stringify(newExpr) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'ExistsElim': {
+        const exExpr = this.hyps[step.hyp_exists];
+        const implExpr = this.hyps[step.hyp_impl];
+        if (!exExpr || !implExpr) {
+          return { newHyp: null, error: `Hypothesis not found for ExistsElim` };
+        }
+        let con: any = null;
+        if (typeof implExpr === 'object' && 'Forall' in implExpr && typeof implExpr.Forall.body === 'object' && 'Impl' in implExpr.Forall.body) {
+          con = implExpr.Forall.body.Impl[1];
+        } else if (typeof implExpr === 'object' && 'Impl' in implExpr) {
+          con = implExpr.Impl[1];
+        }
+        if (!con) {
+          return { newHyp: null, error: `Invalid implication for ExistsElim` };
+        }
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = con;
+        if (JSON.stringify(con) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
+      }
+      case 'Rewrite': {
+        const eqExpr = this.hyps[step.eq_hyp];
+        const targetExpr = this.hyps[step.target_hyp];
+        if (!eqExpr || typeof eqExpr !== 'object' || !('Eq' in eqExpr) || !targetExpr) {
+          return { newHyp: null, error: `Invalid hypotheses for Rewrite` };
+        }
+        const [t1, t2] = eqExpr.Eq;
+        const rewritten = replaceTermInExpr(targetExpr, t1, t2);
+        const newId = `h${this.nextHypIdx++}`;
+        this.hyps[newId] = rewritten;
+        if (JSON.stringify(rewritten) === JSON.stringify(this.target)) {
+          this.status = 'Proven';
+        }
+        return { newHyp: newId };
       }
       default:
         return { newHyp: null, error: 'Unknown deduction step rule' };
@@ -503,6 +649,66 @@ export class ProofSearchEngine {
       if (expr && typeof expr === 'object' && 'And' in expr) {
         addStep({ rule: 'AndElimR', hyp: id }, `Extracting right conjunct from ${id}`);
         addStep({ rule: 'AndElimL', hyp: id }, `Extracting left conjunct from ${id}`);
+      }
+    }
+
+    // Check Leibniz Rewrite
+    const eqHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'Eq' in expr);
+    if (eqHyp) {
+      const [t1, t2] = (eqHyp[1] as any).Eq;
+      for (const [id, expr] of hypEntries) {
+        if (id !== eqHyp[0]) {
+          const rewritten = replaceTermInExpr(expr, t1, t2);
+          if (JSON.stringify(rewritten) !== JSON.stringify(expr)) {
+            addStep({ rule: 'Rewrite', eq_hyp: eqHyp[0], target_hyp: id }, `Leibniz rewriting ${id} using ${eqHyp[0]}`);
+          }
+        }
+      }
+    }
+
+    // Check Modus Ponens
+    for (const [idImpl, exprImpl] of hypEntries) {
+      if (exprImpl && typeof exprImpl === 'object' && 'Impl' in exprImpl) {
+        const [antecedent] = (exprImpl as any).Impl;
+        for (const [idArg, exprArg] of hypEntries) {
+          if (JSON.stringify(antecedent) === JSON.stringify(exprArg)) {
+            addStep({ rule: 'ModusPonens', impl: idImpl, arg: idArg }, `Modus ponens on ${idImpl} with ${idArg}`);
+          }
+        }
+      }
+    }
+
+    // Check Universal Instantiation (ForallElim)
+    for (const [idForall, exprForall] of hypEntries) {
+      if (exprForall && typeof exprForall === 'object' && 'Forall' in exprForall) {
+        let chosenTerm: any = null;
+        for (const [_, otherExpr] of hypEntries) {
+          if (otherExpr && typeof otherExpr === 'object' && 'Pred' in otherExpr) {
+            chosenTerm = otherExpr.Pred[1]?.[0];
+            if (chosenTerm) break;
+          }
+        }
+        if (!chosenTerm && target && typeof target === 'object' && 'Pred' in target) {
+          chosenTerm = target.Pred[1]?.[0];
+        }
+        if (!chosenTerm) {
+          chosenTerm = { Const: 'c' };
+        }
+        addStep({ rule: 'ForallElim', hyp: idForall, term: chosenTerm }, `Specializing universal quantifier ${idForall}`);
+      }
+    }
+
+    // Check Existential Introduction (ExistsIntro)
+    if (target && typeof target === 'object' && 'Exists' in target) {
+      const { var: varName, body } = target.Exists;
+      for (const [id, expr] of hypEntries) {
+        if (expr && typeof expr === 'object' && 'Pred' in expr) {
+          const witness = expr.Pred[1]?.[0] || { Const: 'c' };
+          const substituted = replaceVarInExpr(body, varName, witness);
+          if (JSON.stringify(substituted) === JSON.stringify(expr)) {
+            addStep({ rule: 'ExistsIntro', hyp: id, var: varName, body }, `Existential generalization from witness in ${id}`);
+          }
+        }
       }
     }
 
