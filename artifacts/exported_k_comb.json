@@ -1,0 +1,29 @@
+{"value":
+ {"Lam":
+  ["A",
+   {"Sort": "Zero"},
+   {"Lam":
+    ["B",
+     {"Sort": "Zero"},
+     {"Lam":
+      ["a",
+       {"BVar": 1},
+       {"Lam":
+        ["x._@.LeanTarget.Basic.4164251070._hygCtx._hyg.5",
+         {"BVar": 1},
+         {"BVar": 1}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["a",
+       {"BVar": 1},
+       {"ForallE":
+        ["x._@.LeanTarget.Basic.4164251070._hygCtx._hyg.5",
+         {"BVar": 1},
+         {"BVar": 3}]}]}]}]},
+ "name": "k_comb"}

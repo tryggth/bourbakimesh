@@ -6,3 +6,4 @@ import LeanTarget.Export
 import LeanTarget.MetaTheory.Arena
 import LeanTarget.MetaTheory.CIC
 import LeanTarget.MetaTheory.Soundness
+import LeanTarget.BourbakiExport

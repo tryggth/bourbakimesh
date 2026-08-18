@@ -12,6 +12,13 @@ pub struct WasmStepResult {
     pub target: Expr,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct WasmMathlibVerifyResult {
+    pub name: String,
+    pub valid: bool,
+    pub inferred_type: String,
+}
+
 #[wasm_bindgen]
 pub struct WasmProofState {
     inner: ProofState,
@@ -99,6 +106,40 @@ pub fn infer_cic_type(
     match kernel::cic::infer_type(&term, &env, &ctx) {
         Ok(inferred) => serde_json::to_string(&inferred)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e))),
+        Err(err) => Err(JsValue::from_str(&format!("TypeError: {:?}", err))),
+    }
+}
+
+/// Verifies a complete Lean 4 / Mathlib exported theorem JSON payload.
+#[wasm_bindgen]
+pub fn verify_mathlib_export(export_json: &str) -> Result<JsValue, JsValue> {
+    #[derive(Deserialize)]
+    struct Payload {
+        name: String,
+        #[serde(rename = "type")]
+        ty: kernel::cic::Expr,
+        value: kernel::cic::Expr,
+    }
+
+    let payload: Payload = serde_json::from_str(export_json)
+        .map_err(|e| JsValue::from_str(&format!("Invalid export JSON: {}", e)))?;
+
+    let env = kernel::cic::Environment::default_with_logic();
+    let ctx = kernel::cic::LocalContext::new();
+
+    match kernel::cic::check_type(&payload.value, &payload.ty, &env, &ctx) {
+        Ok(()) => {
+            let inferred = kernel::cic::infer_type(&payload.value, &env, &ctx)
+                .map(|t| serde_json::to_string(&t).unwrap_or_default())
+                .unwrap_or_default();
+            let res = WasmMathlibVerifyResult {
+                name: payload.name,
+                valid: true,
+                inferred_type: inferred,
+            };
+            let serializer = serde_wasm_bindgen::Serializer::json_compatible();
+            res.serialize(&serializer).map_err(|e| JsValue::from_str(&e.to_string()))
+        }
         Err(err) => Err(JsValue::from_str(&format!("TypeError: {:?}", err))),
     }
 }

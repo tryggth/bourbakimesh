@@ -1,0 +1,37 @@
+{"value":
+ {"Lam":
+  ["A",
+   {"Sort": "Zero"},
+   {"Lam":
+    ["B",
+     {"Sort": "Zero"},
+     {"Lam":
+      ["a",
+       {"BVar": 1},
+       {"Lam":
+        ["b",
+         {"BVar": 1},
+         {"App":
+          [{"App":
+            [{"App":
+              [{"App": [{"Const": ["And.intro", []]}, {"BVar": 3}]},
+               {"BVar": 2}]},
+             {"BVar": 1}]},
+           {"BVar": 0}]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["a",
+       {"BVar": 1},
+       {"ForallE":
+        ["b",
+         {"BVar": 1},
+         {"App":
+          [{"App": [{"Const": ["And", []]}, {"BVar": 3}]},
+           {"BVar": 2}]}]}]}]}]},
+ "name": "and_intro_thm"}

@@ -1,0 +1,57 @@
+{"value":
+ {"Lam":
+  ["b",
+   {"Const": ["Bool", []]},
+   {"App":
+    [{"App":
+      [{"App":
+        [{"App":
+          [{"Const": ["Bool.not_not_thm.match_1_1", []]},
+           {"Lam":
+            ["b._@.LeanTarget.BourbakiExport.3082424941._hygCtx._hyg.16",
+             {"Const": ["Bool", []]},
+             {"App":
+              [{"App":
+                [{"App":
+                  [{"Const": ["Eq", [{"Succ": "Zero"}]]},
+                   {"Const": ["Bool", []]}]},
+                 {"App":
+                  [{"Const": ["Bool.not", []]},
+                   {"App": [{"Const": ["Bool.not", []]}, {"BVar": 0}]}]}]},
+               {"BVar": 0}]}]}]},
+         {"BVar": 0}]},
+       {"Lam":
+        ["_",
+         {"Const": ["Unit", []]},
+         {"App":
+          [{"App":
+            [{"Const": ["rfl", [{"Succ": "Zero"}]]}, {"Const": ["Bool", []]}]},
+           {"App":
+            [{"Const": ["Bool.not", []]},
+             {"App":
+              [{"Const": ["Bool.not", []]},
+               {"Const": ["Bool.false", []]}]}]}]}]}]},
+     {"Lam":
+      ["_",
+       {"Const": ["Unit", []]},
+       {"App":
+        [{"App":
+          [{"Const": ["rfl", [{"Succ": "Zero"}]]}, {"Const": ["Bool", []]}]},
+         {"App":
+          [{"Const": ["Bool.not", []]},
+           {"App":
+            [{"Const": ["Bool.not", []]},
+             {"Const": ["Bool.true", []]}]}]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["b",
+   {"Const": ["Bool", []]},
+   {"App":
+    [{"App":
+      [{"App":
+        [{"Const": ["Eq", [{"Succ": "Zero"}]]}, {"Const": ["Bool", []]}]},
+       {"App":
+        [{"Const": ["Bool.not", []]},
+         {"App": [{"Const": ["Bool.not", []]}, {"BVar": 0}]}]}]},
+     {"BVar": 0}]}]},
+ "name": "Bool.not_not_thm"}

@@ -59,9 +59,9 @@ pub fn infer_type(expr: &Expr, env: &Environment, ctx: &LocalContext) -> Result<
             Ok(Expr::Sort(Level::Succ(Box::new(lvl.clone()))))
         }
 
-        Expr::Const(name, _levels) => {
+        Expr::Const(name, levels) => {
             if let Some(info) = env.get(name) {
-                Ok(info.ty.clone())
+                Ok(info.instantiate_type(levels))
             } else {
                 Err(TypeError::UnknownConst(name.clone()))
             }

@@ -1,5 +1,6 @@
 //! Calculus of Inductive Constructions (CIC) Core AST & De Bruijn Terms.
 
+use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
 
 /// Universe level for CIC Sorts.
@@ -70,6 +71,23 @@ impl Level {
                 }
             }
             Level::Param(p) => Level::Param(p.clone()),
+        }
+    }
+
+    /// Instantiates universe parameters with concrete levels.
+    pub fn instantiate_params(&self, subst: &HashMap<String, Level>) -> Level {
+        match self {
+            Level::Zero => Level::Zero,
+            Level::Succ(l) => Level::Succ(Box::new(l.instantiate_params(subst))),
+            Level::Max(l1, l2) => Level::Max(
+                Box::new(l1.instantiate_params(subst)),
+                Box::new(l2.instantiate_params(subst)),
+            ),
+            Level::IMax(l1, l2) => Level::IMax(
+                Box::new(l1.instantiate_params(subst)),
+                Box::new(l2.instantiate_params(subst)),
+            ),
+            Level::Param(p) => subst.get(p).cloned().unwrap_or_else(|| Level::Param(p.clone())),
         }
     }
 }
@@ -265,6 +283,41 @@ impl Expr {
                     || body.has_loose_bvars(cutoff + 1)
             }
             _ => false,
+        }
+    }
+
+    /// Instantiates universe parameters across the entire expression.
+    pub fn instantiate_level_params(&self, subst: &HashMap<String, Level>) -> Expr {
+        if subst.is_empty() {
+            return self.clone();
+        }
+        match self {
+            Expr::Sort(lvl) => Expr::Sort(lvl.instantiate_params(subst)),
+            Expr::Const(name, levels) => Expr::Const(
+                name.clone(),
+                levels.iter().map(|l| l.instantiate_params(subst)).collect(),
+            ),
+            Expr::App(f, a) => Expr::App(
+                Box::new(f.instantiate_level_params(subst)),
+                Box::new(a.instantiate_level_params(subst)),
+            ),
+            Expr::Lam(name, ty, body) => Expr::Lam(
+                name.clone(),
+                Box::new(ty.instantiate_level_params(subst)),
+                Box::new(body.instantiate_level_params(subst)),
+            ),
+            Expr::ForallE(name, ty, body) => Expr::ForallE(
+                name.clone(),
+                Box::new(ty.instantiate_level_params(subst)),
+                Box::new(body.instantiate_level_params(subst)),
+            ),
+            Expr::LetE(name, ty, val, body) => Expr::LetE(
+                name.clone(),
+                Box::new(ty.instantiate_level_params(subst)),
+                Box::new(val.instantiate_level_params(subst)),
+                Box::new(body.instantiate_level_params(subst)),
+            ),
+            _ => self.clone(),
         }
     }
 }

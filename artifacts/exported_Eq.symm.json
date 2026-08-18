@@ -1,0 +1,71 @@
+{"value":
+ {"Lam":
+  ["α",
+   {"Sort": {"Param": "u"}},
+   {"Lam":
+    ["a",
+     {"BVar": 0},
+     {"Lam":
+      ["b",
+       {"BVar": 1},
+       {"Lam":
+        ["h",
+         {"App":
+          [{"App":
+            [{"App": [{"Const": ["Eq", [{"Param": "u"}]]}, {"BVar": 2}]},
+             {"BVar": 1}]},
+           {"BVar": 0}]},
+         {"App":
+          [{"App":
+            [{"App":
+              [{"App":
+                [{"App":
+                  [{"App":
+                    [{"Const": ["Eq.rec", ["Zero", {"Param": "u"}]]},
+                     {"BVar": 3}]},
+                   {"BVar": 2}]},
+                 {"Lam":
+                  ["x._@.Init.Prelude.2345006592._hygCtx._hyg.14",
+                   {"BVar": 3},
+                   {"Lam":
+                    ["h._@.Init.Prelude.2345006592._hygCtx._hyg.15",
+                     {"App":
+                      [{"App":
+                        [{"App":
+                          [{"Const": ["Eq", [{"Param": "u"}]]}, {"BVar": 4}]},
+                         {"BVar": 3}]},
+                       {"BVar": 0}]},
+                     {"App":
+                      [{"App":
+                        [{"App":
+                          [{"Const": ["Eq", [{"Param": "u"}]]}, {"BVar": 5}]},
+                         {"BVar": 1}]},
+                       {"BVar": 4}]}]}]}]},
+               {"App":
+                [{"App": [{"Const": ["rfl", [{"Param": "u"}]]}, {"BVar": 3}]},
+                 {"BVar": 2}]}]},
+             {"BVar": 1}]},
+           {"BVar": 0}]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["α",
+   {"Sort": {"Param": "u"}},
+   {"ForallE":
+    ["a",
+     {"BVar": 0},
+     {"ForallE":
+      ["b",
+       {"BVar": 1},
+       {"ForallE":
+        ["h",
+         {"App":
+          [{"App":
+            [{"App": [{"Const": ["Eq", [{"Param": "u"}]]}, {"BVar": 2}]},
+             {"BVar": 1}]},
+           {"BVar": 0}]},
+         {"App":
+          [{"App":
+            [{"App": [{"Const": ["Eq", [{"Param": "u"}]]}, {"BVar": 3}]},
+             {"BVar": 1}]},
+           {"BVar": 2}]}]}]}]}]},
+ "name": "Eq.symm"}

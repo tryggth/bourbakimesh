@@ -1,0 +1,37 @@
+{"value":
+ {"Lam":
+  ["A",
+   {"Sort": "Zero"},
+   {"Lam":
+    ["B",
+     {"Sort": "Zero"},
+     {"Lam":
+      ["h",
+       {"App": [{"App": [{"Const": ["And", []]}, {"BVar": 1}]}, {"BVar": 0}]},
+       {"App":
+        [{"App":
+          [{"App":
+            [{"App": [{"Const": ["And.intro", []]}, {"BVar": 1}]},
+             {"BVar": 2}]},
+           {"App":
+            [{"App":
+              [{"App": [{"Const": ["And.right", []]}, {"BVar": 2}]},
+               {"BVar": 1}]},
+             {"BVar": 0}]}]},
+         {"App":
+          [{"App":
+            [{"App": [{"Const": ["And.left", []]}, {"BVar": 2}]}, {"BVar": 1}]},
+           {"BVar": 0}]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["h",
+       {"App": [{"App": [{"Const": ["And", []]}, {"BVar": 1}]}, {"BVar": 0}]},
+       {"App":
+        [{"App": [{"Const": ["And", []]}, {"BVar": 1}]}, {"BVar": 2}]}]}]}]},
+ "name": "And.swap"}

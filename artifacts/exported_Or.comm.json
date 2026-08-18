@@ -1,0 +1,36 @@
+{"value":
+ {"Lam":
+  ["a",
+   {"Sort": "Zero"},
+   {"Lam":
+    ["b",
+     {"Sort": "Zero"},
+     {"App":
+      [{"App":
+        [{"App":
+          [{"App":
+            [{"Const": ["Iff.intro", []]},
+             {"App":
+              [{"App": [{"Const": ["Or", []]}, {"BVar": 1}]}, {"BVar": 0}]}]},
+           {"App":
+            [{"App": [{"Const": ["Or", []]}, {"BVar": 0}]}, {"BVar": 1}]}]},
+         {"App":
+          [{"App": [{"Const": ["Or.symm", []]}, {"BVar": 1}]}, {"BVar": 0}]}]},
+       {"App":
+        [{"App": [{"Const": ["Or.symm", []]}, {"BVar": 0}]},
+         {"BVar": 1}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["a",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["b",
+     {"Sort": "Zero"},
+     {"App":
+      [{"App":
+        [{"Const": ["Iff", []]},
+         {"App":
+          [{"App": [{"Const": ["Or", []]}, {"BVar": 1}]}, {"BVar": 0}]}]},
+       {"App":
+        [{"App": [{"Const": ["Or", []]}, {"BVar": 0}]}, {"BVar": 1}]}]}]}]},
+ "name": "Or.comm"}

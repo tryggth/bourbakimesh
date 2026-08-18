@@ -1,0 +1,6 @@
+{"value":
+ {"Lam": ["A", {"Sort": "Zero"}, {"Lam": ["a", {"BVar": 0}, {"BVar": 0}]}]},
+ "type":
+ {"ForallE":
+  ["A", {"Sort": "Zero"}, {"ForallE": ["a", {"BVar": 0}, {"BVar": 1}]}]},
+ "name": "id_prop"}

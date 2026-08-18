@@ -1,0 +1,57 @@
+{"value":
+ {"Lam":
+  ["n",
+   {"Const": ["Nat", []]},
+   {"App":
+    [{"App": [{"Const": ["rfl", [{"Succ": "Zero"}]]}, {"Const": ["Nat", []]}]},
+     {"App":
+      [{"App":
+        [{"App":
+          [{"App":
+            [{"App":
+              [{"App":
+                [{"Const": ["HAdd.hAdd", ["Zero", "Zero", "Zero"]]},
+                 {"Const": ["Nat", []]}]},
+               {"Const": ["Nat", []]}]},
+             {"Const": ["Nat", []]}]},
+           {"App":
+            [{"App":
+              [{"Const": ["instHAdd", ["Zero"]]}, {"Const": ["Nat", []]}]},
+             {"Const": ["instAddNat", []]}]}]},
+         {"BVar": 0}]},
+       {"App":
+        [{"App":
+          [{"App":
+            [{"Const": ["OfNat.ofNat", ["Zero"]]}, {"Const": ["Nat", []]}]},
+           null]},
+         {"App": [{"Const": ["instOfNatNat", []]}, null]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["n",
+   {"Const": ["Nat", []]},
+   {"App":
+    [{"App":
+      [{"App": [{"Const": ["Eq", [{"Succ": "Zero"}]]}, {"Const": ["Nat", []]}]},
+       {"App":
+        [{"App":
+          [{"App":
+            [{"App":
+              [{"App":
+                [{"App":
+                  [{"Const": ["HAdd.hAdd", ["Zero", "Zero", "Zero"]]},
+                   {"Const": ["Nat", []]}]},
+                 {"Const": ["Nat", []]}]},
+               {"Const": ["Nat", []]}]},
+             {"App":
+              [{"App":
+                [{"Const": ["instHAdd", ["Zero"]]}, {"Const": ["Nat", []]}]},
+               {"Const": ["instAddNat", []]}]}]},
+           {"BVar": 0}]},
+         {"App":
+          [{"App":
+            [{"App":
+              [{"Const": ["OfNat.ofNat", ["Zero"]]}, {"Const": ["Nat", []]}]},
+             null]},
+           {"App": [{"Const": ["instOfNatNat", []]}, null]}]}]}]},
+     {"BVar": 0}]}]},
+ "name": "Nat.add_zero_thm"}

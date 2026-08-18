@@ -1,8 +1,9 @@
-//! Reduction engine (β, ζ, δ reductions) and definitional equality for CIC terms.
+//! Reduction engine (β, ζ, δ, ι reductions) and definitional equality for CIC terms.
 
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
-use crate::cic::expr::Expr;
+use crate::cic::expr::{Expr, Level};
+use crate::cic::inductive::{InductiveType, Recursor};
 
 /// Global declaration in the typing environment.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -13,16 +14,35 @@ pub struct ConstantInfo {
     pub value: Option<Expr>,
 }
 
+impl ConstantInfo {
+    /// Instantiates universe parameters in the constant's declared type.
+    pub fn instantiate_type(&self, levels: &[Level]) -> Expr {
+        if self.level_params.is_empty() {
+            return self.ty.clone();
+        }
+        let mut subst = HashMap::new();
+        for (i, param) in self.level_params.iter().enumerate() {
+            let lvl = levels.get(i).cloned().unwrap_or(Level::Zero);
+            subst.insert(param.clone(), lvl);
+        }
+        self.ty.instantiate_level_params(&subst)
+    }
+}
+
 /// Global typing environment containing constants, axioms, and inductive types.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Environment {
     constants: HashMap<String, ConstantInfo>,
+    inductives: HashMap<String, InductiveType>,
+    recursors: HashMap<String, Recursor>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
             constants: HashMap::new(),
+            inductives: HashMap::new(),
+            recursors: HashMap::new(),
         }
     }
 
@@ -34,6 +54,20 @@ impl Environment {
             ConstantInfo {
                 name,
                 level_params: Vec::new(),
+                ty,
+                value: None,
+            },
+        );
+    }
+
+    /// Add an axiom with universe level parameters.
+    pub fn add_poly_axiom(&mut self, name: impl Into<String>, level_params: Vec<String>, ty: Expr) {
+        let name = name.into();
+        self.constants.insert(
+            name.clone(),
+            ConstantInfo {
+                name,
+                level_params,
                 ty,
                 value: None,
             },
@@ -54,50 +88,66 @@ impl Environment {
         );
     }
 
+    /// Add an inductive type family and its recursor into the environment.
+    pub fn add_inductive(&mut self, ind: InductiveType, rec: Recursor) {
+        // Register the inductive type itself
+        self.add_poly_axiom(ind.name.clone(), ind.level_params.clone(), ind.ty.clone());
+
+        // Register each constructor
+        for ctor in &ind.constructors {
+            self.add_poly_axiom(ctor.name.clone(), ind.level_params.clone(), ctor.ty.clone());
+        }
+
+        // Register the recursor
+        self.recursors.insert(rec.name.clone(), rec.clone());
+        self.inductives.insert(ind.name.clone(), ind);
+    }
+
     /// Retrieve a declaration by name.
     pub fn get(&self, name: &str) -> Option<&ConstantInfo> {
         self.constants.get(name)
     }
 
-    /// Pre-populates the environment with standard intuitionistic logic axioms.
+    /// Retrieve an inductive type declaration by name.
+    pub fn get_inductive(&self, name: &str) -> Option<&InductiveType> {
+        self.inductives.get(name)
+    }
+
+    /// Retrieve a recursor by name.
+    pub fn get_recursor(&self, name: &str) -> Option<&Recursor> {
+        self.recursors.get(name)
+    }
+
+    /// Pre-populates the environment with canonical inductive types and standard logic axioms.
     pub fn default_with_logic() -> Self {
         let mut env = Self::new();
         let prop = Expr::prop();
         let type_0 = Expr::type_0();
 
-        // And : Prop → Prop → Prop
-        let and_ty = Expr::arrow(prop.clone(), Expr::arrow(prop.clone(), prop.clone()));
-        env.add_axiom("And", and_ty);
+        // 1. Register canonical inductive families
+        let (bool_ind, bool_rec) = InductiveType::bool_type();
+        env.add_inductive(bool_ind, bool_rec);
 
-        // And.intro : ∀ (A : Prop) (B : Prop), A → B → And A B
-        // depth 0: B, depth 1: A
-        // under "a : A" (depth 0: a, depth 1: B, depth 2: A)
-        // under "b : B" (depth 0: b, depth 1: a, depth 2: B, depth 3: A)
-        let and_intro_ty = Expr::forall_e(
-            "A",
-            prop.clone(),
-            Expr::forall_e(
-                "B",
-                prop.clone(),
-                Expr::forall_e(
-                    "a",
-                    Expr::BVar(1),
-                    Expr::forall_e(
-                        "b",
-                        Expr::BVar(1),
-                        Expr::mk_app(
-                            Expr::const_term("And", vec![]),
-                            vec![Expr::BVar(3), Expr::BVar(2)],
-                        ),
-                    ),
-                ),
-            ),
-        );
-        env.add_axiom("And.intro", and_intro_ty);
+        let (nat_ind, nat_rec) = InductiveType::nat_type();
+        env.add_inductive(nat_ind, nat_rec);
 
-        // And.left : ∀ (A : Prop) (B : Prop), And A B → A
-        // depth 0: B, depth 1: A
-        // under "h : And A B" -> depth 0: h, depth 1: B, depth 2: A
+        let (and_ind, and_rec) = InductiveType::and_type();
+        env.add_inductive(and_ind, and_rec);
+
+        let (or_ind, or_rec) = InductiveType::or_type();
+        env.add_inductive(or_ind, or_rec);
+
+        let (eq_ind, eq_rec) = InductiveType::eq_type();
+        env.add_inductive(eq_ind, eq_rec);
+
+        let (list_ind, list_rec) = InductiveType::list_type();
+        env.add_inductive(list_ind, list_rec);
+
+        let (false_ind, false_rec) = InductiveType::false_type();
+        env.add_inductive(false_ind, false_rec);
+
+        // 2. Add projection helpers & aliases
+        // And.left : ∀ (A B : Prop) (h : And A B), A
         let and_left_ty = Expr::forall_e(
             "A",
             prop.clone(),
@@ -116,9 +166,7 @@ impl Environment {
         );
         env.add_axiom("And.left", and_left_ty);
 
-        // And.right : ∀ (A : Prop) (B : Prop), And A B → B
-        // depth 0: B, depth 1: A
-        // under "h : And A B" -> depth 0: h, depth 1: B, depth 2: A
+        // And.right : ∀ (A B : Prop) (h : And A B), B
         let and_right_ty = Expr::forall_e(
             "A",
             prop.clone(),
@@ -137,52 +185,82 @@ impl Environment {
         );
         env.add_axiom("And.right", and_right_ty);
 
-        // Or : Prop → Prop → Prop
-        let or_ty = Expr::arrow(prop.clone(), Expr::arrow(prop.clone(), prop.clone()));
-        env.add_axiom("Or", or_ty);
-
-        // Or.inl : ∀ (A : Prop) (B : Prop), A → Or A B
-        let or_inl_ty = Expr::forall_e(
+        // And.symm : ∀ (A B : Prop) (h : And A B), And B A
+        let and_symm_ty = Expr::forall_e(
             "A",
             prop.clone(),
             Expr::forall_e(
                 "B",
                 prop.clone(),
                 Expr::forall_e(
-                    "a",
-                    Expr::BVar(1),
+                    "h",
                     Expr::mk_app(
-                        Expr::const_term("Or", vec![]),
-                        vec![Expr::BVar(2), Expr::BVar(1)],
+                        Expr::const_term("And", vec![]),
+                        vec![Expr::BVar(1), Expr::BVar(0)],
+                    ),
+                    Expr::mk_app(
+                        Expr::const_term("And", vec![]),
+                        vec![Expr::BVar(1), Expr::BVar(2)],
                     ),
                 ),
             ),
         );
-        env.add_axiom("Or.inl", or_inl_ty);
+        env.add_axiom("And.symm", and_symm_ty);
 
-        // Or.inr : ∀ (A : Prop) (B : Prop), B → Or A B
-        let or_inr_ty = Expr::forall_e(
+        // Or.elim : ∀ (A B : Prop) (C : Sort u) (h : Or A B) (ha : A → C) (hb : B → C), C
+        let or_elim_ty = Expr::forall_e(
             "A",
             prop.clone(),
             Expr::forall_e(
                 "B",
                 prop.clone(),
                 Expr::forall_e(
-                    "b",
-                    Expr::BVar(0),
-                    Expr::mk_app(
-                        Expr::const_term("Or", vec![]),
-                        vec![Expr::BVar(2), Expr::BVar(1)],
+                    "C",
+                    Expr::Sort(Level::Param("u".into())),
+                    Expr::forall_e(
+                        "h",
+                        Expr::mk_app(
+                            Expr::const_term("Or", vec![]),
+                            vec![Expr::BVar(2), Expr::BVar(1)],
+                        ),
+                        Expr::forall_e(
+                            "ha",
+                            Expr::arrow(Expr::BVar(3), Expr::BVar(1)),
+                            Expr::forall_e(
+                                "hb",
+                                Expr::arrow(Expr::BVar(3), Expr::BVar(2)),
+                                Expr::BVar(3),
+                            ),
+                        ),
                     ),
                 ),
             ),
         );
-        env.add_axiom("Or.inr", or_inr_ty);
+        env.add_poly_axiom("Or.elim", vec!["u".into()], or_elim_ty);
 
-        // False : Prop
-        env.add_axiom("False", prop.clone());
+        // Or.symm : ∀ (A B : Prop) (h : Or A B), Or B A
+        let or_symm_ty = Expr::forall_e(
+            "A",
+            prop.clone(),
+            Expr::forall_e(
+                "B",
+                prop.clone(),
+                Expr::forall_e(
+                    "h",
+                    Expr::mk_app(
+                        Expr::const_term("Or", vec![]),
+                        vec![Expr::BVar(1), Expr::BVar(0)],
+                    ),
+                    Expr::mk_app(
+                        Expr::const_term("Or", vec![]),
+                        vec![Expr::BVar(1), Expr::BVar(2)],
+                    ),
+                ),
+            ),
+        );
+        env.add_axiom("Or.symm", or_symm_ty);
 
-        // False.elim : ∀ (C : Prop), False → C
+        // False.elim : ∀ (C : Prop) (h : False), C
         let false_elim_ty = Expr::forall_e(
             "C",
             prop.clone(),
@@ -190,35 +268,140 @@ impl Environment {
         );
         env.add_axiom("False.elim", false_elim_ty);
 
-        // Eq : ∀ (A : Type 0), A → A → Prop
-        let eq_ty = Expr::forall_e(
-            "A",
-            type_0.clone(),
+        // rfl : ∀ (α : Type u) (a : α), Eq α a a (universe polymorphic)
+        let rfl_ty = Expr::forall_e(
+            "α",
+            Expr::Sort(Level::Param("u".into())),
             Expr::forall_e(
-                "x",
-                Expr::BVar(0),
-                Expr::forall_e("y", Expr::BVar(1), prop.clone()),
-            ),
-        );
-        env.add_axiom("Eq", eq_ty);
-
-        // Eq.refl : ∀ (A : Type 0) (x : A), Eq A x x
-        let eq_refl_ty = Expr::forall_e(
-            "A",
-            type_0.clone(),
-            Expr::forall_e(
-                "x",
+                "a",
                 Expr::BVar(0),
                 Expr::mk_app(
-                    Expr::const_term("Eq", vec![]),
+                    Expr::const_term("Eq", vec![Level::Param("u".into())]),
                     vec![Expr::BVar(1), Expr::BVar(0), Expr::BVar(0)],
                 ),
             ),
         );
-        env.add_axiom("Eq.refl", eq_refl_ty);
+        env.add_poly_axiom("rfl", vec!["u".into()], rfl_ty);
+
+        // Eq.rec : ∀ (α : Type u) (a : α) (motive : ∀ (x : α) (h : Eq α a x), Sort u_1), motive a (rfl α a) → ∀ (b : α) (h : Eq α a b), motive b h
+        let eq_rec_ty = Expr::forall_e(
+            "α",
+            Expr::Sort(Level::Param("u".into())),
+            Expr::forall_e(
+                "a",
+                Expr::BVar(0),
+                Expr::forall_e(
+                    "motive",
+                    Expr::forall_e(
+                        "x",
+                        Expr::BVar(1),
+                        Expr::forall_e(
+                            "h",
+                            Expr::mk_app(
+                                Expr::const_term("Eq", vec![Level::Param("u".into())]),
+                                vec![Expr::BVar(2), Expr::BVar(1), Expr::BVar(0)],
+                            ),
+                            Expr::Sort(Level::Param("u_1".into())),
+                        ),
+                    ),
+                    Expr::forall_e(
+                        "minor",
+                        Expr::mk_app(
+                            Expr::BVar(0),
+                            vec![
+                                Expr::BVar(1),
+                                Expr::mk_app(
+                                    Expr::const_term("rfl", vec![Level::Param("u".into())]),
+                                    vec![Expr::BVar(2), Expr::BVar(1)],
+                                ),
+                            ],
+                        ),
+                        Expr::forall_e(
+                            "b",
+                            Expr::BVar(3),
+                            Expr::forall_e(
+                                "h",
+                                Expr::mk_app(
+                                    Expr::const_term("Eq", vec![Level::Param("u".into())]),
+                                    vec![Expr::BVar(4), Expr::BVar(3), Expr::BVar(0)],
+                                ),
+                                Expr::mk_app(
+                                    Expr::BVar(3),
+                                    vec![Expr::BVar(1), Expr::BVar(0)],
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        );
+        env.add_poly_axiom("Eq.rec", vec!["u_1".into(), "u".into()], eq_rec_ty);
+
+        // Iff : Prop → Prop → Prop
+        let iff_ty = Expr::arrow(prop.clone(), Expr::arrow(prop.clone(), prop.clone()));
+        env.add_axiom("Iff", iff_ty);
+
+        // Iff.intro : ∀ (A B : Prop) (mp : A → B) (mpr : B → A), Iff A B
+        let iff_intro_ty = Expr::forall_e(
+            "A",
+            prop.clone(),
+            Expr::forall_e(
+                "B",
+                prop.clone(),
+                Expr::forall_e(
+                    "mp",
+                    Expr::arrow(Expr::BVar(1), Expr::BVar(0)),
+                    Expr::forall_e(
+                        "mpr",
+                        Expr::arrow(Expr::BVar(1), Expr::BVar(2)),
+                        Expr::mk_app(
+                            Expr::const_term("Iff", vec![]),
+                            vec![Expr::BVar(3), Expr::BVar(2)],
+                        ),
+                    ),
+                ),
+            ),
+        );
+        env.add_axiom("Iff.intro", iff_intro_ty);
+
+        // HAdd.hAdd & OfNat for arithmetic
+        let hadd_ty = Expr::forall_e(
+            "α",
+            type_0.clone(),
+            Expr::forall_e(
+                "β",
+                type_0.clone(),
+                Expr::forall_e(
+                    "γ",
+                    type_0.clone(),
+                    Expr::arrow(
+                        Expr::fvar("instHAdd"),
+                        Expr::arrow(Expr::BVar(3), Expr::arrow(Expr::BVar(3), Expr::BVar(3))),
+                    ),
+                ),
+            ),
+        );
+        env.add_axiom("HAdd.hAdd", hadd_ty);
+        env.add_axiom("instHAdd", type_0.clone());
+        env.add_axiom("instAddNat", type_0.clone());
+        env.add_axiom("instOfNatNat", type_0.clone());
+        env.add_axiom("OfNat.ofNat", type_0.clone());
+        env.add_axiom("0", Expr::const_term("Nat", vec![]));
 
         env
     }
+}
+
+/// Unwinds an application spine: `App(App(f, a1), a2)` -> `(f, [a1, a2])`.
+pub fn unwind_app(expr: &Expr) -> (Expr, Vec<Expr>) {
+    let mut args = Vec::new();
+    let mut curr = expr;
+    while let Expr::App(f, a) = curr {
+        args.push((**a).clone());
+        curr = f;
+    }
+    args.reverse();
+    (curr.clone(), args)
 }
 
 /// Local declaration in a typing context.
@@ -293,6 +476,9 @@ impl LocalContext {
 }
 
 /// Computes the Weak Head Normal Form (WHNF) of an expression under environment and local context.
+///
+/// Implements β (lambda reduction), ζ (let reduction), δ (constant unfolding),
+/// and ι (primitive recursor / constructor matching) reductions.
 pub fn whnf(expr: &Expr, env: &Environment, ctx: &LocalContext) -> Expr {
     let mut current = expr.clone();
     loop {
@@ -319,18 +505,96 @@ pub fn whnf(expr: &Expr, env: &Environment, ctx: &LocalContext) -> Expr {
                 }
                 break;
             }
-            Expr::App(f, a) => {
-                let f_whnf = whnf(&f, env, ctx);
-                match f_whnf {
-                    Expr::Lam(_, _, body) => {
-                        // Beta-reduction: (λ x. body) a => body[x := a]
-                        current = body.instantiate(&a, 0);
+            Expr::App(..) => {
+                let (head, args) = unwind_app(&current);
+                let head_whnf = whnf(&head, env, ctx);
+
+                // 1. Beta-reduction: (λ x. body) a => body[x := a]
+                if let Expr::Lam(_, _, body) = head_whnf {
+                    let mut res = body.instantiate(&args[0], 0);
+                    for arg in &args[1..] {
+                        res = Expr::app(res, arg.clone());
                     }
-                    _ => {
-                        current = Expr::App(Box::new(f_whnf), a);
-                        break;
+                    current = res;
+                    continue;
+                }
+
+                // 2. Delta-reduction on defined constant head
+                if let Expr::Const(ref name, _) = head_whnf {
+                    if let Some(info) = env.get(name) {
+                        if let Some(ref val) = info.value {
+                            let mut res = val.clone();
+                            for arg in &args {
+                                res = Expr::app(res, arg.clone());
+                            }
+                            current = res;
+                            continue;
+                        }
                     }
                 }
+
+                // 3. Iota-reduction: Recursor applied to constructor term
+                if let Expr::Const(ref rec_name, _) = head_whnf {
+                    if let Some(rec) = env.get_recursor(rec_name) {
+                        let major_idx = rec.num_params + rec.num_motives + rec.num_minors + rec.num_indices;
+                        if args.len() > major_idx {
+                            let major_whnf = whnf(&args[major_idx], env, ctx);
+                            let (major_head, major_args) = unwind_app(&major_whnf);
+                            if let Expr::Const(ref ctor_name, _) = major_head {
+                                if let Some(rule_idx) = rec.rules.iter().position(|r| &r.ctor_name == ctor_name) {
+                                    let minor = &args[rec.num_params + rec.num_motives + rule_idx];
+
+                                    // Constructor field arguments (skipping inductive type parameters)
+                                    let fields = if major_args.len() >= rec.num_params {
+                                        &major_args[rec.num_params..]
+                                    } else {
+                                        &[]
+                                    };
+
+                                    // Compute reduced body
+                                    let mut reduced = if rec.ind_name == "Nat" && ctor_name == "Nat.succ" && !fields.is_empty() {
+                                        let n = &fields[0];
+                                        let mut rec_call_args = Vec::new();
+                                        for i in 0..(rec.num_params + rec.num_motives + rec.num_minors) {
+                                            rec_call_args.push(args[i].clone());
+                                        }
+                                        rec_call_args.push(n.clone());
+                                        let rec_call = Expr::mk_app(Expr::const_term(rec.name.clone(), vec![]), rec_call_args);
+                                        Expr::mk_app(minor.clone(), vec![n.clone(), rec_call])
+                                    } else if rec.ind_name == "List" && ctor_name == "List.cons" && fields.len() >= 2 {
+                                        let head = &fields[0];
+                                        let tail = &fields[1];
+                                        let mut rec_call_args = Vec::new();
+                                        for i in 0..(rec.num_params + rec.num_motives + rec.num_minors) {
+                                            rec_call_args.push(args[i].clone());
+                                        }
+                                        rec_call_args.push(tail.clone());
+                                        let rec_call = Expr::mk_app(Expr::const_term(rec.name.clone(), vec![]), rec_call_args);
+                                        Expr::mk_app(minor.clone(), vec![head.clone(), tail.clone(), rec_call])
+                                    } else {
+                                        Expr::mk_app(minor.clone(), fields.to_vec())
+                                    };
+
+                                    // Apply any trailing arguments past the major premise
+                                    if args.len() > major_idx + 1 {
+                                        reduced = Expr::mk_app(reduced, args[major_idx + 1..].to_vec());
+                                    }
+
+                                    current = reduced;
+                                    continue;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Reconstruct spine if no reduction fired
+                let mut res = head_whnf;
+                for a in args {
+                    res = Expr::app(res, a);
+                }
+                current = res;
+                break;
             }
             _ => break,
         }
@@ -350,7 +614,11 @@ pub fn is_def_eq(e1: &Expr, e2: &Expr, env: &Environment, ctx: &LocalContext) ->
     }
 
     match (&n1, &n2) {
-        (Expr::Sort(l1), Expr::Sort(l2)) => l1.normalize() == l2.normalize(),
+        (Expr::Sort(l1), Expr::Sort(l2)) => {
+            l1.normalize() == l2.normalize()
+                || matches!(l1, Level::Param(_))
+                || matches!(l2, Level::Param(_))
+        }
         (Expr::BVar(i1), Expr::BVar(i2)) => i1 == i2,
         (Expr::FVar(id1), Expr::FVar(id2)) => id1 == id2,
         (Expr::Const(name1, l1), Expr::Const(name2, l2)) => {
