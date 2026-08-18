@@ -1,0 +1,100 @@
+name: Multi-Toolchain CI Matrix
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-workspace:
+    name: Rust Workspace (IR, Kernel, Mesh)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Rust Formatting & Types
+        run: |
+          cargo fmt --check
+          cargo check --workspace
+
+      - name: Run Rust Test Suite
+        run: cargo test --workspace
+
+  python-test-suite:
+    name: Python ML & Telemetry (PyTorch, MCTS, API)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev]"
+
+      - name: Run PyTest Test Suite
+        run: pytest tests/
+
+  lean4-kernel-verification:
+    name: Lean 4 Kernel & MetaTheory Harness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Elan (Lean 4 Version Manager)
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
+          echo "$HOME/.elan/bin" >> $GITHUB_PATH
+
+      - name: Build Lean 4 Kernel & MetaTheory
+        run: |
+          cd lean_target
+          lake build
+
+  ui-pwa-verification:
+    name: Web UI & PWA Bundle Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install dependencies
+        run: cd ui && npm ci
+
+      - name: Run TypeScript Typecheck & Tests
+        run: cd ui && npm test
+
+      - name: Build PWA Bundle
+        env:
+          GITHUB_PAGES: "true"
+        run: cd ui && npm run build
