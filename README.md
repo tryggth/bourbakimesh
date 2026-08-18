@@ -7,6 +7,17 @@
 [![PWA](https://img.shields.io/badge/PWA-Auto--Updating-emerald.svg)](ui/)
 [![License](https://img.shields.io/badge/License-Apache_2.0_OR_MIT-blue.svg)](#-license)
 
+---
+
+<div align="center">
+
+| &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [**📖 README**](#bourbakimesh-game-semantic-dialogue-proving--distributed-proof-ledger) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [**🤝 Contributing**](CONTRIBUTING.md) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [**📜 Licenses**](#-license) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [**📊 Status Report**](STATUS_REPORT.md) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; | &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [**📚 Wiki Docs**](docs/wiki/Home.md) &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; |
+| :---: | :---: | :---: | :---: | :---: |
+
+</div>
+
+---
+
 BourbakiMesh is a high-performance, polyglot automated theorem proving and formal deduction ecosystem. It unifies **game-semantic dialogue categories (Hyland-Ong / Lorenzen arenas)**, **Calculus of Inductive Constructions (CIC) proof-term extraction**, **PyTorch Latent Monte Carlo Tree Search (MCTS) self-play dynamics**, a **libp2p peer-to-peer proof DAG ledger**, an **auto-updating WebGPU Progressive Web App (PWA)**, and a **zero-trust verification bridge targeting Lean 4, Coq, Isabelle/HOL, and Dedukti**.
 
 ---
@@ -249,6 +260,10 @@ bourbakimesh/
 
 ---
 
-## 📜 License
+## 📜 Licenses
 
-Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or [MIT License](LICENSE-MIT) at your option.
+BourbakiMesh is dual-licensed under either:
+- **[Apache License, Version 2.0](LICENSE-APACHE)** ([`LICENSE-APACHE`](LICENSE-APACHE))
+- **[MIT License](LICENSE-MIT)** ([`LICENSE-MIT`](LICENSE-MIT))
+
+See the top-level **[`LICENSE`](LICENSE)** file for details.
