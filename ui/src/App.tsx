@@ -5,6 +5,7 @@ import { LeaderboardView } from './components/LeaderboardView';
 import { TheoremProverView } from './components/TheoremProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
 import { UpdateNotification } from './components/UpdateNotification';
+import { TargetManager } from './components/TargetManager';
 import { initServiceWorker } from './registerServiceWorker';
 import {
   hydrateProofDag,
@@ -404,6 +405,9 @@ export function App() {
           </button>
         </nav>
       </header>
+
+      {/* Top-Level Swarm Objective Manager */}
+      <TargetManager />
 
       {/* Main View Area */}
       <main className="flex-1 p-6 overflow-hidden">

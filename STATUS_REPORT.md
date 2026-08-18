@@ -91,6 +91,8 @@
   *Delivered 40-iteration continuous training run certified as `checkpoints/bourbaki_v2.pt` with PER, temperature scaling ($\tau=0.5$), champion gating, and 3-way tournament benchmark.*
 - [x] **#29 [`feat(worker): In-Browser Web Worker with ONNX Runtime WebGPU & IndexedDB Weight Caching`](https://github.com/tryggth/bourbakimesh/issues/29)**  
   *Delivered PyTorch-to-ONNX exporter (`scripts/export_onnx.py`), WebGPU/Wasm web worker (`prover.worker.ts`), in-browser `BrowserLatentMCTS`, and `idb-keyval` IndexedDB weight caching.*
+- [x] **#33 [`feat(mesh): Top-Level Target Theorem Injection & Swarm Focus Protocol`](https://github.com/tryggth/bourbakimesh/issues/33)**  
+  *Delivered target injection REST endpoints (`POST /api/target/set`, `GET /api/target/current`), WebSocket broadcast directive (`swarm_target_set`), and Web UI `TargetManager` objective bar.*
 
 ---
 

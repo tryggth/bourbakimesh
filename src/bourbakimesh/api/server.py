@@ -86,6 +86,24 @@ class LedgerResponse(BaseModel):
     edges: List[Dict[str, Any]]
 
 
+class SetTargetRequest(BaseModel):
+    name: str = Field(default="Custom.Theorem", description="Theorem name")
+    proposition: Optional[str] = Field(default=None, description="Proposition formula or type")
+    lean_code: Optional[str] = Field(default=None, description="Raw Lean 4 theorem declaration")
+    priority: int = Field(default=100, ge=1, le=1000, description="Swarm search priority")
+
+
+class TargetInfoResponse(BaseModel):
+    name: str
+    proposition: str
+    lean_code: str
+    priority: int
+    status: str
+    dedicated_sims: int
+    open_subgoals: int
+    timestamp: float
+
+
 class TournamentResponse(BaseModel):
     rankings: List[Dict[str, Any]]
 
@@ -115,6 +133,16 @@ def create_app(
     app.state.telemetry_hub = hub
     app.state.model_path = model_path
     app.state.ipc_addr = ipc_addr
+    app.state.active_target = {
+        "name": "Mathlib.Logic.And.intro",
+        "proposition": "A -> B -> A ∧ B",
+        "lean_code": "theorem and_intro (a : A) (b : B) : A ∧ B :=\n  And.intro a b",
+        "priority": 100,
+        "status": "active",
+        "dedicated_sims": 1420,
+        "open_subgoals": 1,
+        "timestamp": time.time(),
+    }
 
     # Seed Ledger Blocks
     ledger_blocks = [
@@ -364,6 +392,61 @@ def create_app(
             verified_in_lean=True,
             time_ms=elapsed,
         )
+
+    @app.get("/api/target/current", response_model=TargetInfoResponse)
+    async def get_current_target() -> TargetInfoResponse:
+        """Get the active top-level target theorem and swarm resolution status."""
+        return TargetInfoResponse(**app.state.active_target)
+
+    @app.post("/api/target/set")
+    async def set_swarm_target(req: SetTargetRequest) -> Dict[str, Any]:
+        """Inject a top-level target theorem and broadcast SwarmDirective to all workers."""
+        name = req.name.strip()
+        lean_code = (req.lean_code or "").strip()
+        prop = (req.proposition or "").strip()
+
+        # If proposition is empty but lean_code is given, extract proposition from signature
+        if not prop and lean_code:
+            if ":" in lean_code:
+                parts = lean_code.split(":", 1)[1]
+                if ":=" in parts:
+                    prop = parts.split(":=")[0].strip()
+                else:
+                    prop = parts.strip()
+        if not prop:
+            prop = "A -> A"
+
+        if not lean_code:
+            clean_name = name.split(".")[-1]
+            lean_code = f"theorem {clean_name} : {prop} := by sorry"
+
+        app.state.active_target = {
+            "name": name,
+            "proposition": prop,
+            "lean_code": lean_code,
+            "priority": req.priority,
+            "status": "active",
+            "dedicated_sims": 0,
+            "open_subgoals": 1,
+            "timestamp": time.time(),
+        }
+
+        # Broadcast Swarm Directive to all WebSocket clients & workers
+        await hub.broadcast(
+            "swarm_target_set",
+            {
+                "name": name,
+                "proposition": prop,
+                "lean_code": lean_code,
+                "priority": req.priority,
+                "timestamp": app.state.active_target["timestamp"],
+            },
+        )
+
+        return {
+            "status": "target_updated",
+            "target": app.state.active_target,
+        }
 
     class BroadcastRequest(BaseModel):
         type: str
