@@ -6,7 +6,7 @@ import { LocalProverView } from './components/LocalProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
 import { UpdateNotification } from './components/UpdateNotification';
 import { TargetManager } from './components/TargetManager';
-import { VolunteerPanel } from './components/VolunteerPanel';
+import { VolunteerComputingView } from './components/VolunteerComputingView';
 import { GemmaEdgePanel } from './components/GemmaEdgePanel';
 import { initServiceWorker } from './registerServiceWorker';
 import {
@@ -417,7 +417,7 @@ export function App() {
         )}
         {activeTab === 'gemma4' && <GemmaEdgePanel />}
         {activeTab === 'prover' && <LocalProverView />}
-        {activeTab === 'volunteer' && <VolunteerPanel />}
+        {activeTab === 'volunteer' && <VolunteerComputingView />}
         {activeTab === 'leaderboard' && <LeaderboardView models={models} />}
         {activeTab === 'telemetry' && (
           <TelemetryFeed events={telemetryEvents} isConnected={isConnected} />

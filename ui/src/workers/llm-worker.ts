@@ -243,10 +243,19 @@ function synthesizeTacticAndAst(
 
   const hypEntries = Object.entries(hyps);
 
-  // Check if we have an And goal to introduce
+  // 1. Exact match check
+  for (const [id, expr] of hypEntries) {
+    if (JSON.stringify(expr) === JSON.stringify(target)) {
+      reasoning = `Target matches hypothesis ${id} exactly. Closing goal with Exact(${id}).`;
+      stepAst = { rule: 'Exact', hyp: id };
+      tacticStr = `exact ${id}`;
+      return { reasoning, stepAst, tacticStr, jsonOutput: JSON.stringify(stepAst, null, 2) };
+    }
+  }
+
+  // 2. Conjunction goal introduction and elimination
   if (target && typeof target === 'object' && 'And' in target) {
     const [targetL, targetR] = target.And;
-    // Check if we have hypotheses matching left and right
     let leftHyp: string | null = null;
     let rightHyp: string | null = null;
 
@@ -256,16 +265,26 @@ function synthesizeTacticAndAst(
     }
 
     if (leftHyp && rightHyp) {
-      reasoning = `Target is a conjunction ⊢ And(${JSON.stringify(targetL)}, ${JSON.stringify(targetR)}). Context contains matching conjuncts ${leftHyp} and ${rightHyp}. Applying AndIntro(${leftHyp}, ${rightHyp}) closes the goal.`;
+      reasoning = `Target is a conjunction ⊢ And(${JSON.stringify(targetL)}, ${JSON.stringify(targetR)}). Context contains matching conjuncts ${leftHyp} and ${rightHyp}. Applying AndIntro(${leftHyp}, ${rightHyp}).`;
       stepAst = { rule: 'AndIntro', left: leftHyp, right: rightHyp };
       tacticStr = `apply And.intro ${leftHyp} ${rightHyp}`;
     } else {
       // Look for compound And hypothesis to eliminate
       const compoundAndHyp = hypEntries.find(([_, expr]) => expr && typeof expr === 'object' && 'And' in expr);
       if (compoundAndHyp) {
-        reasoning = `Target requires conjunction terms not yet available in atomic hypotheses. Eliminating conjunction from ${compoundAndHyp[0]} via AndElimR.`;
-        stepAst = { rule: 'AndElimR', hyp: compoundAndHyp[0] };
-        tacticStr = `have h1 := ${compoundAndHyp[0]}.2`;
+        if (!leftHyp && !hyps['h1']) {
+          reasoning = `Extracting right conjunct from ${compoundAndHyp[0]} via AndElimR.`;
+          stepAst = { rule: 'AndElimR', hyp: compoundAndHyp[0] };
+          tacticStr = `have h1 := ${compoundAndHyp[0]}.2`;
+        } else if (!rightHyp || !hyps['h2']) {
+          reasoning = `Extracting left conjunct from ${compoundAndHyp[0]} via AndElimL.`;
+          stepAst = { rule: 'AndElimL', hyp: compoundAndHyp[0] };
+          tacticStr = `have h2 := ${compoundAndHyp[0]}.1`;
+        } else {
+          reasoning = `Extracting right conjunct from ${compoundAndHyp[0]} via AndElimR.`;
+          stepAst = { rule: 'AndElimR', hyp: compoundAndHyp[0] };
+          tacticStr = `have h1 := ${compoundAndHyp[0]}.2`;
+        }
       } else {
         stepAst = { rule: 'AndIntro', left: 'h1', right: 'h2' };
         tacticStr = 'apply And.intro';

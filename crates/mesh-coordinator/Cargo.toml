@@ -1,0 +1,28 @@
+[package]
+name = "mesh-coordinator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Distributed Proof DAG coordinator, task scheduler, and WebSocket RPC server"
+
+[[bin]]
+name = "mesh-coordinator"
+path = "src/main.rs"
+
+[dependencies]
+kernel = { path = "../kernel" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tokio-tungstenite = "0.21"
+futures-util = "0.3"
+uuid = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true }
