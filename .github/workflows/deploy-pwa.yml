@@ -1,8 +1,16 @@
-name: Deploy PWA to GitHub Pages
+name: Build & Deploy PWA SPA to GitHub Pages
 
 on:
   push:
     branches: [main]
+    paths:
+      - 'ui/**'
+      - '.github/workflows/deploy-pwa.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'ui/**'
+      - '.github/workflows/deploy-pwa.yml'
   workflow_dispatch:
 
 permissions:
@@ -15,14 +23,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+  build:
+    name: Build & Test PWA SPA
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: 'npm'
@@ -31,6 +40,9 @@ jobs:
       - name: Install dependencies
         run: cd ui && npm ci
 
+      - name: Run Typecheck and Tests
+        run: cd ui && npm test
+
       - name: Build PWA for GitHub Pages
         env:
           GITHUB_PAGES: "true"
@@ -38,13 +50,24 @@ jobs:
         run: cd ui && npm run build
 
       - name: Setup Pages
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
 
-      - name: Upload Artifacts
+      - name: Upload Pages Artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v3
         with:
           path: 'ui/dist'
 
+  deploy:
+    name: Deploy to GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
