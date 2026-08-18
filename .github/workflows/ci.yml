@@ -24,10 +24,12 @@ jobs:
         with:
           components: clippy, rustfmt
 
-      - name: Install Elan (Lean 4 Kernel for integration tests)
+      - name: Setup Lean 4 & Build Harness
         run: |
           curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd lean_target && lake build
 
       - name: Rust Cache
         uses: Swatinem/rust-cache@v2
@@ -53,10 +55,12 @@ jobs:
           python-version: "3.11"
           cache: "pip"
 
-      - name: Install Elan (Lean 4 Kernel for hinting tests)
+      - name: Setup Lean 4 & Build Harness
         run: |
           curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
+          export PATH="$HOME/.elan/bin:$PATH"
+          cd lean_target && lake build
 
       - name: Install dependencies
         run: |
@@ -74,13 +78,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Elan (Lean 4 Version Manager)
+      - name: Setup Lean 4 & Build Harness
         run: |
           curl -sSf https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh | sh -s -- -y
           echo "$HOME/.elan/bin" >> $GITHUB_PATH
-
-      - name: Build Lean 4 Kernel & MetaTheory
-        run: |
+          export PATH="$HOME/.elan/bin:$PATH"
           cd lean_target
           lake build
 
