@@ -1,0 +1,3 @@
+7dd8145203f1cdbaa77321cc0e6ff9db68c6f8a92d2cdc694491e6363f5a324a  checkpoints/bourbaki_v0.pt
+ccbe4bf671c1620396608f04a1d651fbd7e10e0cb944027bb6d24b859ba0dac0  checkpoints/bourbaki_v1.pt
+c8617a071a892c2ded6ff8afd7cce39546c1051c034467c8b0072d4ca883ac19  checkpoints/bourbaki_v2.pt
