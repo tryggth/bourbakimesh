@@ -1,0 +1,54 @@
+{"value":
+ {"Lam":
+  ["A",
+   {"Sort": "Zero"},
+   {"Lam":
+    ["B",
+     {"Sort": "Zero"},
+     {"Lam":
+      ["C",
+       {"Sort": "Zero"},
+       {"Lam":
+        ["f",
+         {"ForallE":
+          ["a._@._internal._hyg.0",
+           {"App":
+            [{"App": [{"Const": ["And", []]}, {"BVar": 2}]}, {"BVar": 1}]},
+           {"BVar": 1}]},
+         {"Lam":
+          ["a",
+           {"BVar": 3},
+           {"Lam":
+            ["b",
+             {"BVar": 3},
+             {"App":
+              [{"BVar": 2},
+               {"App":
+                [{"App":
+                  [{"App":
+                    [{"App": [{"Const": ["And.intro", []]}, {"BVar": 5}]},
+                     {"BVar": 4}]},
+                   {"BVar": 1}]},
+                 {"BVar": 0}]}]}]}]}]}]}]}]},
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["C",
+       {"Sort": "Zero"},
+       {"ForallE":
+        ["f",
+         {"ForallE":
+          ["a._@._internal._hyg.0",
+           {"App":
+            [{"App": [{"Const": ["And", []]}, {"BVar": 2}]}, {"BVar": 1}]},
+           {"BVar": 1}]},
+         {"ForallE":
+          ["a",
+           {"BVar": 3},
+           {"ForallE": ["b", {"BVar": 3}, {"BVar": 3}]}]}]}]}]}]},
+ "name": "curry_thm"}

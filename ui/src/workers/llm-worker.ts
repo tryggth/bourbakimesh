@@ -147,6 +147,7 @@ async function initializeWebGpuRuntime(): Promise<{
   vramMB: number;
 }> {
   const isHeadless = typeof navigator !== 'undefined' && (
+    (navigator as any).webdriver === true ||
     navigator.userAgent?.includes('HeadlessChrome') ||
     navigator.userAgent?.includes('Headless')
   );
@@ -154,7 +155,7 @@ async function initializeWebGpuRuntime(): Promise<{
   if (!isHeadless && typeof navigator !== 'undefined' && 'gpu' in navigator && (navigator as any).gpu) {
     try {
       const adapterPromise = (navigator as any).gpu.requestAdapter();
-      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('GPU adapter request timeout')), 500));
+      const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('GPU adapter request timeout')), 100));
       const adapter = await Promise.race([adapterPromise, timeoutPromise]);
       if (adapter) {
         hasShaderF16 = (adapter as any).features?.has?.('shader-f16') || false;

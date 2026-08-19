@@ -56,3 +56,46 @@ fn test_task_queue_lease_and_expiration() {
     assert!(completed.is_some());
     assert_eq!(queue.len(), 0);
 }
+
+#[test]
+fn test_cic_target_and_failure_attribution() {
+    use kernel::cic::expr::Expr as CicExpr;
+    use kernel::cic::typecheck::TypeError;
+    use mesh_coordinator::diagnostics::FailureClass;
+    use mesh_coordinator::flight_recorder::{FlightEvent, FlightRecorder};
+
+    // Test FailureClass mapping
+    let mismatch_err = TypeError::TypeMismatch {
+        expected: CicExpr::Sort(kernel::cic::expr::Level::Zero),
+        got: CicExpr::Sort(kernel::cic::expr::Level::Succ(Box::new(kernel::cic::expr::Level::Zero))),
+    };
+    let failure_class = FailureClass::from_type_error(&mismatch_err);
+    assert!(matches!(failure_class, FailureClass::TypeMismatch { .. }));
+
+    let unbound_err = TypeError::LooseBVar(5);
+    let unbound_class = FailureClass::from_type_error(&unbound_err);
+    assert!(matches!(unbound_class, FailureClass::UnboundDeBruijnIndex { index: 5, .. }));
+
+    // Test FlightRecorder
+    let temp_dir = std::env::temp_dir().join(format!("test_flight_{}", uuid::Uuid::new_v4()));
+    let recorder = FlightRecorder::new(&temp_dir).expect("Recorder init failed");
+
+    recorder.record_event(FlightEvent::WorkerRegistered {
+        worker_id: "worker-test".to_string(),
+        model: "gemma-4-2b".to_string(),
+        vram_limit_mb: 4096,
+        throughput_tok_s: 60.0,
+    });
+
+    recorder.record_event(FlightEvent::TermRejected {
+        task_id: "task-1".to_string(),
+        worker_id: "worker-test".to_string(),
+        theorem_name: "test_thm".to_string(),
+        execution_time_us: 42,
+        failure_class,
+    });
+
+    assert!(recorder.get_path().exists());
+    let _ = std::fs::remove_dir_all(temp_dir);
+}
+

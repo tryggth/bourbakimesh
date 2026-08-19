@@ -1,0 +1,18 @@
+{"value": null,
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["a",
+       {"BVar": 1},
+       {"ForallE":
+        ["b",
+         {"BVar": 1},
+         {"App":
+          [{"App": [{"Const": ["And", []]}, {"BVar": 3}]},
+           {"BVar": 2}]}]}]}]}]},
+ "name": "and_intro_thm"}

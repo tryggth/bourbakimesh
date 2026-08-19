@@ -1,0 +1,5 @@
+{"value": null,
+ "type":
+ {"ForallE":
+  ["A", {"Sort": "Zero"}, {"ForallE": ["a", {"BVar": 0}, {"BVar": 1}]}]},
+ "name": "id_prop"}

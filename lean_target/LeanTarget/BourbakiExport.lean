@@ -54,6 +54,31 @@ def elabExportBourbaki : CommandElab := fun stx => do
     logInfo s!"Exported definition {id} to artifacts/exported_{id.toString}.json"
   | _ => throwError s!"Declaration {id} not found or unsupported"
 
+syntax (name := exportBourbakiTarget) "#export_bourbaki_target " ident : command
+
+@[command_elab exportBourbakiTarget]
+def elabExportBourbakiTarget : CommandElab := fun stx => do
+  let id := stx[1].getId
+  let env ← getEnv
+  match env.find? id with
+  | some (.thmInfo val) =>
+    let payload := Json.mkObj [
+      ("name", Json.str id.toString),
+      ("type", exprToJson val.type),
+      ("value", Json.null)
+    ]
+    IO.FS.writeFile s!"../artifacts/target_{id.toString}.json" (payload.pretty)
+    logInfo s!"Exported target {id} to artifacts/target_{id.toString}.json"
+  | some (.defnInfo val) =>
+    let payload := Json.mkObj [
+      ("name", Json.str id.toString),
+      ("type", exprToJson val.type),
+      ("value", Json.null)
+    ]
+    IO.FS.writeFile s!"../artifacts/target_{id.toString}.json" (payload.pretty)
+    logInfo s!"Exported target {id} to artifacts/target_{id.toString}.json"
+  | _ => throwError s!"Declaration {id} not found or unsupported"
+
 -- Foundational explicit proofs for direct CIC type checking
 theorem And.swap {A B : Prop} (h : And A B) : And B A :=
   And.intro h.right h.left
@@ -61,12 +86,27 @@ theorem And.swap {A B : Prop} (h : And A B) : And B A :=
 theorem Or.swap {A B : Prop} (h : Or A B) : Or B A :=
   Or.elim h (fun a => Or.inr a) (fun b => Or.inl b)
 
--- Export foundational declarations
+-- Export foundational declarations with proof values
 #export_bourbaki id_prop
 #export_bourbaki k_comb
 #export_bourbaki modus_ponens_thm
 #export_bourbaki and_intro_thm
 #export_bourbaki trans_impl_thm
+#export_bourbaki curry_thm
+#export_bourbaki and_assoc_thm
+#export_bourbaki contrapositive_thm
 #export_bourbaki And.swap
 #export_bourbaki Or.swap
 #export_bourbaki Eq.symm
+
+-- Export stripped open theorem targets (value: null) for distributed proof search
+#export_bourbaki_target id_prop
+#export_bourbaki_target modus_ponens_thm
+#export_bourbaki_target and_intro_thm
+#export_bourbaki_target trans_impl_thm
+#export_bourbaki_target curry_thm
+#export_bourbaki_target and_assoc_thm
+#export_bourbaki_target contrapositive_thm
+#export_bourbaki_target And.swap
+#export_bourbaki_target Or.swap
+

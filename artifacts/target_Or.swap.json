@@ -1,0 +1,14 @@
+{"value": null,
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["h",
+       {"App": [{"App": [{"Const": ["Or", []]}, {"BVar": 1}]}, {"BVar": 0}]},
+       {"App":
+        [{"App": [{"Const": ["Or", []]}, {"BVar": 1}]}, {"BVar": 2}]}]}]}]},
+ "name": "Or.swap"}

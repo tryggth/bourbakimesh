@@ -1,0 +1,17 @@
+{"value": null,
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["f",
+       {"ForallE": ["a._@._internal._hyg.0", {"BVar": 1}, {"BVar": 1}]},
+       {"ForallE":
+        ["nb",
+         {"ForallE":
+          ["a._@._internal._hyg.0", {"BVar": 1}, {"Const": ["False", []]}]},
+         {"ForallE": ["a", {"BVar": 3}, {"Const": ["False", []]}]}]}]}]}]},
+ "name": "contrapositive_thm"}

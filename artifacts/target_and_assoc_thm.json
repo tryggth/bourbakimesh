@@ -1,0 +1,25 @@
+{"value": null,
+ "type":
+ {"ForallE":
+  ["A",
+   {"Sort": "Zero"},
+   {"ForallE":
+    ["B",
+     {"Sort": "Zero"},
+     {"ForallE":
+      ["C",
+       {"Sort": "Zero"},
+       {"ForallE":
+        ["h",
+         {"App":
+          [{"App":
+            [{"Const": ["And", []]},
+             {"App":
+              [{"App": [{"Const": ["And", []]}, {"BVar": 2}]}, {"BVar": 1}]}]},
+           {"BVar": 0}]},
+         {"App":
+          [{"App": [{"Const": ["And", []]}, {"BVar": 3}]},
+           {"App":
+            [{"App": [{"Const": ["And", []]}, {"BVar": 2}]},
+             {"BVar": 1}]}]}]}]}]}]},
+ "name": "and_assoc_thm"}

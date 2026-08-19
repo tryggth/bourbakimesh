@@ -11,12 +11,15 @@ import {
   Send,
   Workflow,
   CheckCircle2,
+  AlertTriangle,
   RefreshCw,
   Terminal,
   ShieldCheck,
   Brain,
   Link,
   Unlink,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { meshClient, MeshTelemetry, MeshTask } from '../services/meshClient';
 import { gemmaEdgeController } from '../services/llmController';
@@ -34,6 +37,8 @@ export const VolunteerComputingView: React.FC = () => {
     tasks_in_queue: 0,
     proven_nodes: 0,
     total_tasks_resolved: 0,
+    total_failures_recorded: 0,
+    trace_file: 'artifacts/coordinator_trace_*.jsonl',
   });
 
   useEffect(() => {
@@ -58,6 +63,13 @@ export const VolunteerComputingView: React.FC = () => {
       }).catch(() => {});
     });
 
+    const unsubFailure = meshClient.on('validation_failure', (diag: any) => {
+      console.warn('[VolunteerComputing] Validation failure diagnostic:', diag);
+      meshClient.getCoordinatorTelemetry().then((stats) => {
+        if (stats) setGlobalStats(stats);
+      }).catch(() => {});
+    });
+
     gemmaEdgeController.getTelemetry().then((tel) => {
       setVramMB(tel.vramAllocatedMB);
       setTokSpeed(tel.avgTokensPerSec || 46.2);
@@ -72,13 +84,14 @@ export const VolunteerComputingView: React.FC = () => {
           if (stats) setGlobalStats(stats);
         }).catch(() => {});
       }
-    }, 3000);
+    }, 2500);
 
     return () => {
       unsub();
       unsubTaskStarted();
       unsubTaskCompleted();
       unsubDagUpdated();
+      unsubFailure();
       clearInterval(pollTimer);
     };
   }, [coordinatorUrl]);
@@ -120,6 +133,16 @@ export const VolunteerComputingView: React.FC = () => {
     }
   };
 
+  const handleInjectMathlibTarget = async (thmName: string, typeAst: any) => {
+    try {
+      await meshClient.postTarget(thmName, typeAst);
+      const stats = await meshClient.getCoordinatorTelemetry();
+      if (stats) setGlobalStats(stats);
+    } catch (e) {
+      console.error(`Error injecting target ${thmName}:`, e);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-900 border border-slate-800 rounded-xl overflow-hidden shadow-2xl">
       {/* Header Banner */}
@@ -131,7 +154,7 @@ export const VolunteerComputingView: React.FC = () => {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-base font-bold text-white tracking-wide">
-                BourbakiMesh Volunteer Computing (Stage 4)
+                BourbakiMesh Volunteer Computing (Phase E)
               </h2>
               <span
                 className={`px-2 py-0.5 text-[10px] font-mono font-semibold rounded-full border ${
@@ -143,11 +166,14 @@ export const VolunteerComputingView: React.FC = () => {
                 {telemetry.status.toUpperCase()}
               </span>
               <span className="px-2 py-0.5 text-[10px] font-mono font-semibold bg-purple-950/80 text-purple-300 border border-purple-700/50 rounded-full">
-                Gemma 4 WebGPU
+                Gemma 4 Edge WebGPU
+              </span>
+              <span className="px-2 py-0.5 text-[10px] font-mono font-semibold bg-blue-950/80 text-blue-300 border border-blue-700/50 rounded-full">
+                CIC Kernel &iota;-Reduction
               </span>
             </div>
             <p className="text-xs text-slate-400 font-mono mt-0.5">
-              Distributed Proof DAG resolution over WebSockets with microsecond kernel validation
+              Distributed Mathlib Theorem Solving with Local WASM Pre-Check & Server Flight Recorder
             </p>
           </div>
         </div>
@@ -161,6 +187,8 @@ export const VolunteerComputingView: React.FC = () => {
             </span>
             <span className="text-slate-500">|</span>
             <span className="text-emerald-400 font-semibold">{globalStats.proven_nodes} Proven</span>
+            <span className="text-slate-500">|</span>
+            <span className="text-purple-400 font-semibold">{globalStats.tasks_in_queue} Queued</span>
           </div>
         </div>
       </div>
@@ -204,7 +232,7 @@ export const VolunteerComputingView: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               type="button"
               onClick={toggleAutonomous}
@@ -237,7 +265,97 @@ export const VolunteerComputingView: React.FC = () => {
               title="Post benchmark theorem AndComm to global queue"
             >
               <Send className="w-3.5 h-3.5 text-purple-400" />
-              <span>Inject AndComm Goal</span>
+              <span>Inject AndComm</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Mathlib Open Target Injection Palette */}
+        <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-purple-400" />
+            <span className="text-xs font-mono font-bold text-slate-200 uppercase">
+              Inject Mathlib Goal Target:
+            </span>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('id_prop', { ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['a', { BVar: 0 }, { BVar: 1 }] }] })}
+              className="px-2.5 py-1 text-xs font-mono bg-slate-900 hover:bg-purple-900/40 text-purple-300 border border-slate-700 rounded-lg transition-all disabled:opacity-40"
+            >
+              id_prop
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('modus_ponens_thm', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['a', { BVar: 1 }, { ForallE: ['f', { ForallE: ['_', { BVar: 2 }, { BVar: 2 }] }, { BVar: 2 }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-slate-900 hover:bg-purple-900/40 text-purple-300 border border-slate-700 rounded-lg transition-all disabled:opacity-40"
+            >
+              modus_ponens
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('and_intro_thm', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['a', { BVar: 1 }, { ForallE: ['b', { BVar: 1 }, { App: [{ App: [{ Const: ['And', []] }, { BVar: 3 }] }, { BVar: 2 }] }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-slate-900 hover:bg-purple-900/40 text-purple-300 border border-slate-700 rounded-lg transition-all disabled:opacity-40"
+            >
+              and_intro
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('curry_thm', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['C', { Sort: 'Zero' }, { ForallE: ['f', { ForallE: ['_', { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] }, { BVar: 1 }] }, { ForallE: ['a', { BVar: 3 }, { ForallE: ['b', { BVar: 3 }, { BVar: 3 }] }] }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 border border-purple-600 rounded-lg transition-all disabled:opacity-40 font-bold"
+            >
+              ★ curry_thm
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('and_assoc_thm', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['C', { Sort: 'Zero' }, { ForallE: ['h', { App: [{ App: [{ Const: ['And', []] }, { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] }] }, { BVar: 0 }] }, { App: [{ App: [{ Const: ['And', []] }, { BVar: 3 }] }, { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] }] }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 border border-purple-600 rounded-lg transition-all disabled:opacity-40 font-bold"
+            >
+              ★ and_assoc
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('contrapositive_thm', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['f', { ForallE: ['_', { BVar: 1 }, { BVar: 1 }] }, { ForallE: ['nb', { ForallE: ['_', { BVar: 1 }, { Const: ['False', []] }] }, { ForallE: ['a', { BVar: 3 }, { Const: ['False', []] }] }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-purple-950/40 hover:bg-purple-900/60 text-purple-200 border border-purple-600 rounded-lg transition-all disabled:opacity-40 font-bold"
+            >
+              ★ contrapositive
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('And.swap', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['h', { App: [{ App: [{ Const: ['And', []] }, { BVar: 1 }] }, { BVar: 0 }] }, { App: [{ App: [{ Const: ['And', []] }, { BVar: 1 }] }, { BVar: 2 }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-slate-900 hover:bg-purple-900/40 text-purple-300 border border-slate-700 rounded-lg transition-all disabled:opacity-40"
+            >
+              And.swap
+            </button>
+            <button
+              type="button"
+              disabled={telemetry.status !== 'connected'}
+              onClick={() => handleInjectMathlibTarget('Or.swap', {
+                ForallE: ['A', { Sort: 'Zero' }, { ForallE: ['B', { Sort: 'Zero' }, { ForallE: ['h', { App: [{ App: [{ Const: ['Or', []] }, { BVar: 1 }] }, { BVar: 0 }] }, { App: [{ App: [{ Const: ['Or', []] }, { BVar: 1 }] }, { BVar: 2 }] }] }] }]
+              })}
+              className="px-2.5 py-1 text-xs font-mono bg-slate-900 hover:bg-purple-900/40 text-purple-300 border border-slate-700 rounded-lg transition-all disabled:opacity-40"
+            >
+              Or.swap
             </button>
           </div>
         </div>
@@ -268,7 +386,7 @@ export const VolunteerComputingView: React.FC = () => {
             <div>
               <div className="text-xs text-slate-400 font-mono">Worker Status</div>
               <div className="text-base font-bold font-mono text-amber-400 mt-0.5">
-                {telemetry.isWorking ? 'Evaluating Step...' : isAutonomous ? 'Polling Mesh...' : 'Idle'}
+                {telemetry.isWorking ? 'Synthesizing Proof...' : isAutonomous ? 'Polling Mesh...' : 'Idle'}
               </div>
               <span className="text-[10px] text-slate-500 font-mono">
                 {telemetry.lastGenrmScore ? `GenRM ${(telemetry.lastGenrmScore * 100).toFixed(0)}%` : 'Ready'}
@@ -289,19 +407,19 @@ export const VolunteerComputingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Task Dispatch & Deduction Activity */}
+        {/* "Watch Worker Run" Live Panel: Active Task & Telemetry */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Column 1: Active Task Context */}
-          <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col h-[380px]">
+          {/* Column 1: Active Leased Task & Proposition Context */}
+          <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col h-[420px]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
               <div className="flex items-center gap-2">
                 <Workflow className="w-4 h-4 text-purple-400" />
                 <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                  Active Leased Task Context
+                  Watch Worker Run: Active Leased Target
                 </h3>
               </div>
               <span className="text-[11px] font-mono text-slate-500">
-                {telemetry.currentTask ? `Task ID: ${telemetry.currentTask.task_id.substring(0, 12)}...` : 'No active lease'}
+                {telemetry.currentTask ? `Task: ${telemetry.currentTask.task_id.substring(0, 14)}...` : 'No active lease'}
               </span>
             </div>
 
@@ -309,77 +427,109 @@ export const VolunteerComputingView: React.FC = () => {
               {telemetry.currentTask ? (
                 <>
                   <div>
-                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Theorem:</span>
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Theorem Name:</span>
                     <div className="p-2 bg-slate-900 rounded border border-slate-800 text-purple-300 font-bold">
                       {telemetry.currentTask.theorem_name}
                     </div>
                   </div>
 
                   <div>
-                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Target Goal:</span>
-                    <div className="p-2 bg-slate-900 rounded border border-slate-800 text-white">
-                      ⊢ {JSON.stringify(telemetry.currentTask.target)}
+                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Target Proposition (Goal AST):</span>
+                    <div className="p-2.5 bg-slate-900 rounded border border-slate-800 text-white font-mono max-h-36 overflow-y-auto text-[11px]">
+                      {telemetry.currentTask.cic_target
+                        ? JSON.stringify(telemetry.currentTask.cic_target, null, 2)
+                        : `⊢ ${JSON.stringify(telemetry.currentTask.target)}`}
                     </div>
                   </div>
 
-                  <div>
-                    <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Active Hypotheses:</span>
-                    <div className="space-y-1">
-                      {Object.entries(telemetry.currentTask.hyps).map(([id, expr]) => (
-                        <div key={id} className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-200">
-                          <span className="font-bold text-blue-400">{id}:</span> {JSON.stringify(expr)}
-                        </div>
-                      ))}
+                  {telemetry.currentTask.hyps && Object.keys(telemetry.currentTask.hyps).length > 0 && (
+                    <div>
+                      <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Active Hypotheses:</span>
+                      <div className="space-y-1">
+                        {Object.entries(telemetry.currentTask.hyps).map(([id, expr]) => (
+                          <div key={id} className="p-2 bg-slate-900 rounded border border-slate-800 text-slate-200">
+                            <span className="font-bold text-blue-400">{id}:</span> {JSON.stringify(expr)}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               ) : (
                 <div className="flex flex-col items-center justify-center h-full text-slate-500 text-xs space-y-2">
                   <Terminal className="w-8 h-8 text-slate-700" />
-                  <span>Connect and click "Autonomous Edge Worker" or "Pull & Step Once"</span>
+                  <span>Connect and start the worker loop to lease and resolve Mathlib targets</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Column 2: Edge Worker Reasoning & Telemetry */}
-          <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col h-[380px]">
+          {/* Column 2: Dual-Mode Synthesis, WASM Pre-Check & Failure Attribution */}
+          <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 flex flex-col h-[420px]">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-3">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-emerald-400" />
                 <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                  Edge Worker Output & GenRM Telemetry
+                  Dual-Mode Synthesis & Local WASM Pre-Check
                 </h3>
               </div>
               <div className="flex items-center gap-1.5 text-xs text-blue-400 font-mono">
                 <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Kernel Validated</span>
+                <span>WASM Kernel</span>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 font-mono text-xs pr-1">
+              {/* WASM Pre-Check Badge */}
+              <div className="p-2.5 bg-slate-900 rounded border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  <span className="text-[11px] text-slate-300 font-bold">Local WASM Pre-Check:</span>
+                </div>
+                {telemetry.lastWasmCheckResult ? (
+                  <span
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded border ${
+                      telemetry.lastWasmCheckResult.valid
+                        ? 'bg-emerald-950 text-emerald-300 border-emerald-800'
+                        : 'bg-rose-950 text-rose-300 border-rose-800'
+                    }`}
+                  >
+                    {telemetry.lastWasmCheckResult.valid
+                      ? `VALID (${telemetry.lastWasmCheckResult.executionTimeUs || 10}µs)`
+                      : `REJECTED: ${telemetry.lastWasmCheckResult.error || 'TypeError'}`}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-slate-500">Standby</span>
+                )}
+              </div>
+
+              {/* Failure Attribution Alert if any */}
+              {telemetry.lastFailureClass && (
+                <div className="p-2.5 bg-rose-950/40 border border-rose-800/80 rounded-lg text-rose-300 text-xs flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <div>
+                    <span className="font-bold">Failure Attribution: </span>
+                    <span>{JSON.stringify(telemetry.lastFailureClass)}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Candidate Synthesized Proof Term */}
               <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Last Applied Step AST:</span>
-                <div className="p-2 bg-slate-900 rounded border border-slate-800 text-emerald-300">
-                  {telemetry.lastStepApplied ? JSON.stringify(telemetry.lastStepApplied) : 'None'}
+                <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Synthesized Proof Term AST:</span>
+                <div className="p-2.5 bg-slate-900 rounded border border-slate-800 text-emerald-300 max-h-24 overflow-y-auto text-[11px]">
+                  {telemetry.lastCicTerm
+                    ? JSON.stringify(telemetry.lastCicTerm, null, 2)
+                    : telemetry.lastStepApplied
+                    ? JSON.stringify(telemetry.lastStepApplied)
+                    : 'Awaiting synthesis...'}
                 </div>
               </div>
 
-              <div>
-                <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">GenRM Confidence:</span>
-                <div className="p-2 bg-slate-900 rounded border border-slate-800 flex items-center justify-between">
-                  <span className="text-sm font-bold text-blue-400">
-                    {(telemetry.lastGenrmScore * 100).toFixed(1)}%
-                  </span>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800">
-                    Verified
-                  </span>
-                </div>
-              </div>
-
+              {/* Thinking Scratchpad */}
               <div>
                 <span className="text-[10px] text-slate-500 block uppercase font-bold mb-1">Thinking Scratchpad (&lt;think&gt;):</span>
-                <div className="p-3 bg-purple-950/20 border border-purple-900/40 rounded-lg text-slate-300 text-[11px] leading-relaxed max-h-32 overflow-y-auto">
+                <div className="p-3 bg-purple-950/20 border border-purple-900/40 rounded-lg text-slate-300 text-[11px] leading-relaxed max-h-28 overflow-y-auto">
                   {telemetry.lastThinkingTrace || 'Worker thinking scratchpad trace will appear here...'}
                 </div>
               </div>
@@ -387,24 +537,24 @@ export const VolunteerComputingView: React.FC = () => {
           </div>
         </div>
 
-        {/* Global Resolution Ledger */}
+        {/* Global Resolution & Telemetry Trace Ledger */}
         <div className="bg-slate-950 p-5 rounded-xl border border-slate-800">
           <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
               <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-                Mesh Task Resolution Ledger
+                Coordinator Resolution Ledger & Flight Recorder
               </h3>
             </div>
             <span className="text-[11px] font-mono text-slate-400">
-              {globalStats.total_tasks_resolved} total steps synchronized across mesh
+              {globalStats.total_tasks_resolved} resolved | {globalStats.total_failures_recorded || 0} failures attributed
             </span>
           </div>
 
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {recentResolutions.length === 0 ? (
               <div className="text-center py-6 text-slate-500 font-mono text-xs">
-                No recent task completions. Tasks resolved by edge workers will be logged here in real-time.
+                No recent task completions. Tasks resolved by edge workers will be logged here in real-time with flight recorder synchronization.
               </div>
             ) : (
               recentResolutions.map((item, idx) => (

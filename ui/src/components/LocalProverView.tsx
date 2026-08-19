@@ -607,6 +607,403 @@ const MATHLIB_EXPORT_PRESETS: MathlibPresetItem[] = [
       2
     ),
   },
+  {
+    name: 'curry_thm',
+    desc: 'Lean 4 Conjunction Currying (∀ A B C : Prop, ((A ∧ B) → C) → A → B → C)',
+    jsonPayload: JSON.stringify(
+      {
+        name: 'curry_thm',
+        type: {
+          ForallE: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              ForallE: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  ForallE: [
+                    'C',
+                    { Sort: 'Zero' },
+                    {
+                      ForallE: [
+                        'f',
+                        {
+                          ForallE: [
+                            'a._@._internal._hyg.0',
+                            { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] },
+                            { BVar: 1 },
+                          ],
+                        },
+                        {
+                          ForallE: ['a', { BVar: 3 }, { ForallE: ['b', { BVar: 3 }, { BVar: 3 }] }],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        value: {
+          Lam: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              Lam: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  Lam: [
+                    'C',
+                    { Sort: 'Zero' },
+                    {
+                      Lam: [
+                        'f',
+                        {
+                          ForallE: [
+                            'a._@._internal._hyg.0',
+                            { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] },
+                            { BVar: 1 },
+                          ],
+                        },
+                        {
+                          Lam: [
+                            'a',
+                            { BVar: 3 },
+                            {
+                              Lam: [
+                                'b',
+                                { BVar: 3 },
+                                {
+                                  App: [
+                                    { BVar: 2 },
+                                    {
+                                      App: [
+                                        {
+                                          App: [
+                                            {
+                                              App: [
+                                                { App: [{ Const: ['And.intro', []] }, { BVar: 5 }] },
+                                                { BVar: 4 },
+                                              ],
+                                            },
+                                            { BVar: 1 },
+                                          ],
+                                        },
+                                        { BVar: 0 },
+                                      ],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    name: 'and_assoc_thm',
+    desc: 'Lean 4 Conjunction Associativity (∀ A B C : Prop, (A ∧ B) ∧ C → A ∧ (B ∧ C))',
+    jsonPayload: JSON.stringify(
+      {
+        name: 'and_assoc_thm',
+        type: {
+          ForallE: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              ForallE: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  ForallE: [
+                    'C',
+                    { Sort: 'Zero' },
+                    {
+                      ForallE: [
+                        'h',
+                        {
+                          App: [
+                            {
+                              App: [
+                                { Const: ['And', []] },
+                                { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] },
+                              ],
+                            },
+                            { BVar: 0 },
+                          ],
+                        },
+                        {
+                          App: [
+                            { App: [{ Const: ['And', []] }, { BVar: 3 }] },
+                            {
+                              App: [
+                                { App: [{ Const: ['And', []] }, { BVar: 2 }] },
+                                { BVar: 1 },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        value: {
+          Lam: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              Lam: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  Lam: [
+                    'C',
+                    { Sort: 'Zero' },
+                    {
+                      Lam: [
+                        'h',
+                        {
+                          App: [
+                            {
+                              App: [
+                                { Const: ['And', []] },
+                                { App: [{ App: [{ Const: ['And', []] }, { BVar: 2 }] }, { BVar: 1 }] },
+                              ],
+                            },
+                            { BVar: 0 },
+                          ],
+                        },
+                        {
+                          App: [
+                            {
+                              App: [
+                                {
+                                  App: [
+                                    { App: [{ Const: ['And.intro', []] }, { BVar: 3 }] },
+                                    {
+                                      App: [
+                                        { App: [{ Const: ['And', []] }, { BVar: 2 }] },
+                                        { BVar: 1 },
+                                      ],
+                                    },
+                                  ],
+                                },
+                                {
+                                  App: [
+                                    {
+                                      App: [
+                                        { App: [{ Const: ['And.left', []] }, { BVar: 3 }] },
+                                        { BVar: 2 },
+                                      ],
+                                    },
+                                    {
+                                      App: [
+                                        {
+                                          App: [
+                                            {
+                                              App: [
+                                                { Const: ['And.left', []] },
+                                                {
+                                                  App: [
+                                                    { App: [{ Const: ['And', []] }, { BVar: 3 }] },
+                                                    { BVar: 2 },
+                                                  ],
+                                                },
+                                              ],
+                                            },
+                                            { BVar: 1 },
+                                          ],
+                                        },
+                                        { BVar: 0 },
+                                      ],
+                                    },
+                                  ],
+                                },
+                              ],
+                            },
+                            {
+                              App: [
+                                {
+                                  App: [
+                                    {
+                                      App: [
+                                        { App: [{ Const: ['And.intro', []] }, { BVar: 2 }] },
+                                        { BVar: 1 },
+                                      ],
+                                    },
+                                    {
+                                      App: [
+                                        {
+                                          App: [
+                                            { App: [{ Const: ['And.right', []] }, { BVar: 3 }] },
+                                            { BVar: 2 },
+                                          ],
+                                        },
+                                        {
+                                          App: [
+                                            {
+                                              App: [
+                                                {
+                                                  App: [
+                                                    { Const: ['And.left', []] },
+                                                    {
+                                                      App: [
+                                                        { App: [{ Const: ['And', []] }, { BVar: 3 }] },
+                                                        { BVar: 2 },
+                                                      ],
+                                                    },
+                                                  ],
+                                                },
+                                                { BVar: 1 },
+                                              ],
+                                            },
+                                            { BVar: 0 },
+                                          ],
+                                        },
+                                      ],
+                                    },
+                                  ],
+                                },
+                                {
+                                  App: [
+                                    {
+                                      App: [
+                                        {
+                                          App: [
+                                            { Const: ['And.right', []] },
+                                            {
+                                              App: [
+                                                { App: [{ Const: ['And', []] }, { BVar: 3 }] },
+                                                { BVar: 2 },
+                                              ],
+                                            },
+                                          ],
+                                        },
+                                        { BVar: 1 },
+                                      ],
+                                    },
+                                    { BVar: 0 },
+                                  ],
+                                },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      null,
+      2
+    ),
+  },
+  {
+    name: 'contrapositive_thm',
+    desc: 'Lean 4 Modus Tollens / Contrapositive (∀ A B : Prop, (A → B) → (B → False) → A → False)',
+    jsonPayload: JSON.stringify(
+      {
+        name: 'contrapositive_thm',
+        type: {
+          ForallE: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              ForallE: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  ForallE: [
+                    'f',
+                    { ForallE: ['a._@._internal._hyg.0', { BVar: 1 }, { BVar: 1 }] },
+                    {
+                      ForallE: [
+                        'nb',
+                        {
+                          ForallE: [
+                            'a._@._internal._hyg.0',
+                            { BVar: 1 },
+                            { Const: ['False', []] },
+                          ],
+                        },
+                        { ForallE: ['a', { BVar: 3 }, { Const: ['False', []] }] },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        value: {
+          Lam: [
+            'A',
+            { Sort: 'Zero' },
+            {
+              Lam: [
+                'B',
+                { Sort: 'Zero' },
+                {
+                  Lam: [
+                    'f',
+                    { ForallE: ['a._@._internal._hyg.0', { BVar: 1 }, { BVar: 1 }] },
+                    {
+                      Lam: [
+                        'nb',
+                        {
+                          ForallE: [
+                            'a._@._internal._hyg.0',
+                            { BVar: 1 },
+                            { Const: ['False', []] },
+                          ],
+                        },
+                        {
+                          Lam: [
+                            'a',
+                            { BVar: 3 },
+                            {
+                              App: [
+                                { BVar: 1 },
+                                { App: [{ BVar: 2 }, { BVar: 0 }] },
+                              ],
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      },
+      null,
+      2
+    ),
+  },
 ];
 
 export const LocalProverView: React.FC = () => {
