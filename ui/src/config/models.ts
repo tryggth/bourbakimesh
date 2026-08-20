@@ -218,6 +218,24 @@ export function formatCicProofPrompt(context: [string, CicExpr][], goalType: Cic
     .join('\n');
   return `${BOURBAKI_KERNEL_SYSTEM_PROMPT}
 
+### CIC PROOF TERM GRAMMAR & CONSTRUCTORS
+Emit pure JSON representing a Calculus of Inductive Constructions (CIC) proof term with 0-based De Bruijn bound variables:
+1. Lambda Abstraction: {"Lam": ["<binder_name>", <domain_type>, <body_expr>]}
+2. Function Application: {"App": [<func_expr>, <arg_expr>]}
+3. Constant Reference: {"Const": ["<name>", <levels>]} (e.g. ["And.intro", []], ["Or.inl", []], ["Or.inr", []], ["Or.elim", []], ["False.elim", []])
+4. Bound Variable: {"BVar": <de_bruijn_index>} (0-based indexing from innermost enclosing binder: 0 is the most recently bound variable, 1 is the previous binder, etc.)
+5. Universe Sort: {"Sort": "Zero"} or {"Sort": {"Succ": ...}}
+6. Free Variable: {"FVar": "<name>"}
+7. Dependent Forall: {"ForallE": ["<binder_name>", <domain_type>, <body_expr>]}
+8. Local Let Binding: {"LetE": ["<binder_name>", <type_expr>, <val_expr>, <body_expr>]}
+
+### PROOF SEARCH RULES
+- For outer \`ForallE\` binders in the Goal Type, peel each into matching \`Lam\` abstractions while keeping track of De Bruijn variable depths.
+- Use \`And.intro A B proofA proofB\` to construct conjunction goals.
+- Use \`Or.inl A B proofA\` or \`Or.inr A B proofB\` to construct disjunction goals.
+- Use \`Or.elim A B Goal hypOr (λ a => branchA) (λ b => branchB)\` for disjunction case analysis.
+- Use \`False.elim Goal hypFalse\` for explosion / contradiction elimination.
+
 [CURRENT CIC CONTEXT]
 Hypotheses:
 ${ctxLines || '  (none)'}
@@ -225,7 +243,7 @@ Goal Type:
   ⊢ ${JSON.stringify(goalType)}
 
 [MODE: CIC PROOF SYNTHESIS]
-Synthesize a pure CIC λ-term that typechecks to the Goal Type:`;
+Synthesize a sound, closed CIC λ-term that typechecks to the Goal Type:`;
 }
 
 export function formatCriticPrompt(hyps: Record<string, any>, target: any, candidateStep: any): string {

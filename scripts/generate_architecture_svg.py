@@ -1,0 +1,470 @@
+import os
+
+svg_content = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 1020" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradients -->
+    <radialGradient id="bgGlow1" cx="20%" cy="15%" r="60%">
+      <stop offset="0%" stop-color="#172554" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#030712" stop-opacity="1"/>
+    </radialGradient>
+    <radialGradient id="bgGlow2" cx="80%" cy="30%" r="50%">
+      <stop offset="0%" stop-color="#3b0764" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#030712" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Card Backgrounds -->
+    <radialGradient id="cardGlowCyan" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#0284c7" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0b1329" stop-opacity="0.95"/>
+    </radialGradient>
+    <radialGradient id="cardGlowPurple" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#7c3aed" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0b1329" stop-opacity="0.95"/>
+    </radialGradient>
+    <radialGradient id="cardGlowEmerald" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#059669" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0b1329" stop-opacity="0.95"/>
+    </radialGradient>
+    <radialGradient id="cardGlowAmber" cx="50%" cy="0%" r="80%">
+      <stop offset="0%" stop-color="#d97706" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#0b1329" stop-opacity="0.95"/>
+    </radialGradient>
+
+    <!-- Linear Gradients -->
+    <linearGradient id="pwaBorderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#818cf8" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#c084fc" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="titleGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#38bdf8"/>
+      <stop offset="50%" stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#f472b6"/>
+    </linearGradient>
+    <linearGradient id="gpuGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#064e3b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#022c22" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="wasmGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#78350f" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#451a03" stop-opacity="0.7"/>
+    </linearGradient>
+    <linearGradient id="coordGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1e3a8a" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8"/>
+    </linearGradient>
+    <linearGradient id="leanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#831843" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#0f172a" stop-opacity="0.8"/>
+    </linearGradient>
+
+    <!-- Standard SVG 1.1 Shadows -->
+    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.7"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Markers -->
+    <marker id="arrowCyan" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#38bdf8"/>
+    </marker>
+    <marker id="arrowPurple" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#c084fc"/>
+    </marker>
+    <marker id="arrowEmerald" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#34d399"/>
+    </marker>
+    <marker id="arrowAmber" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#fbbf24"/>
+    </marker>
+    <marker id="arrowPink" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#f472b6"/>
+    </marker>
+    <marker id="arrowIndigo" markerWidth="8" markerHeight="8" refX="6" refY="4" orient="auto">
+      <path d="M1,1 L7,4 L1,7 Z" fill="#818cf8"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
+  </style>
+
+  <!-- Base Dark Canvas -->
+  <rect width="1440" height="1020" fill="#030712"/>
+  <rect width="1440" height="1020" fill="url(#bgGlow1)"/>
+  <rect width="1440" height="1020" fill="url(#bgGlow2)"/>
+
+  <!-- Blueprint Grid Pattern -->
+  <g opacity="0.06" stroke="#94a3b8" stroke-width="1">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40"/>
+    </pattern>
+    <rect width="1440" height="1020" fill="url(#grid)"/>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- HEADER & PILLS                                                            -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 40)">
+    <text x="0" y="24" font-size="25" font-weight="800" fill="url(#titleGrad)" letter-spacing="0.5">
+      BourbakiMesh Architecture
+    </text>
+    <text x="0" y="47" font-size="13.5" font-weight="500" fill="#94a3b8">
+      In-Browser WebGPU / WASM Deductive Synthesis &amp; Decentralized Proof DAG Swarm
+    </text>
+
+    <!-- Top Badges -->
+    <g transform="translate(830, 6)">
+      <!-- PWA SPA Badge -->
+      <g transform="translate(0, 0)">
+        <rect width="115" height="26" rx="6" fill="#0369a1" fill-opacity="0.25" stroke="#38bdf8" stroke-width="1"/>
+        <circle cx="12" cy="13" r="4" fill="#38bdf8"/>
+        <text x="24" y="17" font-size="11" font-weight="700" fill="#e0f2fe">Client PWA / SPA</text>
+      </g>
+      <!-- Gemma 4 WebGPU Badge -->
+      <g transform="translate(125, 0)">
+        <rect width="135" height="26" rx="6" fill="#065f46" fill-opacity="0.25" stroke="#34d399" stroke-width="1"/>
+        <circle cx="12" cy="13" r="4" fill="#34d399"/>
+        <text x="24" y="17" font-size="11" font-weight="700" fill="#d1fae5">Gemma 4 (W4A16)</text>
+      </g>
+      <!-- WASM Kernel Badge -->
+      <g transform="translate(270, 0)">
+        <rect width="125" height="26" rx="6" fill="#78350f" fill-opacity="0.25" stroke="#fbbf24" stroke-width="1"/>
+        <circle cx="12" cy="13" r="4" fill="#fbbf24"/>
+        <text x="24" y="17" font-size="11" font-weight="700" fill="#fef3c7">WASM CIC Kernel</text>
+      </g>
+      <!-- Lean 4 Badge -->
+      <g transform="translate(405, 0)">
+        <rect width="85" height="26" rx="6" fill="#831843" fill-opacity="0.25" stroke="#f472b6" stroke-width="1"/>
+        <circle cx="12" cy="13" r="4" fill="#f472b6"/>
+        <text x="24" y="17" font-size="11" font-weight="700" fill="#fce7f3">Lean 4</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- MAIN CLIENT RUNTIME CONTAINER (PWA / SPA)                                 -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 110)">
+    <!-- Container Outline & Card Base -->
+    <rect width="1320" height="585" rx="16" fill="#080e1e" fill-opacity="0.94" stroke="url(#pwaBorderGrad)" stroke-width="2" filter="url(#softShadow)"/>
+
+    <!-- PWA Top Bar Title -->
+    <g transform="translate(24, 20)">
+      <rect width="52" height="22" rx="4" fill="#0284c7" fill-opacity="0.25" stroke="#38bdf8" stroke-width="1"/>
+      <text x="7" y="15" font-size="10" font-weight="800" fill="#38bdf8">BROWSER</text>
+      <text x="62" y="16" font-size="16" font-weight="700" fill="#ffffff">
+        Client Progressive Web App (PWA) / Single Page Application (SPA)
+      </text>
+      <text x="600" y="16" font-size="11.5" class="mono" fill="#64748b">
+        [ ui/src/ • Vite + React 18 + TypeScript + WebGPU + Rust WASM ]
+      </text>
+    </g>
+
+    <!-- Top Swarm Objective Bar (TargetManager.tsx & Header.tsx) -->
+    <g transform="translate(24, 52)">
+      <rect width="1272" height="50" rx="10" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+      <circle cx="24" cy="25" r="8" fill="#ef4444" fill-opacity="0.2"/>
+      <circle cx="24" cy="25" r="3.5" fill="#ef4444"/>
+      <text x="42" y="23" font-size="12.5" font-weight="700" fill="#f8fafc">
+        Swarm Target Manager &amp; Navigation Header (TargetManager.tsx • Header.tsx)
+      </text>
+      <text x="42" y="39" font-size="10" font-weight="500" fill="#94a3b8">
+        Swarm Objective Focus • Verified Mathlib Presets (And.swap, Or.swap, Eq.symm, peirce_law) • Real-time Swarm Worker Health
+      </text>
+
+      <g transform="translate(1015, 12)">
+        <rect width="242" height="26" rx="6" fill="#0284c7" fill-opacity="0.15" stroke="#0284c7" stroke-width="1"/>
+        <text x="12" y="17" font-size="11" class="mono" font-weight="600" fill="#38bdf8">
+          meshClient.postTarget(goal)
+        </text>
+      </g>
+    </g>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 1: 4 CORE UI PILLARS (TABS)                                    -->
+    <!-- ======================================================================= -->
+    <g transform="translate(24, 116)">
+      <text x="0" y="12" font-size="10.5" font-weight="700" fill="#94a3b8" letter-spacing="1">
+        LAYER 1: REACTIVE UI VIEWS (4 CORE PILLARS)
+      </text>
+
+      <!-- Pillar 1: ContributeView -->
+      <g transform="translate(0, 22)">
+        <rect width="303" height="112" rx="10" fill="url(#cardGlowEmerald)" stroke="#059669" stroke-width="1.2"/>
+        <rect width="20" height="20" rx="4" x="12" y="12" fill="#065f46" stroke="#10b981" stroke-width="1"/>
+        <text x="18" y="26" font-size="11" font-weight="900" fill="#34d399">1</text>
+        <text x="40" y="24" font-size="13" font-weight="700" fill="#ffffff">Contribute Cycles</text>
+        <text x="40" y="38" font-size="10" class="mono" fill="#6ee7b7">ContributeView.tsx</text>
+        <text x="14" y="60" font-size="10" fill="#cbd5e1">• Autonomous edge worker loop</text>
+        <text x="14" y="76" font-size="10" fill="#cbd5e1">• Live VRAM budget (1,850 MB)</text>
+        <text x="14" y="92" font-size="10" fill="#cbd5e1">• Shader compilation &amp; shard progress</text>
+      </g>
+
+      <!-- Pillar 2: ProofDagView -->
+      <g transform="translate(323, 22)">
+        <rect width="303" height="112" rx="10" fill="url(#cardGlowCyan)" stroke="#0284c7" stroke-width="1.2"/>
+        <rect width="20" height="20" rx="4" x="12" y="12" fill="#075985" stroke="#38bdf8" stroke-width="1"/>
+        <text x="17" y="26" font-size="11" font-weight="900" fill="#38bdf8">2</text>
+        <text x="40" y="24" font-size="13" font-weight="700" fill="#ffffff">Proof DAG Explorer</text>
+        <text x="40" y="38" font-size="10" class="mono" fill="#7dd3fc">ProofDagView.tsx</text>
+        <text x="14" y="60" font-size="10" fill="#cbd5e1">• Global DAG topology graph</text>
+        <text x="14" y="76" font-size="10" fill="#cbd5e1">• Certified vs verifying node statuses</text>
+        <text x="14" y="92" font-size="10" fill="#cbd5e1">• IndexedDB offline block hydration</text>
+      </g>
+
+      <!-- Pillar 3: GemmaEdgePanel -->
+      <g transform="translate(646, 22)">
+        <rect width="303" height="112" rx="10" fill="url(#cardGlowPurple)" stroke="#7c3aed" stroke-width="1.2"/>
+        <rect width="20" height="20" rx="4" x="12" y="12" fill="#5b21b6" stroke="#c084fc" stroke-width="1"/>
+        <text x="17" y="26" font-size="11" font-weight="900" fill="#c084fc">3</text>
+        <text x="40" y="24" font-size="13" font-weight="700" fill="#ffffff">Dual-Mode Playground</text>
+        <text x="40" y="38" font-size="10" class="mono" fill="#d8b4fe">GemmaEdgePanel.tsx</text>
+        <text x="14" y="60" font-size="10" fill="#cbd5e1">• Actor Mode: Tactic &amp; &lt;think&gt; trace</text>
+        <text x="14" y="76" font-size="10" fill="#cbd5e1">• Critic Mode: GenRM value scoring</text>
+        <text x="14" y="92" font-size="10" fill="#cbd5e1">• Interactive verification sandbox</text>
+      </g>
+
+      <!-- Pillar 4: TelemetryFeed -->
+      <g transform="translate(969, 22)">
+        <rect width="303" height="112" rx="10" fill="url(#cardGlowAmber)" stroke="#d97706" stroke-width="1.2"/>
+        <rect width="20" height="20" rx="4" x="12" y="12" fill="#92400e" stroke="#fbbf24" stroke-width="1"/>
+        <text x="17" y="26" font-size="11" font-weight="900" fill="#fbbf24">4</text>
+        <text x="40" y="24" font-size="13" font-weight="700" fill="#ffffff">Flight Telemetry</text>
+        <text x="40" y="38" font-size="10" class="mono" fill="#fde68a">TelemetryFeed.tsx</text>
+        <text x="14" y="60" font-size="10" fill="#cbd5e1">• Real-time event stream logging</text>
+        <text x="14" y="76" font-size="10" fill="#cbd5e1">• Latency, speed &amp; lease transitions</text>
+        <text x="14" y="92" font-size="10" fill="#cbd5e1">• Structured solver interplay metrics</text>
+      </g>
+    </g>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 2: CLIENT CORE SERVICES & SYNTHESIS ENGINES                     -->
+    <!-- ======================================================================= -->
+    <g transform="translate(24, 264)">
+      <text x="0" y="12" font-size="10.5" font-weight="700" fill="#94a3b8" letter-spacing="1">
+        LAYER 2: CLIENT EXECUTION &amp; 2-TIER SYNTHESIS SERVICES (ui/src/services/)
+      </text>
+
+      <!-- Service A: meshClient.ts -->
+      <g transform="translate(0, 22)">
+        <rect width="390" height="122" rx="10" fill="#0f172a" stroke="#38bdf8" stroke-width="1.2"/>
+        <text x="14" y="24" font-size="13" font-weight="700" fill="#38bdf8">WebSocket JSON-RPC Client</text>
+        <text x="14" y="38" font-size="10" class="mono" fill="#64748b">meshClient.ts (Auto-reconnect &amp; Lease Loop)</text>
+        <text x="14" y="58" font-size="10" fill="#e2e8f0">• RPC Handlers: mesh_pull_task, mesh_submit_result</text>
+        <text x="14" y="74" font-size="10" fill="#e2e8f0">• Real-time worker count sync &amp; disconnect unregistration</text>
+        <text x="14" y="90" font-size="10" fill="#e2e8f0">• Provenance Attestation: Git commit + Session UUID</text>
+        <text x="14" y="106" font-size="10" fill="#e2e8f0">• Structured solver telemetry packager (tier, us, depth)</text>
+      </g>
+
+      <!-- Service B: Hybrid 2-Tier Solver Engine -->
+      <g transform="translate(410, 22)">
+        <rect width="452" height="122" rx="10" fill="#0f172a" stroke="#818cf8" stroke-width="1.4"/>
+        <text x="14" y="24" font-size="13" font-weight="700" fill="#818cf8">Hybrid 2-Tier Proof Search Engine</text>
+        <text x="14" y="38" font-size="10" class="mono" fill="#64748b">proofSearchEngine.ts • cicSolver.ts</text>
+        
+        <!-- Tier 1 Box -->
+        <rect x="12" y="48" width="206" height="62" rx="6" fill="#1e1b4b" fill-opacity="0.6" stroke="#6366f1" stroke-width="1"/>
+        <text x="20" y="64" font-size="11" font-weight="700" fill="#a5b4fc">Tier 1: Symbolic Fast Path</text>
+        <text x="20" y="78" font-size="9.5" fill="#cbd5e1">• Deterministic rule matching</text>
+        <text x="20" y="92" font-size="9.5" fill="#cbd5e1">• Intro, Elim, Beta/Iota reduction</text>
+        <text x="20" y="103" font-size="8.5" class="mono" fill="#818cf8">Latency: &lt; 50 µs</text>
+
+        <!-- Tier 2 Box -->
+        <rect x="232" y="48" width="206" height="62" rx="6" fill="#311042" fill-opacity="0.6" stroke="#c084fc" stroke-width="1"/>
+        <text x="240" y="64" font-size="11" font-weight="700" fill="#e879f9">Tier 2: Neural BFS Fallback</text>
+        <text x="240" y="78" font-size="9.5" fill="#cbd5e1">• Best-First Search on CIC AST</text>
+        <text x="240" y="92" font-size="9.5" fill="#cbd5e1">• Gemma 4 Actor + GenRM Critic</text>
+        <text x="240" y="103" font-size="8.5" class="mono" fill="#e879f9">Deep / Classical Search</text>
+      </g>
+
+      <!-- Service C: llmController.ts & telemetryClient.ts -->
+      <g transform="translate(882, 22)">
+        <rect width="390" height="122" rx="10" fill="#0f172a" stroke="#34d399" stroke-width="1.2"/>
+        <text x="14" y="24" font-size="13" font-weight="700" fill="#34d399">LLM Controller &amp; Telemetry Client</text>
+        <text x="14" y="38" font-size="10" class="mono" fill="#64748b">llmController.ts • telemetryClient.ts</text>
+        <text x="14" y="58" font-size="10" fill="#e2e8f0">• Strictly lazy WebGPU worker initialization</text>
+        <text x="14" y="74" font-size="10" fill="#e2e8f0">• Parameter shard loading &amp; shader progress events</text>
+        <text x="14" y="90" font-size="10" fill="#e2e8f0">• IndexedDB offline proof caching (BourbakiMeshDB)</text>
+        <text x="14" y="106" font-size="10" fill="#e2e8f0">• EventTracer real-time JSONL flight recorder export</text>
+      </g>
+    </g>
+
+    <!-- ======================================================================= -->
+    <!-- SECTION 3: SANDBOXED COMPUTE: WEBGPU WORKER & WASM KERNEL               -->
+    <!-- ======================================================================= -->
+    <g transform="translate(24, 424)">
+      <text x="0" y="12" font-size="10.5" font-weight="700" fill="#94a3b8" letter-spacing="1">
+        LAYER 3: SANDBOXED CLIENT COMPUTE WORKERS &amp; WASM KERNEL
+      </text>
+
+      <!-- WebGPU Worker Box -->
+      <g transform="translate(0, 22)">
+        <rect width="615" height="114" rx="10" fill="url(#gpuGrad)" stroke="#10b981" stroke-width="1.4"/>
+        <text x="16" y="24" font-size="13" font-weight="700" fill="#34d399">
+          Dedicated Web Worker (llm-worker.ts) • WebGPU Runtime
+        </text>
+        <text x="16" y="38" font-size="10" class="mono" fill="#6ee7b7">
+          Gemma 4 Edge (2B-IT W4A16 / q4f16) • shader-f16 Pipeline
+        </text>
+        <text x="16" y="58" font-size="10" fill="#e2e8f0">
+          • Off-main-thread non-blocking inference with WebLLM engine
+        </text>
+        <text x="16" y="74" font-size="10" fill="#e2e8f0">
+          • Actor: Structured JSON AST / Lean 4 tactic generation (&lt;think&gt; tokens)
+        </text>
+        <text x="16" y="90" font-size="10" fill="#e2e8f0">
+          • Critic: Generative Reward Model (GenRM) value score evaluation
+        </text>
+      </g>
+
+      <!-- Rust WASM Kernel Box -->
+      <g transform="translate(657, 22)">
+        <rect width="615" height="114" rx="10" fill="url(#wasmGrad)" stroke="#f59e0b" stroke-width="1.4"/>
+        <text x="16" y="24" font-size="13" font-weight="700" fill="#fbbf24">
+          Compiled Rust WASM Kernel (crates/kernel-wasm)
+        </text>
+        <text x="16" y="38" font-size="10" class="mono" fill="#fde68a">
+          Calculus of Inductive Constructions (CIC) In-Browser Typechecker
+        </text>
+        <text x="16" y="58" font-size="10" fill="#e2e8f0">
+          • check_cic_term(context, proof_term, target_type) in WebAssembly
+        </text>
+        <text x="16" y="74" font-size="10" fill="#e2e8f0">
+          • Classical Axioms Builtin: Classical.em, Classical.byContradiction
+        </text>
+        <text x="16" y="90" font-size="10" fill="#e2e8f0">
+          • Pre-Submission Filter: Rejects invalid terms locally before network gossip
+        </text>
+      </g>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- BOTTOM LEFT: RUST DISTRIBUTED MESH COORDINATOR                            -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 725)">
+    <rect width="630" height="255" rx="14" fill="url(#coordGrad)" stroke="#3b82f6" stroke-width="1.8" filter="url(#softShadow)"/>
+
+    <!-- Title -->
+    <g transform="translate(20, 20)">
+      <rect width="42" height="20" rx="4" fill="#1e3a8a" stroke="#3b82f6" stroke-width="1"/>
+      <text x="7" y="14" font-size="10" font-weight="800" fill="#93c5fd">RUST</text>
+      <text x="52" y="15" font-size="15" font-weight="700" fill="#ffffff">
+        Distributed Mesh Coordinator (crates/mesh-coordinator)
+      </text>
+      <text x="52" y="32" font-size="11" class="mono" fill="#93c5fd">
+        WebSocket JSON-RPC 2.0 Server (:9001) • Tokio Async Runtime
+      </text>
+    </g>
+
+    <!-- Sub-boxes -->
+    <g transform="translate(20, 68)">
+      <!-- Task Dispatcher & DAG -->
+      <rect width="285" height="165" rx="8" fill="#0f172a" stroke="#1e40af" stroke-width="1"/>
+      <text x="12" y="20" font-size="12" font-weight="700" fill="#60a5fa">DAG &amp; Task Dispatcher (dag.rs)</text>
+      <text x="12" y="40" font-size="10" fill="#cbd5e1">• Content-addressed Proof DAG</text>
+      <text x="12" y="56" font-size="10" fill="#cbd5e1">• 60s lease timeout &amp; heartbeat sweep</text>
+      <text x="12" y="72" font-size="10" fill="#cbd5e1">• Real-time worker count broadcast</text>
+      <text x="12" y="88" font-size="10" fill="#cbd5e1">• Instant disconnect pruning</text>
+      <text x="12" y="104" font-size="10" fill="#cbd5e1">• Subgoal graph decomposition</text>
+      <text x="12" y="128" font-size="9.5" class="mono" fill="#38bdf8">mesh_pull_task • mesh_post_target</text>
+    </g>
+
+    <g transform="translate(325, 68)">
+      <!-- Flight Recorder & Attestation -->
+      <rect width="285" height="165" rx="8" fill="#0f172a" stroke="#1e40af" stroke-width="1"/>
+      <text x="12" y="20" font-size="12" font-weight="700" fill="#60a5fa">Flight Recorder &amp; Provenance</text>
+      <text x="12" y="40" font-size="10" fill="#cbd5e1">• JSONL Event Stream Flight Recorder</text>
+      <text x="12" y="56" font-size="10" fill="#cbd5e1">• Session UUID + Server/Client Commit</text>
+      <text x="12" y="72" font-size="10" fill="#cbd5e1">• Structured solver interplay log</text>
+      <text x="12" y="88" font-size="10" fill="#cbd5e1">• Native Rust kernel verification</text>
+      <text x="12" y="104" font-size="10" fill="#cbd5e1">• Trace Analyzer (scripts/analyze_trace.py)</text>
+      <text x="12" y="128" font-size="9.5" class="mono" fill="#38bdf8">mesh_submit_result • mesh_heartbeat</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- BOTTOM RIGHT: FORMAL ZERO-TRUST VERIFICATION (LEAN 4)                     -->
+  <!-- ========================================================================= -->
+  <g transform="translate(750, 725)">
+    <rect width="630" height="255" rx="14" fill="url(#leanGrad)" stroke="#ec4899" stroke-width="1.8" filter="url(#softShadow)"/>
+
+    <!-- Title -->
+    <g transform="translate(20, 20)">
+      <rect width="48" height="20" rx="4" fill="#831843" stroke="#ec4899" stroke-width="1"/>
+      <text x="7" y="14" font-size="10" font-weight="800" fill="#fbcfe8">LEAN 4</text>
+      <text x="58" y="15" font-size="15" font-weight="700" fill="#ffffff">
+        Zero-Trust Formal Verification &amp; Mathlib Target
+      </text>
+      <text x="58" y="32" font-size="11" class="mono" fill="#f472b6">
+        lean_target/ • Lake Build • Lean 4 Kernel Attestation
+      </text>
+    </g>
+
+    <!-- Sub-boxes -->
+    <g transform="translate(20, 68)">
+      <!-- Lean 4 Kernel Harness -->
+      <rect width="285" height="165" rx="8" fill="#0f172a" stroke="#9d174d" stroke-width="1"/>
+      <text x="12" y="20" font-size="12" font-weight="700" fill="#f472b6">Lean 4 Kernel Harness</text>
+      <text x="12" y="40" font-size="10" fill="#cbd5e1">• Strict verification via lake build</text>
+      <text x="12" y="56" font-size="10" fill="#cbd5e1">• Zero unverified proof axioms</text>
+      <text x="12" y="72" font-size="10" fill="#cbd5e1">• Soundness metatheory certification</text>
+      <text x="12" y="88" font-size="10" fill="#cbd5e1">• Deterministic proof reconstruction</text>
+      <text x="12" y="104" font-size="10" fill="#cbd5e1">• Mathlib theorem curriculum target</text>
+      <text x="12" y="128" font-size="9.5" class="mono" fill="#f472b6">LeanTarget.BourbakiExport</text>
+    </g>
+
+    <g transform="translate(325, 68)">
+      <!-- Multi-Target Compilers -->
+      <rect width="285" height="165" rx="8" fill="#0f172a" stroke="#9d174d" stroke-width="1"/>
+      <text x="12" y="20" font-size="12" font-weight="700" fill="#f472b6">Multi-ITP Proof Term Emitters</text>
+      <text x="12" y="40" font-size="10" fill="#cbd5e1">• Coq Gallina (.v) emitter</text>
+      <text x="12" y="56" font-size="10" fill="#cbd5e1">• Isabelle/HOL Isar (.thy) emitter</text>
+      <text x="12" y="72" font-size="10" fill="#cbd5e1">• Dedukti Lambda-Pi (.dk) emitter</text>
+      <text x="12" y="88" font-size="10" fill="#cbd5e1">• Cross-system deductive portability</text>
+      <text x="12" y="104" font-size="10" fill="#cbd5e1">• Cryptographic proof certificate</text>
+      <text x="12" y="128" font-size="9.5" class="mono" fill="#f472b6">Universal Proof Verification</text>
+    </g>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- INTER-COMPONENT CONNECTING ARROWS & LABELS                                -->
+  <!-- ========================================================================= -->
+  <g fill="none" stroke-width="2">
+    <!-- WebSocket RPC Connection (Client to Coordinator) -->
+    <path d="M 375,695 L 375,725" stroke="#38bdf8" stroke-dasharray="4,4" marker-end="url(#arrowCyan)"/>
+    <path d="M 395,725 L 395,695" stroke="#60a5fa" stroke-dasharray="4,4" marker-end="url(#arrowCyan)"/>
+    <rect x="275" y="698" width="220" height="22" rx="4" fill="#0369a1" stroke="#38bdf8" stroke-width="1"/>
+    <text x="283" y="713" font-size="10" font-weight="700" fill="#ffffff">WebSocket JSON-RPC 2.0 (ws://:9001)</text>
+
+    <!-- Lean Verification Target (Coordinator to Lean 4) -->
+    <path d="M 690,850 L 750,850" stroke="#ec4899" stroke-width="2" marker-end="url(#arrowPink)"/>
+    <rect x="670" y="828" width="100" height="20" rx="4" fill="#831843" stroke="#ec4899" stroke-width="1"/>
+    <text x="676" y="842" font-size="9.5" font-weight="700" fill="#ffffff">Lean 4 Attest</text>
+
+    <!-- WASM Kernel Direct In-Browser Checking -->
+    <path d="M 850,560 L 850,595 L 980,595 L 980,560" stroke="#fbbf24" stroke-dasharray="3,3" marker-end="url(#arrowAmber)"/>
+    <rect x="856" y="586" width="128" height="18" rx="4" fill="#78350f" stroke="#fbbf24" stroke-width="0.8"/>
+    <text x="862" y="598" font-size="9" font-weight="600" fill="#fef3c7">Local Pre-Validation</text>
+
+    <!-- WebWorker to LLM Controller -->
+    <path d="M 330,560 L 330,585 L 440,585 L 440,408" stroke="#34d399" stroke-dasharray="3,3" marker-end="url(#arrowEmerald)"/>
+    <rect x="335" y="576" width="100" height="18" rx="4" fill="#065f46" stroke="#34d399" stroke-width="0.8"/>
+    <text x="341" y="588" font-size="9" font-weight="600" fill="#d1fae5">WebWorker PostMsg</text>
+  </g>
+
+</svg>
+'''
+
+with open('docs/assets/architecture.svg', 'w') as f:
+    f.write(svg_content.strip())
+
+print("Generated refined docs/assets/architecture.svg successfully!")

@@ -10,5 +10,5 @@ pub mod typecheck;
 
 pub use expr::{Expr, Level};
 pub use inductive::{Constructor, InductiveType, Recursor, RecursorRule};
-pub use reduce::{ConstantInfo, Environment, LocalContext, LocalDecl, is_def_eq, unwind_app, whnf};
-pub use typecheck::{TypeError, check_type, infer_type};
+pub use reduce::{is_def_eq, unwind_app, whnf, ConstantInfo, Environment, LocalContext, LocalDecl};
+pub use typecheck::{check_type, infer_type, TypeError};

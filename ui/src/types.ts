@@ -65,7 +65,7 @@ export interface ModelRanking {
 }
 
 export interface TelemetryEvent {
-  type: 'mcts_step' | 'proof_attested' | 'move_added' | 'peer_connected' | 'system_status';
+  type: 'mcts_step' | 'proof_attested' | 'move_added' | 'peer_connected' | 'system_status' | 'mesh_telemetry_tick' | string;
   timestamp: number;
   data: Record<string, unknown>;
 }

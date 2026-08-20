@@ -1,9 +1,9 @@
 //! Reduction engine (β, ζ, δ, ι reductions) and definitional equality for CIC terms.
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::cic::expr::{Expr, Level};
 use crate::cic::inductive::{InductiveType, Recursor};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Global declaration in the typing environment.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -268,6 +268,35 @@ impl Environment {
         );
         env.add_axiom("False.elim", false_elim_ty);
 
+        // Classical.em : ∀ (p : Prop), Or p (p → False)
+        let classical_em_ty = Expr::forall_e(
+            "p",
+            prop.clone(),
+            Expr::mk_app(
+                Expr::const_term("Or", vec![]),
+                vec![
+                    Expr::BVar(0),
+                    Expr::arrow(Expr::BVar(0), Expr::const_term("False", vec![])),
+                ],
+            ),
+        );
+        env.add_axiom("Classical.em", classical_em_ty);
+
+        // Classical.byContradiction : ∀ (p : Prop), ((p → False) → False) → p
+        let classical_by_contra_ty = Expr::forall_e(
+            "p",
+            prop.clone(),
+            Expr::forall_e(
+                "h",
+                Expr::arrow(
+                    Expr::arrow(Expr::BVar(0), Expr::const_term("False", vec![])),
+                    Expr::const_term("False", vec![]),
+                ),
+                Expr::BVar(1),
+            ),
+        );
+        env.add_axiom("Classical.byContradiction", classical_by_contra_ty);
+
         // rfl : ∀ (α : Type u) (a : α), Eq α a a (universe polymorphic)
         let rfl_ty = Expr::forall_e(
             "α",
@@ -325,10 +354,7 @@ impl Environment {
                                     Expr::const_term("Eq", vec![Level::Param("u".into())]),
                                     vec![Expr::BVar(4), Expr::BVar(3), Expr::BVar(0)],
                                 ),
-                                Expr::mk_app(
-                                    Expr::BVar(3),
-                                    vec![Expr::BVar(1), Expr::BVar(0)],
-                                ),
+                                Expr::mk_app(Expr::BVar(3), vec![Expr::BVar(1), Expr::BVar(0)]),
                             ),
                         ),
                     ),
@@ -429,7 +455,12 @@ impl LocalContext {
     }
 
     /// Extend context with an assumption `fvar_id : ty`.
-    pub fn extend(&self, fvar_id: impl Into<String>, user_name: impl Into<String>, ty: Expr) -> Self {
+    pub fn extend(
+        &self,
+        fvar_id: impl Into<String>,
+        user_name: impl Into<String>,
+        ty: Expr,
+    ) -> Self {
         let mut ctx = self.clone();
         let id = fvar_id.into();
         let idx = ctx.decls.len();
@@ -466,7 +497,9 @@ impl LocalContext {
 
     /// Retrieve local declaration by free variable ID.
     pub fn get(&self, fvar_id: &str) -> Option<&LocalDecl> {
-        self.lookup.get(fvar_id).and_then(|&idx| self.decls.get(idx))
+        self.lookup
+            .get(fvar_id)
+            .and_then(|&idx| self.decls.get(idx))
     }
 
     /// Iterate over all declarations in context.
@@ -536,12 +569,15 @@ pub fn whnf(expr: &Expr, env: &Environment, ctx: &LocalContext) -> Expr {
                 // 3. Iota-reduction: Recursor applied to constructor term
                 if let Expr::Const(ref rec_name, _) = head_whnf {
                     if let Some(rec) = env.get_recursor(rec_name) {
-                        let major_idx = rec.num_params + rec.num_motives + rec.num_minors + rec.num_indices;
+                        let major_idx =
+                            rec.num_params + rec.num_motives + rec.num_minors + rec.num_indices;
                         if args.len() > major_idx {
                             let major_whnf = whnf(&args[major_idx], env, ctx);
                             let (major_head, major_args) = unwind_app(&major_whnf);
                             if let Expr::Const(ref ctor_name, _) = major_head {
-                                if let Some(rule_idx) = rec.rules.iter().position(|r| &r.ctor_name == ctor_name) {
+                                if let Some(rule_idx) =
+                                    rec.rules.iter().position(|r| &r.ctor_name == ctor_name)
+                                {
                                     let minor = &args[rec.num_params + rec.num_motives + rule_idx];
 
                                     // Constructor field arguments (skipping inductive type parameters)
@@ -552,32 +588,52 @@ pub fn whnf(expr: &Expr, env: &Environment, ctx: &LocalContext) -> Expr {
                                     };
 
                                     // Compute reduced body
-                                    let mut reduced = if rec.ind_name == "Nat" && ctor_name == "Nat.succ" && !fields.is_empty() {
+                                    let mut reduced = if rec.ind_name == "Nat"
+                                        && ctor_name == "Nat.succ"
+                                        && !fields.is_empty()
+                                    {
                                         let n = &fields[0];
                                         let mut rec_call_args = Vec::new();
-                                        for i in 0..(rec.num_params + rec.num_motives + rec.num_minors) {
+                                        for i in
+                                            0..(rec.num_params + rec.num_motives + rec.num_minors)
+                                        {
                                             rec_call_args.push(args[i].clone());
                                         }
                                         rec_call_args.push(n.clone());
-                                        let rec_call = Expr::mk_app(Expr::const_term(rec.name.clone(), vec![]), rec_call_args);
+                                        let rec_call = Expr::mk_app(
+                                            Expr::const_term(rec.name.clone(), vec![]),
+                                            rec_call_args,
+                                        );
                                         Expr::mk_app(minor.clone(), vec![n.clone(), rec_call])
-                                    } else if rec.ind_name == "List" && ctor_name == "List.cons" && fields.len() >= 2 {
+                                    } else if rec.ind_name == "List"
+                                        && ctor_name == "List.cons"
+                                        && fields.len() >= 2
+                                    {
                                         let head = &fields[0];
                                         let tail = &fields[1];
                                         let mut rec_call_args = Vec::new();
-                                        for i in 0..(rec.num_params + rec.num_motives + rec.num_minors) {
+                                        for i in
+                                            0..(rec.num_params + rec.num_motives + rec.num_minors)
+                                        {
                                             rec_call_args.push(args[i].clone());
                                         }
                                         rec_call_args.push(tail.clone());
-                                        let rec_call = Expr::mk_app(Expr::const_term(rec.name.clone(), vec![]), rec_call_args);
-                                        Expr::mk_app(minor.clone(), vec![head.clone(), tail.clone(), rec_call])
+                                        let rec_call = Expr::mk_app(
+                                            Expr::const_term(rec.name.clone(), vec![]),
+                                            rec_call_args,
+                                        );
+                                        Expr::mk_app(
+                                            minor.clone(),
+                                            vec![head.clone(), tail.clone(), rec_call],
+                                        )
                                     } else {
                                         Expr::mk_app(minor.clone(), fields.to_vec())
                                     };
 
                                     // Apply any trailing arguments past the major premise
                                     if args.len() > major_idx + 1 {
-                                        reduced = Expr::mk_app(reduced, args[major_idx + 1..].to_vec());
+                                        reduced =
+                                            Expr::mk_app(reduced, args[major_idx + 1..].to_vec());
                                     }
 
                                     current = reduced;
@@ -624,7 +680,10 @@ pub fn is_def_eq(e1: &Expr, e2: &Expr, env: &Environment, ctx: &LocalContext) ->
         (Expr::Const(name1, l1), Expr::Const(name2, l2)) => {
             name1 == name2
                 && l1.len() == l2.len()
-                && l1.iter().zip(l2).all(|(a, b)| a.normalize() == b.normalize())
+                && l1
+                    .iter()
+                    .zip(l2)
+                    .all(|(a, b)| a.normalize() == b.normalize())
         }
         (Expr::App(f1, a1), Expr::App(f2, a2)) => {
             is_def_eq(f1, f2, env, ctx) && is_def_eq(a1, a2, env, ctx)

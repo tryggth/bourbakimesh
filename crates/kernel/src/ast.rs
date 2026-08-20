@@ -15,7 +15,9 @@ impl Term {
             Term::Const(c) => Term::Const(c.clone()),
             Term::Func(name, args) => Term::Func(
                 name.clone(),
-                args.iter().map(|a| a.substitute(var, replacement)).collect(),
+                args.iter()
+                    .map(|a| a.substitute(var, replacement))
+                    .collect(),
             ),
         }
     }
@@ -27,7 +29,9 @@ impl Term {
         match self {
             Term::Func(name, args) => Term::Func(
                 name.clone(),
-                args.iter().map(|a| a.replace_term(target, replacement)).collect(),
+                args.iter()
+                    .map(|a| a.replace_term(target, replacement))
+                    .collect(),
             ),
             _ => self.clone(),
         }
@@ -62,7 +66,10 @@ impl Expr {
             Expr::Prop(p) => Expr::Prop(p.clone()),
             Expr::Pred(p, terms) => Expr::Pred(
                 p.clone(),
-                terms.iter().map(|t| t.substitute(var, replacement)).collect(),
+                terms
+                    .iter()
+                    .map(|t| t.substitute(var, replacement))
+                    .collect(),
             ),
             Expr::And(left, right) => Expr::And(
                 Box::new(left.substitute(var, replacement)),
@@ -116,7 +123,10 @@ impl Expr {
             Expr::Prop(p) => Expr::Prop(p.clone()),
             Expr::Pred(p, terms) => Expr::Pred(
                 p.clone(),
-                terms.iter().map(|t| t.replace_term(target, replacement)).collect(),
+                terms
+                    .iter()
+                    .map(|t| t.replace_term(target, replacement))
+                    .collect(),
             ),
             Expr::And(left, right) => Expr::And(
                 Box::new(left.replace_term(target, replacement)),
@@ -172,23 +182,65 @@ impl Expr {
 #[serde(tag = "rule")]
 pub enum DeductionStep {
     // Propositional Primitives
-    AndElimL { hyp: String },
-    AndElimR { hyp: String },
-    AndIntro { left: String, right: String },
-    OrIntroL { hyp: String, right: Expr },
-    OrIntroR { left: Expr, hyp: String },
-    OrElim { hyp_or: String, left_impl: String, right_impl: String },
-    Contradiction { pos_hyp: String, neg_hyp: String },
-    FalseElim { hyp_false: String },
-    ModusPonens { r#impl: String, arg: String },
-    Exact { hyp: String },
-    Reflexivity { term: Term },
+    AndElimL {
+        hyp: String,
+    },
+    AndElimR {
+        hyp: String,
+    },
+    AndIntro {
+        left: String,
+        right: String,
+    },
+    OrIntroL {
+        hyp: String,
+        right: Expr,
+    },
+    OrIntroR {
+        left: Expr,
+        hyp: String,
+    },
+    OrElim {
+        hyp_or: String,
+        left_impl: String,
+        right_impl: String,
+    },
+    Contradiction {
+        pos_hyp: String,
+        neg_hyp: String,
+    },
+    FalseElim {
+        hyp_false: String,
+    },
+    ModusPonens {
+        r#impl: String,
+        arg: String,
+    },
+    Exact {
+        hyp: String,
+    },
+    Reflexivity {
+        term: Term,
+    },
 
     // First-Order Logic Primitives
-    ForallElim { hyp: String, term: Term },
-    ExistsIntro { hyp: String, var: String, body: Expr },
-    ExistsElim { hyp_exists: String, hyp_impl: String },
-    Rewrite { eq_hyp: String, target_hyp: String },
+    ForallElim {
+        hyp: String,
+        term: Term,
+    },
+    ExistsIntro {
+        hyp: String,
+        var: String,
+        body: Expr,
+    },
+    ExistsElim {
+        hyp_exists: String,
+        hyp_impl: String,
+    },
+    Rewrite {
+        eq_hyp: String,
+        target_hyp: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

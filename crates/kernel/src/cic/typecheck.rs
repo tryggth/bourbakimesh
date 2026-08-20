@@ -1,10 +1,10 @@
 //! Bidirectional type checker (infer_type and check_type) for the Calculus of Inductive Constructions (CIC).
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
 use crate::cic::expr::{Expr, Level};
 use crate::cic::reduce::{is_def_eq, whnf, Environment, LocalContext};
+use serde::{Deserialize, Serialize};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use thiserror::Error;
 
 static FRESH_VAR_COUNTER: AtomicUsize = AtomicUsize::new(1);
 
@@ -32,10 +32,7 @@ pub enum TypeError {
     NotASort(Expr),
 
     #[error("Type mismatch: expected {expected:?}, got {got:?}")]
-    TypeMismatch {
-        expected: Expr,
-        got: Expr,
-    },
+    TypeMismatch { expected: Expr, got: Expr },
 
     #[error("Universe level mismatch: {0:?} vs {1:?}")]
     UniverseMismatch(Level, Level),

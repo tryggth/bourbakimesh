@@ -1,8 +1,8 @@
+use kernel::ast::{DeductionStep, Expr};
+use kernel::state::ProofState;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use wasm_bindgen::prelude::*;
-use kernel::state::ProofState;
-use kernel::ast::{DeductionStep, Expr};
-use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct WasmStepResult {
@@ -32,7 +32,9 @@ impl WasmProofState {
             .map_err(|e| JsValue::from_str(&format!("Invalid hyps: {}", e)))?;
         let target: Expr = serde_json::from_str(target_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid target: {}", e)))?;
-        Ok(WasmProofState { inner: ProofState::new(hyps, target) })
+        Ok(WasmProofState {
+            inner: ProofState::new(hyps, target),
+        })
     }
 
     #[wasm_bindgen]
@@ -48,9 +50,10 @@ impl WasmProofState {
                     target: self.inner.target.clone(),
                 };
                 let serializer = serde_wasm_bindgen::Serializer::json_compatible();
-                res.serialize(&serializer).map_err(|e| JsValue::from_str(&e.to_string()))
+                res.serialize(&serializer)
+                    .map_err(|e| JsValue::from_str(&e.to_string()))
             }
-            Err(err) => Err(JsValue::from_str(&format!("KernelError: {:?}", err)))
+            Err(err) => Err(JsValue::from_str(&format!("KernelError: {:?}", err))),
         }
     }
 
@@ -88,10 +91,7 @@ pub fn check_cic_term(
 
 /// Infers the CIC type of a term under a local context.
 #[wasm_bindgen]
-pub fn infer_cic_type(
-    context_json: &str,
-    term_json: &str,
-) -> Result<String, JsValue> {
+pub fn infer_cic_type(context_json: &str, term_json: &str) -> Result<String, JsValue> {
     let hyps: Vec<(String, kernel::cic::Expr)> = serde_json::from_str(context_json)
         .map_err(|e| JsValue::from_str(&format!("Invalid context JSON: {}", e)))?;
     let term: kernel::cic::Expr = serde_json::from_str(term_json)
@@ -138,7 +138,8 @@ pub fn verify_mathlib_export(export_json: &str) -> Result<JsValue, JsValue> {
                 inferred_type: inferred,
             };
             let serializer = serde_wasm_bindgen::Serializer::json_compatible();
-            res.serialize(&serializer).map_err(|e| JsValue::from_str(&e.to_string()))
+            res.serialize(&serializer)
+                .map_err(|e| JsValue::from_str(&e.to_string()))
         }
         Err(err) => Err(JsValue::from_str(&format!("TypeError: {:?}", err))),
     }

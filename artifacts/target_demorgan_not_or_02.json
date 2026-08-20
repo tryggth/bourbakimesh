@@ -1,0 +1,98 @@
+{
+  "value": null,
+  "type": {
+    "ForallE": [
+      "A",
+      {
+        "Sort": "Zero"
+      },
+      {
+        "ForallE": [
+          "B",
+          {
+            "Sort": "Zero"
+          },
+          {
+            "ForallE": [
+              "h",
+              {
+                "ForallE": [
+                  "a._@._internal._hyg.0",
+                  {
+                    "App": [
+                      {
+                        "App": [
+                          {
+                            "Const": [
+                              "Or",
+                              []
+                            ]
+                          },
+                          {
+                            "BVar": 1
+                          }
+                        ]
+                      },
+                      {
+                        "BVar": 0
+                      }
+                    ]
+                  },
+                  {
+                    "Const": [
+                      "False",
+                      []
+                    ]
+                  }
+                ]
+              },
+              {
+                "App": [
+                  {
+                    "App": [
+                      {
+                        "Const": [
+                          "And",
+                          []
+                        ]
+                      },
+                      {
+                        "ForallE": [
+                          "a._@._internal._hyg.0",
+                          {
+                            "BVar": 2
+                          },
+                          {
+                            "Const": [
+                              "False",
+                              []
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "ForallE": [
+                      "a._@._internal._hyg.0",
+                      {
+                        "BVar": 1
+                      },
+                      {
+                        "Const": [
+                          "False",
+                          []
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "name": "demorgan_not_or_02"
+}

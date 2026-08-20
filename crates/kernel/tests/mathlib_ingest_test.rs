@@ -1,12 +1,10 @@
 //! Integration and Ingestion Test Suite for Lean 4 Mathlib Export Bridge & ι-Reduction.
 
+use kernel::cic::{check_type, whnf, Environment, Expr, LocalContext};
+use serde::Deserialize;
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
-use serde::Deserialize;
-use kernel::cic::{
-    Expr, Environment, LocalContext, check_type, whnf,
-};
 
 #[derive(Debug, Clone, Deserialize)]
 struct ExportedTheorem {
@@ -38,7 +36,10 @@ fn test_primitive_iota_reduction_recursors() {
     );
 
     let reduced_false = whnf(&bool_false_app, &env, &ctx);
-    assert_eq!(reduced_false, minor_false, "Bool.rec on false should reduce to minor_false");
+    assert_eq!(
+        reduced_false, minor_false,
+        "Bool.rec on false should reduce to minor_false"
+    );
 
     let bool_true_app = Expr::mk_app(
         Expr::const_term("Bool.rec", vec![]),
@@ -50,10 +51,17 @@ fn test_primitive_iota_reduction_recursors() {
         ],
     );
     let reduced_true = whnf(&bool_true_app, &env, &ctx);
-    assert_eq!(reduced_true, minor_true, "Bool.rec on true should reduce to minor_true");
+    assert_eq!(
+        reduced_true, minor_true,
+        "Bool.rec on true should reduce to minor_true"
+    );
 
     // 2. Test Nat.rec on Nat.zero and Nat.succ
-    let motive_nat = Expr::lam("n", Expr::const_term("Nat", vec![]), Expr::const_term("Nat", vec![]));
+    let motive_nat = Expr::lam(
+        "n",
+        Expr::const_term("Nat", vec![]),
+        Expr::const_term("Nat", vec![]),
+    );
     let minor_zero = Expr::const_term("Nat.zero", vec![]);
     let minor_succ = Expr::lam(
         "n",
@@ -71,17 +79,18 @@ fn test_primitive_iota_reduction_recursors() {
         ],
     );
     let reduced_nat_zero = whnf(&nat_zero_app, &env, &ctx);
-    assert_eq!(reduced_nat_zero, minor_zero, "Nat.rec on zero should reduce to minor_zero");
+    assert_eq!(
+        reduced_nat_zero, minor_zero,
+        "Nat.rec on zero should reduce to minor_zero"
+    );
 
-    let one = Expr::mk_app(Expr::const_term("Nat.succ", vec![]), vec![Expr::const_term("Nat.zero", vec![])]);
+    let one = Expr::mk_app(
+        Expr::const_term("Nat.succ", vec![]),
+        vec![Expr::const_term("Nat.zero", vec![])],
+    );
     let nat_succ_app = Expr::mk_app(
         Expr::const_term("Nat.rec", vec![]),
-        vec![
-            motive_nat,
-            minor_zero,
-            minor_succ,
-            one,
-        ],
+        vec![motive_nat, minor_zero, minor_succ, one],
     );
     let reduced_nat_succ = whnf(&nat_succ_app, &env, &ctx);
     assert_eq!(reduced_nat_succ, Expr::const_term("Nat.zero", vec![]));
@@ -99,7 +108,11 @@ fn test_ingest_and_verify_all_mathlib_exports() {
         .unwrap()
         .join("artifacts");
 
-    assert!(artifact_dir.exists(), "Artifacts directory {:?} must exist", artifact_dir);
+    assert!(
+        artifact_dir.exists(),
+        "Artifacts directory {:?} must exist",
+        artifact_dir
+    );
 
     let export_files = vec![
         "exported_id_prop.json",

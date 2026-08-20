@@ -12,7 +12,15 @@ import {
   LlmTelemetry,
   LlmWorkerIncomingMessage,
 } from '../workers/llm-worker';
-import { GEMMA_4_EDGE_CONFIG, DeductionStep, Expr } from '../config/models';
+import { GEMMA_4_EDGE_CONFIG, DeductionStep, Expr, CicExpr } from '../config/models';
+
+export interface InitProgressReport {
+  progress: number; // 0.0 to 1.0
+  text: string;
+  timeElapsed: number;
+}
+
+export type LlmEngineState = 'idle' | 'loading' | 'ready' | 'error';
 
 class GemmaEdgeController {
   private worker: Worker | null = null;
@@ -21,8 +29,51 @@ class GemmaEdgeController {
   private isInitializing = false;
   private initPromise: Promise<{ provider: string; shaderF16: boolean; vramAllocatedMB: number }> | null = null;
 
+  // Real-time initialization & VRAM state
+  private engineState: LlmEngineState = 'idle';
+  private latestProgress: InitProgressReport = { progress: 0, text: 'Idle', timeElapsed: 0 };
+  private initProgressListeners: Set<(report: InitProgressReport) => void> = new Set();
+  private stateListeners: Set<(state: LlmEngineState) => void> = new Set();
+  private vramAllocatedMB: number = 0;
+
   public get initializing(): boolean {
     return this.isInitializing;
+  }
+
+  public get state(): LlmEngineState {
+    return this.engineState;
+  }
+
+  public get currentProgress(): InitProgressReport {
+    return this.latestProgress;
+  }
+
+  public get vramAllocated(): number {
+    return this.vramAllocatedMB;
+  }
+
+  /**
+   * Subscribe to real-time model initialization progress reports.
+   */
+  public onInitProgress(cb: (report: InitProgressReport) => void): () => void {
+    this.initProgressListeners.add(cb);
+    if (this.latestProgress.progress > 0 || this.engineState !== 'idle') {
+      cb(this.latestProgress);
+    }
+    return () => {
+      this.initProgressListeners.delete(cb);
+    };
+  }
+
+  /**
+   * Subscribe to engine lifecycle state transitions ('idle' | 'loading' | 'ready' | 'error').
+   */
+  public onStateChange(cb: (state: LlmEngineState) => void): () => void {
+    this.stateListeners.add(cb);
+    cb(this.engineState);
+    return () => {
+      this.stateListeners.delete(cb);
+    };
   }
 
   private getWorker(): Worker {
@@ -34,7 +85,34 @@ class GemmaEdgeController {
       this.worker.onmessage = (e: MessageEvent<any>) => {
         const msg = e.data;
 
-        if (msg.type === 'INIT_LLM_COMPLETE') {
+        if (msg.type === 'INIT_LLM_PROGRESS') {
+          this.engineState = 'loading';
+          this.latestProgress = {
+            progress: msg.progress,
+            text: msg.text,
+            timeElapsed: msg.timeElapsed || 0,
+          };
+          for (const cb of this.initProgressListeners) {
+            cb(this.latestProgress);
+          }
+          for (const cb of this.stateListeners) {
+            cb(this.engineState);
+          }
+        } else if (msg.type === 'INIT_LLM_COMPLETE') {
+          this.isInitializing = false;
+          this.engineState = 'ready';
+          this.vramAllocatedMB = msg.vramAllocatedMB || 1842;
+          this.latestProgress = {
+            progress: 1.0,
+            text: `Gemma 4 Edge (${(this.vramAllocatedMB / 1024).toFixed(2)} GB VRAM allocated)`,
+            timeElapsed: msg.timeElapsed || 0,
+          };
+          for (const cb of this.initProgressListeners) {
+            cb(this.latestProgress);
+          }
+          for (const cb of this.stateListeners) {
+            cb(this.engineState);
+          }
           const req = this.pendingRequests.get('init');
           if (req) {
             req.resolve({
@@ -62,6 +140,26 @@ class GemmaEdgeController {
             req.resolve(msg as GenRmResult);
             this.pendingRequests.delete(msg.taskId);
           }
+        } else if (msg.type === 'SYNTHESIZE_CIC_PROOF_RESULT') {
+          const req = this.pendingRequests.get(msg.taskId);
+          if (req) {
+            req.resolve({
+              proofTerm: msg.proofTerm,
+              reasoningTrace: msg.reasoningTrace,
+              rawOutput: msg.rawOutput,
+              elapsedMs: msg.elapsedMs,
+            });
+            this.pendingRequests.delete(msg.taskId);
+          }
+        } else if (msg.type === 'SEARCH_STEP_EXPAND_RESULT') {
+          const req = this.pendingRequests.get(msg.taskId);
+          if (req) {
+            req.resolve({
+              candidates: msg.candidates,
+              elapsedMs: msg.elapsedMs,
+            });
+            this.pendingRequests.delete(msg.taskId);
+          }
         } else if (msg.type === 'TELEMETRY_RESPONSE' || msg.type === 'TELEMETRY_DATA') {
           const req = this.pendingRequests.get('telemetry');
           if (req) {
@@ -70,6 +168,11 @@ class GemmaEdgeController {
           }
         } else if (msg.type === 'WORKER_ERROR' || msg.type === 'ERROR') {
           console.error('[GemmaEdgeController] Worker error:', msg.error);
+          this.isInitializing = false;
+          this.engineState = 'error';
+          for (const cb of this.stateListeners) {
+            cb(this.engineState);
+          }
           for (const [key, req] of this.pendingRequests.entries()) {
             req.reject(new Error(msg.error));
             this.pendingRequests.delete(key);
@@ -91,6 +194,19 @@ class GemmaEdgeController {
     if (this.initPromise) return this.initPromise;
 
     this.isInitializing = true;
+    this.engineState = 'loading';
+    this.latestProgress = {
+      progress: 0.05,
+      text: 'Starting Gemma 4 Edge WebGPU runtime...',
+      timeElapsed: 0,
+    };
+    for (const cb of this.initProgressListeners) {
+      cb(this.latestProgress);
+    }
+    for (const cb of this.stateListeners) {
+      cb(this.engineState);
+    }
+
     this.initPromise = new Promise((resolve, reject) => {
       const worker = this.getWorker();
       this.pendingRequests.set('init', { resolve, reject });
@@ -169,6 +285,71 @@ class GemmaEdgeController {
         target: params.target,
         candidateStep: params.candidateStep,
         candidateTactic: params.candidateTactic || '',
+      } as LlmWorkerIncomingMessage);
+    });
+  }
+
+  /**
+   * Synthesize a pure Calculus of Inductive Constructions (CIC) proof term for a goal type.
+   */
+  async synthesizeCicProof(params: {
+    theoremName?: string;
+    context: [string, any][];
+    goalType: any;
+    thinkingBudget?: number;
+  }): Promise<{ proofTerm: CicExpr; reasoningTrace: string; rawOutput?: string; elapsedMs?: number }> {
+    await this.initEngine();
+    const taskId = `cic-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+
+    return new Promise((resolve, reject) => {
+      const worker = this.getWorker();
+      this.pendingRequests.set(taskId, { resolve, reject });
+      worker.postMessage({
+        type: 'SYNTHESIZE_CIC_PROOF',
+        taskId,
+        theoremName: params.theoremName,
+        context: params.context,
+        goalType: params.goalType,
+        thinkingBudget: params.thinkingBudget,
+      } as LlmWorkerIncomingMessage);
+    });
+  }
+
+  /**
+   * Search Step Expansion: sample candidate tactic actions, sub-terms, and GenRM critic heuristic scores.
+   */
+  async searchStepExpand(params: {
+    taskId?: string;
+    theoremName?: string;
+    context: [string, CicExpr][];
+    currentGoal: CicExpr;
+    thinkingBudget?: number;
+    expansionFactorK?: number;
+  }): Promise<{
+    candidates: {
+      subTerm?: CicExpr;
+      proofTerm?: CicExpr;
+      reasoningTrace: string;
+      criticScore: number;
+      tokSpeed: number;
+      tokenCount: number;
+    }[];
+    elapsedMs: number;
+  }> {
+    await this.initEngine();
+    const taskId = params.taskId || `expand-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+
+    return new Promise((resolve, reject) => {
+      const worker = this.getWorker();
+      this.pendingRequests.set(taskId, { resolve, reject });
+      worker.postMessage({
+        type: 'SEARCH_STEP_EXPAND',
+        taskId,
+        theoremName: params.theoremName,
+        context: params.context,
+        currentGoal: params.currentGoal,
+        thinkingBudget: params.thinkingBudget,
+        expansionFactorK: params.expansionFactorK,
       } as LlmWorkerIncomingMessage);
     });
   }

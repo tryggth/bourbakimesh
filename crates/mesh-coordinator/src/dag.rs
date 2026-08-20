@@ -1,11 +1,11 @@
 //! Global Proof DAG and Distributed Task Queue for BourbakiMesh.
 
-use std::collections::{HashMap, VecDeque};
-use std::time::{SystemTime, UNIX_EPOCH};
-use serde::{Deserialize, Serialize};
 use kernel::ast::{DeductionStep, Expr as PropExpr, ProofStatus};
 use kernel::cic::expr::Expr as CicExpr;
 use kernel::state::ProofState;
+use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, VecDeque};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn now_secs() -> u64 {
     SystemTime::now()
@@ -46,7 +46,12 @@ impl ProofDag {
         }
     }
 
-    pub fn insert_root(&mut self, theorem_name: &str, initial_hyps: Vec<(String, PropExpr)>, target: PropExpr) -> String {
+    pub fn insert_root(
+        &mut self,
+        theorem_name: &str,
+        initial_hyps: Vec<(String, PropExpr)>,
+        target: PropExpr,
+    ) -> String {
         let root_id = format!("dag-root-{}", uuid::Uuid::new_v4());
         let hyps_map: HashMap<String, PropExpr> = initial_hyps.into_iter().collect();
         let goal_repr = format!("{} ⊢ {:?}", theorem_name, target);
@@ -100,7 +105,10 @@ impl ProofDag {
     }
 
     pub fn mark_cic_proven(&mut self, node_id: &str, proof_term: CicExpr) -> Result<(), String> {
-        let node = self.nodes.get_mut(node_id).ok_or_else(|| "Node not found".to_string())?;
+        let node = self
+            .nodes
+            .get_mut(node_id)
+            .ok_or_else(|| "Node not found".to_string())?;
         node.status = ProofStatus::Proven;
         node.cic_proof_term = Some(proof_term);
 
@@ -123,18 +131,26 @@ impl ProofDag {
         node_id: &str,
         step: &DeductionStep,
     ) -> Result<(String, ProofStatus), String> {
-        let node = self.nodes.get_mut(node_id).ok_or_else(|| "Node not found".to_string())?;
+        let node = self
+            .nodes
+            .get_mut(node_id)
+            .ok_or_else(|| "Node not found".to_string())?;
 
-        let mut kernel_state = ProofState::new(
-            node.hyps.clone().into_iter().collect(),
-            node.target.clone(),
-        );
+        let mut kernel_state =
+            ProofState::new(node.hyps.clone().into_iter().collect(), node.target.clone());
 
         match kernel_state.apply_step(step) {
             Ok(_) => {
                 let is_proven = kernel_state.status == ProofStatus::Proven
-                    || kernel_state.hyps.values().any(|h| *h == kernel_state.target);
-                let status = if is_proven { ProofStatus::Proven } else { ProofStatus::Open };
+                    || kernel_state
+                        .hyps
+                        .values()
+                        .any(|h| *h == kernel_state.target);
+                let status = if is_proven {
+                    ProofStatus::Proven
+                } else {
+                    ProofStatus::Open
+                };
 
                 node.status = status.clone();
                 node.tactic_applied = Some(step.clone());

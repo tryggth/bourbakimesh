@@ -1,4 +1,5 @@
 import { ProofBlockNode, ProofDagData, DaemonStatus, TelemetryEvent } from '../types';
+import { meshClient } from './meshClient';
 
 const DB_NAME = 'BourbakiMeshDB';
 const DB_VERSION = 1;
@@ -59,21 +60,34 @@ export async function getBlocksFromIndexedDB(): Promise<ProofBlockNode[]> {
 }
 
 /**
- * Hydrate proof DAG data from server, fallback to local IndexedDB, or fallback to bundled static snapshot.
+ * Hydrate proof DAG data from coordinator JSON-RPC or fallback to local IndexedDB.
  */
 export async function hydrateProofDag(): Promise<ProofDagData> {
-  // 1. Try Live REST Endpoint
+  // 1. Try WebSocket JSON-RPC to Coordinator
   try {
-    const res = await fetch('/api/ledger', { cache: 'no-cache' });
-    if (res.ok) {
-      const data: ProofDagData = await res.json();
-      if (data.nodes && data.nodes.length > 0) {
-        await saveBlocksToIndexedDB(data.nodes);
-        return data;
+    const dag = await meshClient.getDag();
+    if (dag && dag.nodes && Object.keys(dag.nodes).length > 0) {
+      const nodes: ProofBlockNode[] = Object.values(dag.nodes).map((n: any) => ({
+        id: n.id,
+        parents: n.parent ? [n.parent] : [],
+        theorem_name: n.goal_repr || n.id,
+        proposition: n.goal_repr || 'CIC Target',
+        extracted_term: n.cic_proof_term ? JSON.stringify(n.cic_proof_term) : '',
+        lean_verified: n.status === 'Proven',
+        timestamp: Date.now() / 1000,
+        status: (n.status === 'Proven' ? 'certified' : 'verifying') as 'certified' | 'verifying',
+      }));
+      const edges: { source: string; target: string }[] = [];
+      for (const node of nodes) {
+        for (const parent of node.parents) {
+          edges.push({ source: parent, target: node.id });
+        }
       }
+      await saveBlocksToIndexedDB(nodes);
+      return { nodes, edges };
     }
   } catch {
-    // Network / server offline
+    // Coordinator offline / not connected yet
   }
 
   // 2. Try IndexedDB Cached Blocks
@@ -88,21 +102,7 @@ export async function hydrateProofDag(): Promise<ProofDagData> {
     return { nodes: cachedBlocks, edges };
   }
 
-  // 3. Try Bundled Static Snapshot (e.g. GitHub Pages offline mode)
-  try {
-    const snapshotRes = await fetch('./data/ledger_snapshot.json');
-    if (snapshotRes.ok) {
-      const snapshot: ProofDagData = await snapshotRes.json();
-      if (snapshot.nodes && snapshot.nodes.length > 0) {
-        await saveBlocksToIndexedDB(snapshot.nodes);
-        return snapshot;
-      }
-    }
-  } catch {
-    // Snapshot not reachable
-  }
-
-  // 4. Default minimal genesis
+  // 3. Default minimal genesis
   return {
     nodes: [
       {
@@ -146,32 +146,46 @@ export function getTelemetryWebSocketUrl(): string {
 }
 
 /**
- * Fetch Daemon status with offline fallback.
+ * Fetch Coordinator status with offline fallback.
  */
 export async function fetchDaemonStatus(): Promise<DaemonStatus> {
   try {
-    const res = await fetch('/api/status', { cache: 'no-cache' });
-    if (res.ok) {
-      return await res.json();
+    const telem = await meshClient.getCoordinatorTelemetry();
+    if (telem) {
+      return {
+        status: 'online',
+        active_model: 'gemma-4-2b-it-q4f16-webgpu',
+        peer_count: telem.active_workers || 1,
+        total_blocks: telem.total_nodes || 0,
+        certified_blocks: telem.proven_nodes || 0,
+        uptime_seconds: 3600,
+        cse_score: 1.58,
+        hardware: {
+          cpu_cores: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4,
+          torch_device: 'webgpu',
+          memory_gb: 16,
+        },
+      };
     }
   } catch {
-    // Offline mode
+    // Standalone / offline mode
   }
 
   return {
     status: 'standalone-pwa',
-    active_model: 'checkpoints/bourbaki_v2.pt',
-    peer_count: 5,
+    active_model: 'gemma-4-2b-it-q4f16-webgpu',
+    peer_count: 1,
     total_blocks: 4,
     certified_blocks: 4,
     uptime_seconds: 3600,
     cse_score: 1.58,
     hardware: {
       cpu_cores: typeof navigator !== 'undefined' ? navigator.hardwareConcurrency || 4 : 4,
-      torch_device: 'webassembly-simd',
+      torch_device: 'webgpu',
       memory_gb: 16,
     },
   };
 }
 
 export type { TelemetryEvent };
+

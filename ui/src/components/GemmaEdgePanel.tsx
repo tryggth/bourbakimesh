@@ -15,8 +15,10 @@ import {
   Layers,
   Gauge,
   ShieldCheck,
+  HardDrive,
+  CloudDownload,
 } from 'lucide-react';
-import { gemmaEdgeController } from '../services/llmController';
+import { gemmaEdgeController, InitProgressReport, LlmEngineState } from '../services/llmController';
 import { GEMMA_4_EDGE_CONFIG } from '../config/models';
 import { TacticResult, GenRmResult, LlmTelemetry } from '../workers/llm-worker';
 
@@ -81,8 +83,9 @@ export const GemmaEdgePanel: React.FC = () => {
   const [showThinkingTrace, setShowThinkingTrace] = useState<boolean>(true);
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Model Runtime Status
-  const [engineStatus, setEngineStatus] = useState<'unloaded' | 'ready' | 'running' | 'error'>('unloaded');
+  // Model Runtime Status & Real-time Loading Progress
+  const [engineStatus, setEngineStatus] = useState<LlmEngineState>(gemmaEdgeController.state);
+  const [progressReport, setProgressReport] = useState<InitProgressReport>(gemmaEdgeController.currentProgress);
   const [telemetry, setTelemetry] = useState<LlmTelemetry>({
     modelId: GEMMA_4_EDGE_CONFIG.id,
     provider: 'webgpu',
@@ -95,23 +98,27 @@ export const GemmaEdgePanel: React.FC = () => {
     avgTokensPerSec: 46.2,
   });
 
-  // Initialize engine on mount
+  // Subscribe to progress and state updates without eager loading
   useEffect(() => {
+    const unsubProgress = gemmaEdgeController.onInitProgress((report) => {
+      setProgressReport(report);
+    });
+
+    const unsubState = gemmaEdgeController.onStateChange((st) => {
+      setEngineStatus(st);
+    });
+
     gemmaEdgeController
-      .initEngine()
-      .then((info) => {
-        setEngineStatus('ready');
-        setTelemetry((prev) => ({
-          ...prev,
-          provider: info.provider as any,
-          hasShaderF16: info.shaderF16,
-          vramAllocatedMB: info.vramAllocatedMB,
-        }));
+      .getTelemetry()
+      .then((tel) => {
+        setTelemetry(tel);
       })
-      .catch((err) => {
-        setEngineStatus('error');
-        setErrorMessage(err.message || String(err));
-      });
+      .catch(() => {});
+
+    return () => {
+      unsubProgress();
+      unsubState();
+    };
   }, []);
 
   const handleSelectPreset = (preset: typeof PRESET_GOALS[0]) => {
@@ -223,24 +230,104 @@ export const GemmaEdgePanel: React.FC = () => {
 
         {/* Runtime Status Pill */}
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 border border-slate-700/60 rounded-lg text-xs font-mono">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                engineStatus === 'ready' || engineStatus === 'running'
-                  ? 'bg-emerald-400 animate-pulse'
-                  : engineStatus === 'error'
-                  ? 'bg-rose-500'
-                  : 'bg-amber-400'
-              }`}
-            />
-            <span className="text-slate-300 uppercase font-semibold">
-              {engineStatus === 'ready' ? 'WebGPU Online' : engineStatus}
-            </span>
-            <span className="text-slate-500">|</span>
-            <span className="text-slate-400">{telemetry.vramAllocatedMB} MB VRAM</span>
-          </div>
+          {engineStatus === 'ready' ? (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-950/80 border border-emerald-500/40 text-emerald-300 rounded-lg text-xs font-mono shadow-md shadow-emerald-950/40">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <Cpu className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="font-bold">
+                Gemma 4 Edge ({(telemetry.vramAllocatedMB / 1024).toFixed(2)} GB VRAM allocated)
+              </span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 ml-0.5" />
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 border border-slate-700/60 rounded-lg text-xs font-mono">
+              <span
+                className={`w-2 h-2 rounded-full ${
+                  engineStatus === 'error'
+                    ? 'bg-rose-500'
+                    : engineStatus === 'loading'
+                    ? 'bg-amber-400 animate-ping'
+                    : 'bg-slate-500'
+                }`}
+              />
+              <span className="text-slate-300 uppercase font-semibold">
+                {engineStatus === 'loading'
+                  ? `Loading ${Math.round(progressReport.progress * 100)}%`
+                  : engineStatus === 'idle'
+                  ? 'Standby (Lazy)'
+                  : engineStatus}
+              </span>
+              <span className="text-slate-500">|</span>
+              <span className="text-slate-400">{telemetry.vramAllocatedMB} MB VRAM</span>
+              {engineStatus === 'idle' && (
+                <button
+                  onClick={() => {
+                    gemmaEdgeController.initEngine().catch((err) => {
+                      setErrorMessage(err.message || String(err));
+                    });
+                  }}
+                  className="ml-1 px-2 py-0.5 bg-teal-600/30 hover:bg-teal-600/50 border border-teal-500/40 text-teal-300 rounded text-[10px] font-bold transition-all cursor-pointer"
+                >
+                  Load WebGPU
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Real-time Model Loading Banner when initializing */}
+      {engineStatus === 'loading' && (
+        <div className="bg-slate-950 px-6 py-3 border-b border-teal-500/20">
+          <div className="flex items-center justify-between gap-4 mb-2">
+            <div className="flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-teal-400 animate-pulse" />
+              <span className="text-xs font-mono font-bold text-teal-300">
+                Initializing Gemma 4 Edge Model Runtime
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              {progressReport.text.toLowerCase().includes('cache') ? (
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 font-mono">
+                  <HardDrive className="w-3 h-3 text-cyan-400" />
+                  Source: Browser Cache
+                </span>
+              ) : progressReport.text.toLowerCase().includes('download') ||
+                progressReport.text.toLowerCase().includes('fetch') ||
+                progressReport.text.toLowerCase().includes('network') ? (
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-indigo-950/90 border border-indigo-500/50 text-indigo-300 font-mono">
+                  <CloudDownload className="w-3 h-3 text-indigo-400" />
+                  Source: Network Download
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-purple-950/90 border border-purple-500/50 text-purple-300 font-mono">
+                  <Cpu className="w-3 h-3 text-purple-400" />
+                  Source: WebGPU WGSL Compilation
+                </span>
+              )}
+              <span className="text-xs font-mono font-bold text-emerald-400">
+                {Math.min(100, Math.max(0, Math.round(progressReport.progress * 100)))}%
+              </span>
+            </div>
+          </div>
+
+          <div className="w-full h-2 bg-slate-900 rounded-full border border-slate-800 overflow-hidden shadow-inner">
+            <div
+              className="h-full bg-gradient-to-r from-teal-500 via-emerald-400 to-cyan-400 transition-all duration-300 ease-out"
+              style={{
+                width: `${Math.max(4, Math.round(progressReport.progress * 100))}%`,
+              }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono mt-1.5">
+            <span className="truncate">{progressReport.text}</span>
+            {progressReport.timeElapsed > 0 && (
+              <span className="text-slate-500">{progressReport.timeElapsed.toFixed(1)}s elapsed</span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <div className="p-6 overflow-y-auto space-y-6 flex-1">

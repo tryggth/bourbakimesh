@@ -3,8 +3,8 @@
 //! Provides support for inductive families, multi-argument constructors,
 //! dependent recursors, and deterministic computation via ι-reduction.
 
-use serde::{Deserialize, Serialize};
 use crate::cic::expr::Expr;
+use serde::{Deserialize, Serialize};
 
 /// Declaration of an inductive constructor.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

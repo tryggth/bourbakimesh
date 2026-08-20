@@ -1,8 +1,6 @@
 //! Unit and Integration Tests for the Calculus of Inductive Constructions (CIC) Core & Type Checker.
 
-use kernel::cic::{
-    check_type, infer_type, Environment, Expr, LocalContext, TypeError,
-};
+use kernel::cic::{check_type, infer_type, Environment, Expr, LocalContext, TypeError};
 
 #[test]
 fn test_identity_term_typecheck() {
@@ -23,7 +21,10 @@ fn test_identity_term_typecheck() {
 
     // Infer type
     let inferred = infer_type(&id_term, &env, &ctx).expect("Inference should succeed");
-    assert_eq!(inferred, Expr::forall_e("x", Expr::fvar("A"), Expr::fvar("A")));
+    assert_eq!(
+        inferred,
+        Expr::forall_e("x", Expr::fvar("A"), Expr::fvar("A"))
+    );
 }
 
 #[test]
@@ -35,11 +36,7 @@ fn test_modus_ponens_term_application() {
     let ctx = LocalContext::new()
         .extend("A", "A", prop.clone())
         .extend("B", "B", prop.clone())
-        .extend(
-            "h1",
-            "h1",
-            Expr::arrow(Expr::fvar("A"), Expr::fvar("B")),
-        )
+        .extend("h1", "h1", Expr::arrow(Expr::fvar("A"), Expr::fvar("B")))
         .extend("h2", "h2", Expr::fvar("A"));
 
     // Term: h1 h2 (App(FVar("h1"), FVar("h2")))
@@ -100,7 +97,11 @@ fn test_conjunction_swap_proof_term() {
     let theorem_type = Expr::arrow(and_ab, and_ba);
 
     let result = check_type(&swap_proof_term, &theorem_type, &env, &ctx);
-    assert!(result.is_ok(), "Conjunction swap typecheck failed: {:?}", result);
+    assert!(
+        result.is_ok(),
+        "Conjunction swap typecheck failed: {:?}",
+        result
+    );
 }
 
 #[test]
@@ -145,5 +146,164 @@ fn test_negative_typecheck_mismatches() {
 
     // Type mismatch: claiming h has type B
     let mismatch_check = check_type(&Expr::fvar("h"), &Expr::fvar("B"), &env, &ctx);
-    assert!(matches!(mismatch_check, Err(TypeError::TypeMismatch { .. })));
+    assert!(matches!(
+        mismatch_check,
+        Err(TypeError::TypeMismatch { .. })
+    ));
+}
+
+#[test]
+fn test_disjunction_swap_proof_term() {
+    let env = Environment::default_with_logic();
+    let ctx = LocalContext::new();
+
+    // Target type: ∀ (A : Prop) (B : Prop) (h : Or A B), Or B A
+    let target_type = Expr::forall_e(
+        "A",
+        Expr::prop(),
+        Expr::forall_e(
+            "B",
+            Expr::prop(),
+            Expr::forall_e(
+                "h",
+                Expr::mk_app(
+                    Expr::const_term("Or", vec![]),
+                    vec![Expr::BVar(1), Expr::BVar(0)],
+                ),
+                Expr::mk_app(
+                    Expr::const_term("Or", vec![]),
+                    vec![Expr::BVar(1), Expr::BVar(2)],
+                ),
+            ),
+        ),
+    );
+
+    // Synthesized term with lifted types:
+    // λ A => λ B => λ h => Or.elim A B (Or B A) h (λ a => Or.inr B A a) (λ b => Or.inl B A b)
+    let branch_a = Expr::lam(
+        "a",
+        Expr::BVar(2), // A (lifted from level 2 in context)
+        Expr::mk_app(
+            Expr::const_term("Or.inr", vec![]),
+            vec![Expr::BVar(2), Expr::BVar(3), Expr::BVar(0)], // B, A, a
+        ),
+    );
+
+    let branch_b = Expr::lam(
+        "b",
+        Expr::BVar(1), // B (lifted from level 1 in context)
+        Expr::mk_app(
+            Expr::const_term("Or.inl", vec![]),
+            vec![Expr::BVar(2), Expr::BVar(3), Expr::BVar(0)], // B, A, b
+        ),
+    );
+
+    let or_elim_app = Expr::mk_app(
+        Expr::const_term("Or.elim", vec![]),
+        vec![
+            Expr::BVar(2), // A
+            Expr::BVar(1), // B
+            Expr::mk_app(
+                Expr::const_term("Or", vec![]),
+                vec![Expr::BVar(1), Expr::BVar(2)],
+            ), // Or B A (motive)
+            Expr::BVar(0), // h
+            branch_a,
+            branch_b,
+        ],
+    );
+
+    let or_swap_proof = Expr::lam(
+        "A",
+        Expr::prop(),
+        Expr::lam(
+            "B",
+            Expr::prop(),
+            Expr::lam(
+                "h",
+                Expr::mk_app(
+                    Expr::const_term("Or", vec![]),
+                    vec![Expr::BVar(1), Expr::BVar(0)],
+                ),
+                or_elim_app,
+            ),
+        ),
+    );
+
+    let res = check_type(&or_swap_proof, &target_type, &env, &ctx);
+    assert!(res.is_ok(), "Disjunction swap typecheck failed: {:?}", res);
+}
+
+#[test]
+fn test_peirce_law_classical_proof_term() {
+    let env = Environment::default_with_logic();
+    let ctx = LocalContext::new();
+
+    // Target type: ∀ (P : Prop) (Q : Prop) (h : (P → Q) → P), P
+    let p_to_q = Expr::arrow(Expr::BVar(1), Expr::BVar(0));
+    let hyp_type = Expr::arrow(p_to_q, Expr::BVar(1));
+    let target_type = Expr::forall_e(
+        "P",
+        Expr::prop(),
+        Expr::forall_e(
+            "Q",
+            Expr::prop(),
+            Expr::forall_e("h", hyp_type, Expr::BVar(2)),
+        ),
+    );
+
+    // Branch A: λ (p : P) => p
+    let branch_a = Expr::lam("p", Expr::BVar(2), Expr::BVar(0));
+
+    // hpq: λ (p : P) => False.elim Q (np p)
+    let hpq = Expr::lam(
+        "p",
+        Expr::BVar(3),
+        Expr::mk_app(
+            Expr::const_term("False.elim", vec![]),
+            vec![
+                Expr::BVar(3),                           // Q
+                Expr::app(Expr::BVar(1), Expr::BVar(0)), // np p
+            ],
+        ),
+    );
+
+    // Branch B: λ (np : P → False) => h hpq
+    let branch_b = Expr::lam(
+        "np",
+        Expr::arrow(Expr::BVar(2), Expr::const_term("False", vec![])),
+        Expr::app(Expr::BVar(1), hpq),
+    );
+
+    let or_elim_app = Expr::mk_app(
+        Expr::const_term("Or.elim", vec![]),
+        vec![
+            Expr::BVar(2),                                                 // P
+            Expr::arrow(Expr::BVar(2), Expr::const_term("False", vec![])), // P → False
+            Expr::BVar(2),                                                 // P (motive)
+            Expr::mk_app(
+                Expr::const_term("Classical.em", vec![]),
+                vec![Expr::BVar(2)],
+            ), // Classical.em P
+            branch_a,
+            branch_b,
+        ],
+    );
+
+    let peirce_proof = Expr::lam(
+        "P",
+        Expr::prop(),
+        Expr::lam(
+            "Q",
+            Expr::prop(),
+            Expr::lam(
+                "h",
+                Expr::arrow(Expr::arrow(Expr::BVar(1), Expr::BVar(0)), Expr::BVar(1)),
+                or_elim_app,
+            ),
+        ),
+    );
+
+    let res = check_type(&peirce_proof, &target_type, &env, &ctx);
+    assert!(res.is_ok(), "Peirce's law typecheck failed: {:?}", res);
 }

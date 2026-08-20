@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Target, Send, CheckCircle2, Flame, RefreshCw, BookOpen, Layers } from 'lucide-react';
+import { meshClient } from '../services/meshClient';
 
 export interface TargetInfo {
   name: string;
@@ -7,35 +8,142 @@ export interface TargetInfo {
   lean_code: string;
   priority: number;
   status: string;
-  dedicated_sims: number;
+  dedicated_searches: number;
   open_subgoals: number;
   timestamp: number;
+  target_type?: any;
 }
 
-const PRESET_LEMMAS = [
+export const PRESET_LEMMAS: Array<{
+  name: string;
+  proposition: string;
+  lean_code: string;
+  priority: number;
+  target_type: any;
+}> = [
   {
-    name: 'Mathlib.Logic.And.intro',
-    proposition: 'A -> B -> A ∧ B',
-    lean_code: 'theorem and_intro (a : A) (b : B) : A ∧ B :=\n  And.intro a b',
+    name: 'And.swap',
+    proposition: 'A ∧ B → B ∧ A',
+    lean_code: 'theorem and_swap (h : A ∧ B) : B ∧ A :=\n  ⟨h.2, h.1⟩',
     priority: 100,
+    target_type: {
+      Pi: [
+        'u',
+        { Sort: 'Type' },
+        {
+          Pi: [
+            'A',
+            { Sort: 'Prop' },
+            {
+              Pi: [
+                'B',
+                { Sort: 'Prop' },
+                {
+                  Pi: [
+                    'h',
+                    { App: [{ App: [{ Const: ['And', []] }, { BVar: 1 }] }, { BVar: 0 }] },
+                    { App: [{ App: [{ Const: ['And', []] }, { BVar: 1 }] }, { BVar: 2 }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
-    name: 'Mathlib.Logic.ModusPonens',
-    proposition: 'P -> (P -> Q) -> Q',
-    lean_code: 'theorem modus_ponens (p : P) (f : P -> Q) : Q :=\n  f p',
+    name: 'Or.swap',
+    proposition: 'A ∨ B → B ∨ A',
+    lean_code: 'theorem or_swap (h : A ∨ B) : B ∨ A :=\n  h.elim (fun a => Or.inr a) (fun b => Or.inl b)',
+    priority: 110,
+    target_type: {
+      Pi: [
+        'u',
+        { Sort: 'Type' },
+        {
+          Pi: [
+            'A',
+            { Sort: 'Prop' },
+            {
+              Pi: [
+                'B',
+                { Sort: 'Prop' },
+                {
+                  Pi: [
+                    'h',
+                    { App: [{ App: [{ Const: ['Or', []] }, { BVar: 1 }] }, { BVar: 0 }] },
+                    { App: [{ App: [{ Const: ['Or', []] }, { BVar: 1 }] }, { BVar: 2 }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    name: 'Eq.symm',
+    proposition: 'a = b → b = a',
+    lean_code: 'theorem eq_symm (h : a = b) : b = a :=\n  h.symm',
     priority: 120,
+    target_type: {
+      Pi: [
+        'α',
+        { Sort: 'Type' },
+        {
+          Pi: [
+            'a',
+            { BVar: 0 },
+            {
+              Pi: [
+                'b',
+                { BVar: 1 },
+                {
+                  Pi: [
+                    'h',
+                    { App: [{ App: [{ App: [{ Const: ['Eq', []] }, { BVar: 2 }] }, { BVar: 1 }] }, { BVar: 0 }] },
+                    { App: [{ App: [{ App: [{ Const: ['Eq', []] }, { BVar: 2 }] }, { BVar: 0 }] }, { BVar: 1 }] },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   },
   {
-    name: 'Mathlib.Order.Basic.le_trans',
-    proposition: 'a ≤ b -> b ≤ c -> a ≤ c',
-    lean_code: 'theorem le_trans (h1 : a ≤ b) (h2 : b ≤ c) : a ≤ c := by sorry',
+    name: 'peirce_law',
+    proposition: '((P → Q) → P) → P',
+    lean_code: 'theorem peirce_law (h : (P → Q) → P) : P :=\n  Classical.byContradiction (fun np => np (h (fun p => False.elim (np p))))',
     priority: 150,
-  },
-  {
-    name: 'Mathlib.Algebra.Group.mul_left_inv',
-    proposition: 'a⁻¹ * a = 1',
-    lean_code: 'theorem mul_left_inv (a : G) : a⁻¹ * a = 1 := by sorry',
-    priority: 200,
+    target_type: {
+      Pi: [
+        'P',
+        { Sort: 'Prop' },
+        {
+          Pi: [
+            'Q',
+            { Sort: 'Prop' },
+            {
+              Pi: [
+                'h',
+                {
+                  Pi: [
+                    '_',
+                    { Pi: ['_', { BVar: 1 }, { BVar: 1 }] },
+                    { BVar: 2 },
+                  ],
+                },
+                { BVar: 2 },
+              ],
+            },
+          ],
+        },
+      ],
+    },
   },
 ];
 
@@ -50,42 +158,31 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
 }) => {
   const [target, setTarget] = useState<TargetInfo>(
     initialTarget || {
-      name: 'Mathlib.Logic.And.intro',
-      proposition: 'A -> B -> A ∧ B',
-      lean_code: 'theorem and_intro (a : A) (b : B) : A ∧ B :=\n  And.intro a b',
+      name: 'And.swap',
+      proposition: 'A ∧ B → B ∧ A',
+      lean_code: 'theorem and_swap (h : A ∧ B) : B ∧ A :=\n  ⟨h.2, h.1⟩',
       priority: 100,
       status: 'active',
-      dedicated_sims: 1420,
+      dedicated_searches: 1420,
       open_subgoals: 1,
       timestamp: Date.now() / 1000,
+      target_type: PRESET_LEMMAS[0].target_type,
     }
   );
 
   const [inputName, setInputName] = useState(target.name);
   const [inputLean, setInputLean] = useState(target.lean_code);
+  const [selectedTargetType, setSelectedTargetType] = useState<any>(PRESET_LEMMAS[0].target_type);
   const [priority, setPriority] = useState<number>(100);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [successToast, setSuccessToast] = useState(false);
-
-  // Fetch current active target on mount
-  useEffect(() => {
-    fetch('/api/target/current')
-      .then((res) => res.json())
-      .then((data: TargetInfo) => {
-        if (data.name) {
-          setTarget(data);
-          setInputName(data.name);
-          setInputLean(data.lean_code);
-          setPriority(data.priority);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSelectPreset = (preset: (typeof PRESET_LEMMAS)[0]) => {
     setInputName(preset.name);
     setInputLean(preset.lean_code);
+    setSelectedTargetType(preset.target_type);
     setPriority(preset.priority);
   };
 
@@ -93,27 +190,35 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/target/set', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: inputName,
-          lean_code: inputLean,
-          priority,
-        }),
-      });
-      if (res.ok) {
-        const resData = await res.json();
-        if (resData.target) {
-          setTarget(resData.target);
-          if (onTargetChanged) onTargetChanged(resData.target);
-          setSuccessToast(true);
-          setTimeout(() => setSuccessToast(false), 3000);
-          setIsExpanded(false);
-        }
-      }
-    } catch (err) {
-      console.error('Failed to set target theorem:', err);
+      const matched = PRESET_LEMMAS.find((p) => p.name === inputName);
+      const targetTypeToSend = matched?.target_type || selectedTargetType || { Sort: 'Prop' };
+
+      const res = await meshClient.postTarget(inputName, targetTypeToSend);
+
+      const updatedTarget: TargetInfo = {
+        name: inputName,
+        proposition: matched?.proposition || inputName,
+        lean_code: inputLean,
+        priority,
+        status: 'active',
+        dedicated_searches: 1,
+        open_subgoals: 1,
+        timestamp: Date.now() / 1000,
+        target_type: targetTypeToSend,
+      };
+
+      setTarget(updatedTarget);
+      if (onTargetChanged) onTargetChanged(updatedTarget);
+
+      setToastMessage(`Swarm target "${inputName}" posted to coordinator (Task ${res?.task_id || 'queued'})`);
+      setSuccessToast(true);
+      setTimeout(() => setSuccessToast(false), 3500);
+      setIsExpanded(false);
+    } catch (err: any) {
+      console.error('[TargetManager] Failed to post target via JSON-RPC:', err);
+      setToastMessage(`Target submission: ${err.message || 'Coordinator offline'}`);
+      setSuccessToast(true);
+      setTimeout(() => setSuccessToast(false), 3500);
     } finally {
       setIsSubmitting(false);
     }
@@ -150,17 +255,17 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
           <div className="hidden md:flex items-center gap-4 px-3 py-1.5 bg-slate-950/60 border border-slate-800/80 rounded-lg text-xs font-mono text-slate-300">
             <div className="flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-blue-400" />
-              <span>Sims: {target.dedicated_sims.toLocaleString()}</span>
+              <span>Search Nodes: {target.dedicated_searches.toLocaleString()}</span>
             </div>
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Open Holes: {target.open_subgoals}</span>
+              <span>Open Subgoals: {target.open_subgoals}</span>
             </div>
           </div>
 
           <button
             onClick={() => setIsExpanded(!isExpanded)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors flex items-center gap-1.5 cursor-pointer ${
               isExpanded
                 ? 'bg-slate-800 text-white border-slate-700 shadow'
                 : 'bg-blue-600 hover:bg-blue-500 text-white border-blue-500 shadow'
@@ -176,7 +281,7 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
       {successToast && (
         <div className="mt-2 px-3 py-1.5 bg-emerald-950/90 border border-emerald-700/80 rounded-lg text-xs text-emerald-300 flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-          <span>Swarm objective successfully updated! Directives broadcast to P2P mesh.</span>
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -190,7 +295,7 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
           <div className="space-y-2">
             <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
               <BookOpen className="w-3.5 h-3.5 text-blue-400" />
-              <span>Mathlib Curriculum Presets</span>
+              <span>Mathlib Verified CIC Presets</span>
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-1.5">
               {PRESET_LEMMAS.map((preset) => (
@@ -198,7 +303,7 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
                   key={preset.name}
                   type="button"
                   onClick={() => handleSelectPreset(preset)}
-                  className={`text-left p-2 rounded-lg border text-xs transition-colors ${
+                  className={`text-left p-2 rounded-lg border text-xs transition-colors cursor-pointer ${
                     inputName === preset.name
                       ? 'bg-blue-950/60 border-blue-600 text-blue-200'
                       : 'bg-slate-950/40 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
@@ -224,7 +329,7 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
                   type="text"
                   value={inputName}
                   onChange={(e) => setInputName(e.target.value)}
-                  placeholder="e.g. Mathlib.Algebra.Group.inv_mul_cancel"
+                  placeholder="e.g. And.swap"
                   className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500"
                   required
                 />
@@ -237,7 +342,7 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
                 <select
                   value={priority}
                   onChange={(e) => setPriority(Number(e.target.value))}
-                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500"
+                  className="w-full px-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500 cursor-pointer"
                 >
                   <option value={50}>Low (50)</option>
                   <option value={100}>Normal (100)</option>
@@ -249,13 +354,13 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
 
             <div>
               <label className="text-xs font-semibold text-slate-300 block mb-1">
-                Lean 4 Statement & Signature
+                Lean 4 Statement & Formal Spec
               </label>
               <textarea
                 value={inputLean}
                 onChange={(e) => setInputLean(e.target.value)}
                 rows={3}
-                placeholder="theorem custom_lemma (a : A) (b : B) : A ∧ B := by sorry"
+                placeholder="theorem and_swap (h : A ∧ B) : B ∧ A := ⟨h.2, h.1⟩"
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-lg text-xs font-mono text-slate-200 focus:outline-none focus:border-blue-500"
                 required
               />
@@ -265,14 +370,14 @@ export const TargetManager: React.FC<TargetManagerProps> = ({
               <button
                 type="button"
                 onClick={() => setIsExpanded(false)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow transition-colors flex items-center gap-1.5"
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 text-white rounded-lg text-xs font-semibold shadow transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 {isSubmitting ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />

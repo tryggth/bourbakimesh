@@ -1,7 +1,7 @@
 //! Diagnostic Failure Attribution Engine for Proof Search and Kernel Validation.
 
-use serde::{Deserialize, Serialize};
 use kernel::cic::typecheck::TypeError;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum FailureClass {
@@ -29,7 +29,10 @@ impl FailureClass {
             },
             TypeError::UnknownConst(name) => FailureClass::RecursorArgMismatch {
                 recursor: name.clone(),
-                details: format!("Unknown constant or missing recursor in environment: {}", name),
+                details: format!(
+                    "Unknown constant or missing recursor in environment: {}",
+                    name
+                ),
             },
             TypeError::UnknownFVar(name) => {
                 FailureClass::MalformedJson(format!("Unknown free variable: {}", name))

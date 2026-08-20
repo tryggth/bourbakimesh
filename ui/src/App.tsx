@@ -1,89 +1,24 @@
 import { useState, useEffect } from 'react';
-import { DialogueArenaView } from './components/DialogueArenaView';
 import { ProofDagView } from './components/ProofDagView';
-import { LeaderboardView } from './components/LeaderboardView';
-import { LocalProverView } from './components/LocalProverView';
 import { TelemetryFeed } from './components/TelemetryFeed';
 import { UpdateNotification } from './components/UpdateNotification';
 import { TargetManager } from './components/TargetManager';
-import { VolunteerComputingView } from './components/VolunteerComputingView';
+import { ContributeView } from './components/ContributeView';
 import { GemmaEdgePanel } from './components/GemmaEdgePanel';
+import { Header, ActiveTabId } from './components/Header';
+import { GuidedTour } from './components/GuidedTour';
 import { initServiceWorker } from './registerServiceWorker';
+import { meshClient } from './services/meshClient';
 import {
   hydrateProofDag,
   saveBlocksToIndexedDB,
-  getTelemetryWebSocketUrl,
-  fetchDaemonStatus,
 } from './services/telemetryClient';
 import {
-  DaemonStatus,
-  DialogueMove,
   ProofBlockNode,
-  ModelRanking,
   TelemetryEvent,
 } from './types';
-import {
-  GitCommit,
-  Zap,
-  Trophy,
-  Activity,
-  Play,
-  Server,
-  Layers,
-  Cpu,
-  Sparkles,
-  Brain,
-} from 'lucide-react';
 
-const SAMPLE_MOVES: DialogueMove[] = [
-  {
-    id: 0,
-    player: 'P',
-    kind: 'RootGoal',
-    justification_id: null,
-    payload: { type: 'RootGoal', term_repr: 'A ∧ B' },
-    p_view: [0],
-    o_view: [0],
-  },
-  {
-    id: 1,
-    player: 'O',
-    kind: 'Question',
-    justification_id: 0,
-    payload: { type: 'AttackConjunction', branch: 'Left' },
-    p_view: [0, 1],
-    o_view: [0, 1],
-  },
-  {
-    id: 2,
-    player: 'P',
-    kind: 'Assertion',
-    justification_id: 1,
-    payload: { type: 'ProvideWitness', term_repr: 'witness_a' },
-    p_view: [0, 1, 2],
-    o_view: [0, 1, 2],
-  },
-  {
-    id: 3,
-    player: 'O',
-    kind: 'Question',
-    justification_id: 0,
-    payload: { type: 'AttackConjunction', branch: 'Right' },
-    p_view: [0, 3],
-    o_view: [0, 1, 2, 3],
-  },
-  {
-    id: 4,
-    player: 'P',
-    kind: 'Assertion',
-    justification_id: 3,
-    payload: { type: 'ProvideWitness', term_repr: 'witness_b' },
-    p_view: [0, 3, 4],
-    o_view: [0, 1, 2, 3, 4],
-  },
-];
-
-const SAMPLE_BLOCKS: ProofBlockNode[] = [
+const INITIAL_BLOCKS: ProofBlockNode[] = [
   {
     id: "0000000000000000000000000000000000000000000000000000000000000000",
     parents: [],
@@ -117,89 +52,38 @@ const SAMPLE_BLOCKS: ProofBlockNode[] = [
   {
     id: "c5d6e7f8a9b0c1d2e3f4a5b6c7da3f58e99bc10123d4f5e6a7b8c9d0e1f2a3b4",
     parents: ["b4c5d6e7f8a9b0c1d2e3f4a5b6c7da3f58e99bc10123d4f5e6a7b8c9d0e1f2a3"],
-    theorem_name: "Mathlib.Logic.And.intro",
-    proposition: "A -> B -> A ∧ B",
-    extracted_term: "fun (a : A) => fun (b : B) => And.intro a b",
+    theorem_name: "And.swap",
+    proposition: "A ∧ B → B ∧ A",
+    extracted_term: "fun (h : A ∧ B) => ⟨h.2, h.1⟩",
     lean_verified: true,
     timestamp: 1723903600,
     status: "certified",
   },
 ];
 
-const SAMPLE_MODELS: ModelRanking[] = [
-  {
-    name: "bourbaki_v1.pt",
-    elo: 1530.0,
-    ci_95: 86.5,
-    win_rate: 0.567,
-    record: { wins: 34, losses: 26, draws: 0 },
-    tier1_solve: 0.611,
-    tier2_solve: 0.625,
-    tier3_solve: 0.250,
-    sims_per_sec: 715.0,
-    cse: 1.430,
-    status: "Fine-Tuned Active",
-  },
-  {
-    name: "bourbaki_v2.pt",
-    elo: 1485.0,
-    ci_95: 86.1,
-    win_rate: 0.467,
-    record: { wins: 28, losses: 32, draws: 0 },
-    tier1_solve: 0.444,
-    tier2_solve: 0.500,
-    tier3_solve: 0.500,
-    sims_per_sec: 1002.2,
-    cse: 1.580,
-    status: "Gated PER Active",
-  },
-  {
-    name: "bourbaki_v0.pt",
-    elo: 1485.0,
-    ci_95: 86.1,
-    win_rate: 0.467,
-    record: { wins: 28, losses: 32, draws: 0 },
-    tier1_solve: 0.444,
-    tier2_solve: 0.375,
-    tier3_solve: 0.750,
-    sims_per_sec: 1490.3,
-    cse: 2.981,
-    status: "Baseline Certified",
-  },
-];
-
 export function App() {
-  const [activeTab, setActiveTab] = useState<'arena' | 'dag' | 'gemma4' | 'prover' | 'leaderboard' | 'telemetry' | 'volunteer'>('arena');
-  const [moves, setMoves] = useState<DialogueMove[]>(SAMPLE_MOVES);
-  const [blocks, setBlocks] = useState<ProofBlockNode[]>(SAMPLE_BLOCKS);
-  const [models, setModels] = useState<ModelRanking[]>(SAMPLE_MODELS);
+  const [activeTab, setActiveTab] = useState<ActiveTabId>('contribute');
+  const [blocks, setBlocks] = useState<ProofBlockNode[]>(INITIAL_BLOCKS);
   const [telemetryEvents, setTelemetryEvents] = useState<TelemetryEvent[]>([]);
   const [isConnected, setIsConnected] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [status, setStatus] = useState<DaemonStatus>({
-    status: "online",
-    active_model: "checkpoints/bourbaki_v2.pt",
-    peer_count: 5,
-    total_blocks: 4,
-    certified_blocks: 4,
-    uptime_seconds: 3600,
-    cse_score: 1.580,
-    hardware: {
-      cpu_cores: 12,
-      torch_device: "cpu",
-      memory_gb: 32,
-    },
-  });
+  const [isTourOpen, setIsTourOpen] = useState(false);
+
+  // Check if first-time user for guided onboarding tour
+  useEffect(() => {
+    const tourCompleted = localStorage.getItem('bourbakimesh_tour_completed');
+    if (!tourCompleted) {
+      setIsTourOpen(true);
+    }
+  }, []);
 
   // Register PWA Service Worker for auto-updates
   useEffect(() => {
     initServiceWorker(() => setUpdateAvailable(true));
   }, []);
 
-  // Fetch initial ledger & daemon status (with IndexedDB fallback)
+  // Fetch initial ledger status (with IndexedDB fallback)
   useEffect(() => {
-    fetchDaemonStatus().then(setStatus).catch(() => {});
-
     hydrateProofDag()
       .then((data) => {
         if (data.nodes && data.nodes.length > 0) {
@@ -207,222 +91,100 @@ export function App() {
         }
       })
       .catch(() => {});
-
-    fetch('/api/tournaments')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.rankings) setModels(data.rankings);
-      })
-      .catch(() => {});
   }, []);
 
-  // Setup WebSocket Telemetry connection
+  // Synchronize WebSocket connection and DAG events
   useEffect(() => {
-    let ws: WebSocket | null = null;
-    try {
-      const wsUrl = getTelemetryWebSocketUrl();
-      ws = new WebSocket(wsUrl);
+    const updateConnStatus = () => {
+      setIsConnected(meshClient.connectionStatus === 'connected');
+    };
 
-      ws.onopen = () => {
-        setIsConnected(true);
-      };
+    updateConnStatus();
+    const unsubStatus = meshClient.on('status_changed', updateConnStatus);
 
-      ws.onmessage = (event) => {
-        try {
-          const parsed: TelemetryEvent = JSON.parse(event.data);
-          setTelemetryEvents((prev) => [parsed, ...prev].slice(0, 100));
+    const unsubTelem = meshClient.on('telemetry_updated', (telem) => {
+      if (telem) {
+        setTelemetryEvents((prev) => [
+          {
+            type: 'mesh_telemetry_tick',
+            timestamp: Date.now() / 1000,
+            data: telem,
+          },
+          ...prev,
+        ].slice(0, 100));
+      }
+    });
 
-          if (parsed.type === 'move_added' && parsed.data && parsed.data.move) {
-            const newMove = parsed.data.move as DialogueMove;
-            if (newMove.id === 0) {
-              setMoves([newMove]);
-            } else {
-              setMoves((prev) => {
-                if (prev.some((m) => m.id === newMove.id)) return prev;
-                return [...prev, newMove];
-              });
-            }
-          } else if (parsed.type === 'proof_attested' && parsed.data && parsed.data.block_id) {
-            const data = parsed.data as Record<string, any>;
-            const newBlock: ProofBlockNode = {
-              id: data.block_id,
-              parents: data.parents || [],
-              theorem_name: data.theorem_name || 'Attested Theorem',
-              proposition: data.proposition || 'A -> B',
-              extracted_term: data.extracted_term || '',
-              lean_verified: Boolean(data.lean_verified),
-              timestamp: Date.now() / 1000,
-              status: 'certified',
-            };
-            setBlocks((prev) => {
-              if (prev.some((b) => b.id === newBlock.id)) return prev;
-              const updated = [...prev, newBlock];
-              saveBlocksToIndexedDB(updated);
-              return updated;
-            });
-            setStatus((prev) => ({
-              ...prev,
-              total_blocks: prev.total_blocks + 1,
-              certified_blocks: prev.certified_blocks + 1,
-            }));
-          }
-        } catch (err) {
-          console.error(err);
-        }
-      };
-
-      ws.onclose = () => {
-        setIsConnected(false);
-      };
-    } catch {
-      setIsConnected(false);
-    }
+    const unsubTask = meshClient.on('task_completed', (data: any) => {
+      if (data && data.task) {
+        const task = data.task;
+        const newBlock: ProofBlockNode = {
+          id: task.task_id,
+          parents: task.parent ? [task.parent] : [],
+          theorem_name: task.theorem_name || 'Verified CIC Target',
+          proposition: task.goal_repr || task.theorem_name || 'A -> B',
+          extracted_term: data.proofTerm ? JSON.stringify(data.proofTerm) : '',
+          lean_verified: true,
+          timestamp: Date.now() / 1000,
+          status: 'certified',
+        };
+        setBlocks((prev) => {
+          if (prev.some((b) => b.id === newBlock.id)) return prev;
+          const updated = [...prev, newBlock];
+          saveBlocksToIndexedDB(updated);
+          return updated;
+        });
+      }
+    });
 
     return () => {
-      if (ws) ws.close();
+      unsubStatus();
+      unsubTelem();
+      unsubTask();
     };
   }, []);
 
   return (
     <div className="flex flex-col h-screen bg-slate-950 text-slate-100">
-      {/* Top Navbar */}
-      <header className="flex items-center justify-between px-6 py-3 bg-slate-900 border-b border-slate-800 z-10">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center font-serif text-lg font-bold text-white shadow-md shadow-blue-500/20">
-              ℬ
-            </div>
-            <div>
-              <h1 className="text-sm font-black tracking-wider text-white">BourbakiMesh</h1>
-              <div className="text-[10px] text-slate-400 font-mono">Phase 5 Proof DAG Visualizer</div>
-            </div>
-          </div>
-
-          {/* Quick Metrics */}
-          <div className="hidden md:flex items-center gap-3 pl-4 border-l border-slate-800 text-xs font-mono">
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Cpu className="w-3.5 h-3.5 text-blue-400" />
-              <span>{status.active_model.split('/').pop()}</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Server className="w-3.5 h-3.5 text-emerald-400" />
-              <span>{status.peer_count} Peers</span>
-            </div>
-            <div className="flex items-center gap-1.5 text-slate-300">
-              <Layers className="w-3.5 h-3.5 text-purple-400" />
-              <span>{blocks.length} Blocks</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Navigation */}
-        <nav className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs">
-          <button
-            onClick={() => setActiveTab('arena')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'arena'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            Dialogue Arena
-          </button>
-          <button
-            onClick={() => setActiveTab('dag')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'dag'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <GitCommit className="w-3.5 h-3.5" />
-            Proof DAG
-          </button>
-          <button
-            onClick={() => setActiveTab('gemma4')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'gemma4'
-                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow shadow-emerald-500/20'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Brain className="w-3.5 h-3.5 text-emerald-400" />
-            Gemma 4 Edge
-          </button>
-          <button
-            onClick={() => setActiveTab('prover')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'prover'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Play className="w-3.5 h-3.5" />
-            Interactive Prover
-          </button>
-          <button
-            onClick={() => setActiveTab('volunteer')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'volunteer'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow shadow-blue-500/20'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-            Contribute Cycles
-          </button>
-          <button
-            onClick={() => setActiveTab('leaderboard')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'leaderboard'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Trophy className="w-3.5 h-3.5" />
-            Leaderboard
-          </button>
-          <button
-            onClick={() => setActiveTab('telemetry')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold transition-colors ${
-              activeTab === 'telemetry'
-                ? 'bg-blue-600 text-white shadow'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            <Activity className="w-3.5 h-3.5" />
-            Telemetry
-          </button>
-        </nav>
-      </header>
+      {/* Top Header Navbar */}
+      <Header
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        onOpenTour={() => setIsTourOpen(true)}
+        blocksCount={blocks.length}
+      />
 
       {/* Top-Level Swarm Objective Manager */}
       <TargetManager />
 
-      {/* Main View Area */}
+      {/* Main View Area: 4 Pillars of BourbakiMesh */}
       <main className="flex-1 p-6 overflow-y-auto">
-        {activeTab === 'arena' && (
-          <DialogueArenaView
-            moves={moves}
-            theoremName="Mathlib.Logic.And.intro"
-            proposition="A -> B -> A ∧ B"
-          />
-        )}
+        {/* Pillar 1: Contribute Cycles */}
+        {(activeTab === 'contribute' || activeTab === 'volunteer') && <ContributeView />}
+
+        {/* Pillar 2: Proof DAG Explorer */}
         {activeTab === 'dag' && (
           <ProofDagView
             nodes={blocks}
             edges={blocks.flatMap((b) => b.parents.map((p) => ({ source: p, target: b.id })))}
           />
         )}
-        {activeTab === 'gemma4' && <GemmaEdgePanel />}
-        {activeTab === 'prover' && <LocalProverView />}
-        {activeTab === 'volunteer' && <VolunteerComputingView />}
-        {activeTab === 'leaderboard' && <LeaderboardView models={models} />}
+
+        {/* Pillar 3: Model Playground */}
+        {(activeTab === 'playground' || activeTab === 'gemma4') && <GemmaEdgePanel />}
+
+        {/* Pillar 4: Flight Telemetry */}
         {activeTab === 'telemetry' && (
           <TelemetryFeed events={telemetryEvents} isConnected={isConnected} />
         )}
       </main>
+
+      {/* Interactive Guided Tour Onboarding Walkthrough */}
+      <GuidedTour
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        onSelectTab={(tab) => setActiveTab(tab)}
+      />
 
       {/* Auto-Updating PWA & Version Toast */}
       <UpdateNotification

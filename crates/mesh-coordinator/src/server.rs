@@ -1,5 +1,7 @@
 //! WebSocket JSON-RPC 2.0 Server for Distributed Mesh Coordination with Telemetry & Failure Attribution.
 
+use futures_util::{SinkExt, StreamExt};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
@@ -7,8 +9,6 @@ use std::net::SocketAddr;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
-use futures_util::{SinkExt, StreamExt};
-use serde::{Deserialize, Serialize};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::{broadcast, RwLock};
 use tokio_tungstenite::tungstenite::Message;
@@ -20,7 +20,10 @@ use kernel::cic::typecheck::check_type;
 
 use crate::dag::{ProofDag, TaskQueue};
 use crate::diagnostics::FailureClass;
-use crate::flight_recorder::{FlightEvent, FlightRecorder};
+use crate::flight_recorder::{
+    iso8601_now, FlightEvent, FlightRecorder, ProofSubmissionRecord, SolverTelemetry,
+    SERVER_GIT_COMMIT,
+};
 
 fn now_secs() -> u64 {
     SystemTime::now()
@@ -78,10 +81,9 @@ pub struct CoordinatorState {
 impl CoordinatorState {
     pub fn new() -> Self {
         let artifacts_path = Path::new("artifacts");
-        let flight_recorder = Arc::new(
-            FlightRecorder::new(artifacts_path)
-                .unwrap_or_else(|_| FlightRecorder::new(Path::new(".")).expect("Flight recorder init failed")),
-        );
+        let flight_recorder = Arc::new(FlightRecorder::new(artifacts_path).unwrap_or_else(|_| {
+            FlightRecorder::new(Path::new(".")).expect("Flight recorder init failed")
+        }));
 
         let mut state = Self {
             dag: ProofDag::new(),
@@ -123,15 +125,25 @@ impl CoordinatorState {
         let val: serde_json::Value = serde_json::from_reader(reader)
             .map_err(|e| format!("JSON parse error in {:?}: {}", path, e))?;
 
-        let name = val.get("name").and_then(|v| v.as_str()).unwrap_or("unnamed_target");
-        let type_val = val.get("type").ok_or_else(|| "Missing 'type' field in target JSON".to_string())?;
+        let name = val
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or("unnamed_target");
+        let type_val = val
+            .get("type")
+            .ok_or_else(|| "Missing 'type' field in target JSON".to_string())?;
         let type_ast: CicExpr = serde_json::from_value(type_val.clone())
             .map_err(|e| format!("Failed to deserialize CIC type in {:?}: {}", path, e))?;
 
         let root_id = self.dag.insert_cic_root(name, type_ast.clone());
-        let task_id = self.task_queue.push_cic_task(root_id.clone(), name.to_string(), type_ast, 100);
+        let task_id =
+            self.task_queue
+                .push_cic_task(root_id.clone(), name.to_string(), type_ast, 100);
 
-        println!("🎯 [Target Loader] Ingested Mathlib goal {} -> root {} (task {})", name, root_id, task_id);
+        println!(
+            "🎯 [Target Loader] Ingested Mathlib goal {} -> root {} (task {})",
+            name, root_id, task_id
+        );
         Ok(task_id)
     }
 }
@@ -154,7 +166,10 @@ impl MeshCoordinatorServer {
         self.state.clone()
     }
 
-    pub async fn run(&self, addr_str: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub async fn run(
+        &self,
+        addr_str: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let addr: SocketAddr = addr_str.parse()?;
         let listener = TcpListener::bind(&addr).await?;
         println!("🚀 [Mesh Coordinator] Listening on ws://{}", addr);
@@ -166,7 +181,10 @@ impl MeshCoordinatorServer {
 
             tokio::spawn(async move {
                 if let Err(e) = handle_connection(stream, client_addr, state, btx, brx).await {
-                    eprintln!("[Mesh Coordinator] Connection error from {}: {:?}", client_addr, e);
+                    eprintln!(
+                        "[Mesh Coordinator] Connection error from {}: {:?}",
+                        client_addr, e
+                    );
                 }
             });
         }
@@ -184,6 +202,7 @@ async fn handle_connection(
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let ws_stream = tokio_tungstenite::accept_async(stream).await?;
     let (mut ws_tx, mut ws_rx) = ws_stream.split();
+    let mut bound_worker_id: Option<String> = None;
 
     loop {
         tokio::select! {
@@ -198,7 +217,13 @@ async fn handle_connection(
             Some(msg_res) = ws_rx.next() => {
                 match msg_res {
                     Ok(Message::Text(text)) => {
-                        let resp = process_json_rpc(&text, &state, &broadcast_tx).await;
+                        let (resp, reg_id, unreg_id) = process_json_rpc(&text, &state, &broadcast_tx).await;
+                        if let Some(w) = reg_id {
+                            bound_worker_id = Some(w);
+                        }
+                        if let Some(_) = unreg_id {
+                            bound_worker_id = None;
+                        }
                         let resp_json = serde_json::to_string(&resp)?;
                         ws_tx.send(Message::Text(resp_json)).await?;
                     }
@@ -214,6 +239,26 @@ async fn handle_connection(
         }
     }
 
+    // When client connection drops or closes, immediately prune bound worker and broadcast count
+    if let Some(w_id) = bound_worker_id {
+        let mut s = state.write().await;
+        if s.workers.remove(&w_id).is_some() {
+            s.flight_recorder.record_event(FlightEvent::WorkerUnregistered {
+                worker_id: w_id.clone(),
+            });
+            let notification = serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "mesh_worker_count_updated",
+                "params": {
+                    "worker_count": s.workers.len(),
+                    "event": "worker_disconnected",
+                    "worker_id": w_id
+                }
+            });
+            let _ = broadcast_tx.send(notification.to_string());
+        }
+    }
+
     Ok(())
 }
 
@@ -221,16 +266,22 @@ async fn process_json_rpc(
     raw_json: &str,
     state_lock: &Arc<RwLock<CoordinatorState>>,
     broadcast_tx: &broadcast::Sender<String>,
-) -> JsonRpcResponse {
+) -> (JsonRpcResponse, Option<String>, Option<String>) {
     let req: JsonRpcRequest = match serde_json::from_str(raw_json) {
         Ok(r) => r,
         Err(e) => {
-            return JsonRpcResponse {
-                jsonrpc: "2.0".to_string(),
-                id: None,
-                result: None,
-                error: Some(serde_json::json!({ "code": -32700, "message": format!("Parse error: {}", e) })),
-            };
+            return (
+                JsonRpcResponse {
+                    jsonrpc: "2.0".to_string(),
+                    id: None,
+                    result: None,
+                    error: Some(
+                        serde_json::json!({ "code": -32700, "message": format!("Parse error: {}", e) }),
+                    ),
+                },
+                None,
+                None,
+            );
         }
     };
 
@@ -238,12 +289,29 @@ async fn process_json_rpc(
     let method = req.method.as_str();
     let params = req.params.unwrap_or(serde_json::Value::Null);
 
-    match method {
+    let mut registered_worker: Option<String> = None;
+    let mut unregistered_worker: Option<String> = None;
+
+    let resp = match method {
         "mesh_register_worker" => {
-            let worker_id = params.get("worker_id").and_then(|v| v.as_str()).unwrap_or("worker-anon").to_string();
-            let model = params.get("model").and_then(|v| v.as_str()).unwrap_or("gemma-4-edge").to_string();
-            let vram_limit_mb = params.get("vram_limit_mb").and_then(|v| v.as_u64()).unwrap_or(4096) as u32;
-            let throughput = params.get("throughput_tok_s").and_then(|v| v.as_f64()).unwrap_or(45.0);
+            let worker_id = params
+                .get("worker_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("worker-anon")
+                .to_string();
+            let model = params
+                .get("model")
+                .and_then(|v| v.as_str())
+                .unwrap_or("gemma-4-edge")
+                .to_string();
+            let vram_limit_mb = params
+                .get("vram_limit_mb")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(4096) as u32;
+            let throughput = params
+                .get("throughput_tok_s")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(45.0);
 
             let mut state = state_lock.write().await;
             state.workers.insert(
@@ -258,12 +326,27 @@ async fn process_json_rpc(
                 },
             );
 
-            state.flight_recorder.record_event(FlightEvent::WorkerRegistered {
-                worker_id: worker_id.clone(),
-                model,
-                vram_limit_mb,
-                throughput_tok_s: throughput,
+            state
+                .flight_recorder
+                .record_event(FlightEvent::WorkerRegistered {
+                    worker_id: worker_id.clone(),
+                    model,
+                    vram_limit_mb,
+                    throughput_tok_s: throughput,
+                });
+
+            let count_notification = serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "mesh_worker_count_updated",
+                "params": {
+                    "worker_count": state.workers.len(),
+                    "event": "worker_registered",
+                    "worker_id": worker_id.clone()
+                }
             });
+            let _ = broadcast_tx.send(count_notification.to_string());
+
+            registered_worker = Some(worker_id.clone());
 
             JsonRpcResponse {
                 jsonrpc: "2.0".to_string(),
@@ -278,8 +361,53 @@ async fn process_json_rpc(
             }
         }
 
+        "mesh_unregister_worker" => {
+            let worker_id = params
+                .get("worker_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("worker-anon")
+                .to_string();
+
+            let mut state = state_lock.write().await;
+            let removed = state.workers.remove(&worker_id).is_some();
+            if removed {
+                state
+                    .flight_recorder
+                    .record_event(FlightEvent::WorkerUnregistered {
+                        worker_id: worker_id.clone(),
+                    });
+            }
+
+            let count_notification = serde_json::json!({
+                "jsonrpc": "2.0",
+                "method": "mesh_worker_count_updated",
+                "params": {
+                    "worker_count": state.workers.len(),
+                    "event": "worker_unregistered",
+                    "worker_id": worker_id.clone()
+                }
+            });
+            let _ = broadcast_tx.send(count_notification.to_string());
+
+            unregistered_worker = Some(worker_id.clone());
+
+            JsonRpcResponse {
+                jsonrpc: "2.0".to_string(),
+                id,
+                result: Some(serde_json::json!({
+                    "unregistered": true,
+                    "worker_id": worker_id,
+                    "active_workers": state.workers.len()
+                })),
+                error: None,
+            }
+        }
+
         "mesh_pull_task" => {
-            let worker_id = params.get("worker_id").and_then(|v| v.as_str()).unwrap_or("worker-anon");
+            let worker_id = params
+                .get("worker_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("worker-anon");
             let mut state = state_lock.write().await;
             let task_opt = state.task_queue.lease_next_task(worker_id, 60);
 
@@ -302,38 +430,79 @@ async fn process_json_rpc(
 
         "mesh_submit_result" => {
             let task_id = params.get("task_id").and_then(|v| v.as_str()).unwrap_or("");
-            let worker_id = params.get("worker_id").and_then(|v| v.as_str()).unwrap_or("");
+            let worker_id = params
+                .get("worker_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let step_ast_val = params.get("step_ast");
             let term_ast_val = params.get("term_ast").or_else(|| params.get("proof_term"));
-            let genrm_score = params.get("genrm_score").and_then(|v| v.as_f64()).unwrap_or(0.5);
+            let genrm_score = params
+                .get("genrm_score")
+                .and_then(|v| v.as_f64())
+                .unwrap_or(0.5);
+            let thinking_trace = params
+                .get("thinking_trace")
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string();
+            let wasm_latency_us = params.get("wasm_latency_us").and_then(|v| v.as_u64());
+            let client_metadata = params.get("client_metadata").cloned();
+            let client_commit = client_metadata
+                .as_ref()
+                .and_then(|m| m.get("client_commit"))
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string())
+                .or_else(|| {
+                    params
+                        .get("client_commit")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string())
+                });
+            let solver_telemetry: Option<SolverTelemetry> = params
+                .get("solver_telemetry")
+                .and_then(|v| serde_json::from_value(v.clone()).ok());
 
             let mut state = state_lock.write().await;
 
             let task = match state.task_queue.complete_task(task_id) {
                 Some(t) => t,
                 None => {
-                    return JsonRpcResponse {
-                        jsonrpc: "2.0".to_string(),
-                        id,
-                        result: None,
-                        error: Some(serde_json::json!({ "code": -32001, "message": "Task not found or expired" })),
-                    };
+                    return (
+                        JsonRpcResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id,
+                            result: None,
+                            error: Some(
+                                serde_json::json!({ "code": -32001, "message": "Task not found or expired" }),
+                            ),
+                        },
+                        None,
+                        None,
+                    );
                 }
             };
 
-            let submitted_json = term_ast_val.cloned().or_else(|| step_ast_val.cloned()).unwrap_or(serde_json::Value::Null);
-            state.flight_recorder.record_event(FlightEvent::ResultSubmitted {
-                task_id: task_id.to_string(),
-                worker_id: worker_id.to_string(),
-                term_json: submitted_json,
-                genrm_score,
-            });
+            let submitted_json = term_ast_val
+                .cloned()
+                .or_else(|| step_ast_val.cloned())
+                .unwrap_or(serde_json::Value::Null);
+            state
+                .flight_recorder
+                .record_event(FlightEvent::ResultSubmitted {
+                    task_id: task_id.to_string(),
+                    worker_id: worker_id.to_string(),
+                    term_json: submitted_json.clone(),
+                    genrm_score,
+                });
 
             // Branch A: Dependent CIC Proof-Term Validation
             if let Some(cic_target) = task.cic_target.clone() {
                 let term_res: Result<CicExpr, _> = term_ast_val
                     .ok_or_else(|| "Missing 'term_ast' / 'proof_term' for CIC goal".to_string())
-                    .and_then(|v| serde_json::from_value(v.clone()).map_err(|e| format!("Invalid CIC term JSON: {}", e)));
+                    .and_then(|v| {
+                        serde_json::from_value(v.clone())
+                            .map_err(|e| format!("Invalid CIC term JSON: {}", e))
+                    });
 
                 let t_start = Instant::now();
                 match term_res {
@@ -351,13 +520,37 @@ async fn process_json_rpc(
                                 }
                                 let _ = state.dag.mark_cic_proven(&task.node_id, term_ast.clone());
 
-                                state.flight_recorder.record_event(FlightEvent::TermValidated {
-                                    task_id: task_id.to_string(),
-                                    worker_id: worker_id.to_string(),
-                                    theorem_name: task.theorem_name.clone(),
-                                    execution_time_us: elapsed_us,
-                                    inferred_type: Some(format!("{:?}", cic_target)),
-                                });
+                                state
+                                    .flight_recorder
+                                    .record_submission(&ProofSubmissionRecord {
+                                        timestamp: iso8601_now(),
+                                        session_id: state.flight_recorder.session_id.clone(),
+                                        server_commit: SERVER_GIT_COMMIT.to_string(),
+                                        client_commit: client_commit.clone(),
+                                        event_type: "PROOF_SUBMISSION_ACCEPTED".to_string(),
+                                        worker_id: worker_id.to_string(),
+                                        task_id: task_id.to_string(),
+                                        theorem_name: task.theorem_name.clone(),
+                                        term_ast: serde_json::to_value(&term_ast)
+                                            .unwrap_or(serde_json::Value::Null),
+                                        thinking_trace: thinking_trace.clone(),
+                                        genrm_score,
+                                        wasm_latency_us,
+                                        server_validation_latency_us: elapsed_us,
+                                        solver_telemetry: solver_telemetry.clone(),
+                                        failure_class: None,
+                                        client_metadata: client_metadata.clone(),
+                                    });
+
+                                state
+                                    .flight_recorder
+                                    .record_event(FlightEvent::TermValidated {
+                                        task_id: task_id.to_string(),
+                                        worker_id: worker_id.to_string(),
+                                        theorem_name: task.theorem_name.clone(),
+                                        execution_time_us: elapsed_us,
+                                        inferred_type: Some(format!("{:?}", cic_target)),
+                                    });
 
                                 // Broadcast DAG update
                                 let notification = serde_json::json!({
@@ -391,13 +584,37 @@ async fn process_json_rpc(
                                 state.total_failures_recorded += 1;
                                 let failure_class = FailureClass::from_type_error(&type_err);
 
-                                state.flight_recorder.record_event(FlightEvent::TermRejected {
-                                    task_id: task_id.to_string(),
-                                    worker_id: worker_id.to_string(),
-                                    theorem_name: task.theorem_name.clone(),
-                                    execution_time_us: elapsed_us,
-                                    failure_class: failure_class.clone(),
-                                });
+                                state
+                                    .flight_recorder
+                                    .record_submission(&ProofSubmissionRecord {
+                                        timestamp: iso8601_now(),
+                                        session_id: state.flight_recorder.session_id.clone(),
+                                        server_commit: SERVER_GIT_COMMIT.to_string(),
+                                        client_commit: client_commit.clone(),
+                                        event_type: "PROOF_SUBMISSION_REJECTED".to_string(),
+                                        worker_id: worker_id.to_string(),
+                                        task_id: task_id.to_string(),
+                                        theorem_name: task.theorem_name.clone(),
+                                        term_ast: serde_json::to_value(&term_ast)
+                                            .unwrap_or(serde_json::Value::Null),
+                                        thinking_trace: thinking_trace.clone(),
+                                        genrm_score,
+                                        wasm_latency_us,
+                                        server_validation_latency_us: elapsed_us,
+                                        solver_telemetry: solver_telemetry.clone(),
+                                        failure_class: Some(failure_class.clone()),
+                                        client_metadata: client_metadata.clone(),
+                                    });
+
+                                state
+                                    .flight_recorder
+                                    .record_event(FlightEvent::TermRejected {
+                                        task_id: task_id.to_string(),
+                                        worker_id: worker_id.to_string(),
+                                        theorem_name: task.theorem_name.clone(),
+                                        execution_time_us: elapsed_us,
+                                        failure_class: failure_class.clone(),
+                                    });
 
                                 // Push task back for retry
                                 state.task_queue.push_cic_task(
@@ -430,8 +647,8 @@ async fn process_json_rpc(
                                         "code": -32002,
                                         "message": format!("Kernel validation error: {:?}", type_err),
                                         "data": {
-                                            "failure_class": failure_class,
-                                            "execution_time_us": elapsed_us
+                                             "failure_class": failure_class,
+                                             "execution_time_us": elapsed_us
                                         }
                                     })),
                                 }
@@ -443,13 +660,36 @@ async fn process_json_rpc(
                         let failure_class = FailureClass::MalformedJson(err_msg.clone());
                         state.total_failures_recorded += 1;
 
-                        state.flight_recorder.record_event(FlightEvent::TermRejected {
-                            task_id: task_id.to_string(),
-                            worker_id: worker_id.to_string(),
-                            theorem_name: task.theorem_name.clone(),
-                            execution_time_us: elapsed_us,
-                            failure_class: failure_class.clone(),
-                        });
+                        state
+                            .flight_recorder
+                            .record_submission(&ProofSubmissionRecord {
+                                timestamp: iso8601_now(),
+                                session_id: state.flight_recorder.session_id.clone(),
+                                server_commit: SERVER_GIT_COMMIT.to_string(),
+                                client_commit: client_commit.clone(),
+                                event_type: "PROOF_SUBMISSION_REJECTED".to_string(),
+                                worker_id: worker_id.to_string(),
+                                task_id: task_id.to_string(),
+                                theorem_name: task.theorem_name.clone(),
+                                term_ast: term_ast_val.cloned().unwrap_or(serde_json::Value::Null),
+                                thinking_trace: thinking_trace.clone(),
+                                genrm_score,
+                                wasm_latency_us,
+                                server_validation_latency_us: elapsed_us,
+                                solver_telemetry: solver_telemetry.clone(),
+                                failure_class: Some(failure_class.clone()),
+                                client_metadata: client_metadata.clone(),
+                            });
+
+                        state
+                            .flight_recorder
+                            .record_event(FlightEvent::TermRejected {
+                                task_id: task_id.to_string(),
+                                worker_id: worker_id.to_string(),
+                                theorem_name: task.theorem_name.clone(),
+                                execution_time_us: elapsed_us,
+                                failure_class: failure_class.clone(),
+                            });
 
                         JsonRpcResponse {
                             jsonrpc: "2.0".to_string(),
@@ -465,16 +705,22 @@ async fn process_json_rpc(
                 }
             } else {
                 // Branch B: Propositional Step Deduction
-                let step_ast: Option<DeductionStep> = step_ast_val
-                    .and_then(|v| serde_json::from_value(v.clone()).ok());
+                let step_ast: Option<DeductionStep> =
+                    step_ast_val.and_then(|v| serde_json::from_value(v.clone()).ok());
 
                 if step_ast.is_none() {
-                    return JsonRpcResponse {
-                        jsonrpc: "2.0".to_string(),
-                        id,
-                        result: None,
-                        error: Some(serde_json::json!({ "code": -32602, "message": "Invalid step_ast payload" })),
-                    };
+                    return (
+                        JsonRpcResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id,
+                            result: None,
+                            error: Some(
+                                serde_json::json!({ "code": -32602, "message": "Invalid step_ast payload" }),
+                            ),
+                        },
+                        None,
+                        None,
+                    );
                 }
 
                 let step = step_ast.unwrap();
@@ -488,14 +734,38 @@ async fn process_json_rpc(
                             w.tasks_completed += 1;
                         }
 
-                        if status == ProofStatus::Proven {
-                            state.flight_recorder.record_event(FlightEvent::TermValidated {
-                                task_id: task_id.to_string(),
+                        state
+                            .flight_recorder
+                            .record_submission(&ProofSubmissionRecord {
+                                timestamp: iso8601_now(),
+                                session_id: state.flight_recorder.session_id.clone(),
+                                server_commit: SERVER_GIT_COMMIT.to_string(),
+                                client_commit: client_commit.clone(),
+                                event_type: "PROOF_SUBMISSION_ACCEPTED".to_string(),
                                 worker_id: worker_id.to_string(),
+                                task_id: task_id.to_string(),
                                 theorem_name: task.theorem_name.clone(),
-                                execution_time_us: elapsed_us,
-                                inferred_type: None,
+                                term_ast: serde_json::to_value(&step)
+                                    .unwrap_or(serde_json::Value::Null),
+                                thinking_trace: thinking_trace.clone(),
+                                genrm_score,
+                                wasm_latency_us,
+                                server_validation_latency_us: elapsed_us,
+                                solver_telemetry: solver_telemetry.clone(),
+                                failure_class: None,
+                                client_metadata: client_metadata.clone(),
                             });
+
+                        if status == ProofStatus::Proven {
+                            state
+                                .flight_recorder
+                                .record_event(FlightEvent::TermValidated {
+                                    task_id: task_id.to_string(),
+                                    worker_id: worker_id.to_string(),
+                                    theorem_name: task.theorem_name.clone(),
+                                    execution_time_us: elapsed_us,
+                                    inferred_type: None,
+                                });
                         } else {
                             if let Some(child_node) = state.dag.get_node(&next_node_id).cloned() {
                                 state.task_queue.push_task(
@@ -541,13 +811,37 @@ async fn process_json_rpc(
                         let failure_class = FailureClass::MalformedJson(err_msg.clone());
                         state.total_failures_recorded += 1;
 
-                        state.flight_recorder.record_event(FlightEvent::TermRejected {
-                            task_id: task_id.to_string(),
-                            worker_id: worker_id.to_string(),
-                            theorem_name: task.theorem_name.clone(),
-                            execution_time_us: elapsed_us,
-                            failure_class: failure_class.clone(),
-                        });
+                        state
+                            .flight_recorder
+                            .record_submission(&ProofSubmissionRecord {
+                                timestamp: iso8601_now(),
+                                session_id: state.flight_recorder.session_id.clone(),
+                                server_commit: SERVER_GIT_COMMIT.to_string(),
+                                client_commit: client_commit.clone(),
+                                event_type: "PROOF_SUBMISSION_REJECTED".to_string(),
+                                worker_id: worker_id.to_string(),
+                                task_id: task_id.to_string(),
+                                theorem_name: task.theorem_name.clone(),
+                                term_ast: serde_json::to_value(&step)
+                                    .unwrap_or(serde_json::Value::Null),
+                                thinking_trace: thinking_trace.clone(),
+                                genrm_score,
+                                wasm_latency_us,
+                                server_validation_latency_us: elapsed_us,
+                                solver_telemetry: solver_telemetry.clone(),
+                                failure_class: Some(failure_class.clone()),
+                                client_metadata: client_metadata.clone(),
+                            });
+
+                        state
+                            .flight_recorder
+                            .record_event(FlightEvent::TermRejected {
+                                task_id: task_id.to_string(),
+                                worker_id: worker_id.to_string(),
+                                theorem_name: task.theorem_name.clone(),
+                                execution_time_us: elapsed_us,
+                                failure_class: failure_class.clone(),
+                            });
 
                         JsonRpcResponse {
                             jsonrpc: "2.0".to_string(),
@@ -565,24 +859,40 @@ async fn process_json_rpc(
         }
 
         "mesh_post_target" => {
-            let theorem_name = params.get("theorem_name").and_then(|v| v.as_str()).unwrap_or("goal_anon");
+            let theorem_name = params
+                .get("theorem_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("goal_anon");
             let target_type_val = params.get("target_type").or_else(|| params.get("type"));
 
-            let target_type: CicExpr = match target_type_val.and_then(|v| serde_json::from_value(v.clone()).ok()) {
+            let target_type: CicExpr = match target_type_val
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+            {
                 Some(t) => t,
                 None => {
-                    return JsonRpcResponse {
-                        jsonrpc: "2.0".to_string(),
-                        id,
-                        result: None,
-                        error: Some(serde_json::json!({ "code": -32602, "message": "Missing target_type expression" })),
-                    };
+                    return (
+                        JsonRpcResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id,
+                            result: None,
+                            error: Some(
+                                serde_json::json!({ "code": -32602, "message": "Missing target_type expression" }),
+                            ),
+                        },
+                        None,
+                        None,
+                    );
                 }
             };
 
             let mut state = state_lock.write().await;
             let root_id = state.dag.insert_cic_root(theorem_name, target_type.clone());
-            let task_id = state.task_queue.push_cic_task(root_id.clone(), theorem_name.to_string(), target_type, 100);
+            let task_id = state.task_queue.push_cic_task(
+                root_id.clone(),
+                theorem_name.to_string(),
+                target_type,
+                100,
+            );
 
             JsonRpcResponse {
                 jsonrpc: "2.0".to_string(),
@@ -597,22 +907,33 @@ async fn process_json_rpc(
         }
 
         "mesh_post_goal" => {
-            let theorem_name = params.get("theorem_name").and_then(|v| v.as_str()).unwrap_or("goal_anon");
+            let theorem_name = params
+                .get("theorem_name")
+                .and_then(|v| v.as_str())
+                .unwrap_or("goal_anon");
             let hyps_val = params.get("hyps");
             let target_val = params.get("target");
 
             let hyps: HashMap<String, PropExpr> = hyps_val
                 .and_then(|v| serde_json::from_value(v.clone()).ok())
                 .unwrap_or_default();
-            let target: PropExpr = match target_val.and_then(|v| serde_json::from_value(v.clone()).ok()) {
+            let target: PropExpr = match target_val
+                .and_then(|v| serde_json::from_value(v.clone()).ok())
+            {
                 Some(t) => t,
                 None => {
-                    return JsonRpcResponse {
-                        jsonrpc: "2.0".to_string(),
-                        id,
-                        result: None,
-                        error: Some(serde_json::json!({ "code": -32602, "message": "Missing target expression" })),
-                    };
+                    return (
+                        JsonRpcResponse {
+                            jsonrpc: "2.0".to_string(),
+                            id,
+                            result: None,
+                            error: Some(
+                                serde_json::json!({ "code": -32602, "message": "Missing target expression" }),
+                            ),
+                        },
+                        None,
+                        None,
+                    );
                 }
             };
 
@@ -644,7 +965,10 @@ async fn process_json_rpc(
         }
 
         "mesh_heartbeat" => {
-            let worker_id = params.get("worker_id").and_then(|v| v.as_str()).unwrap_or("worker-anon");
+            let worker_id = params
+                .get("worker_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("worker-anon");
             let mut state = state_lock.write().await;
             if let Some(w) = state.workers.get_mut(worker_id) {
                 w.last_heartbeat = now_secs();
@@ -673,8 +997,17 @@ async fn process_json_rpc(
 
         "mesh_get_telemetry" => {
             let state = state_lock.read().await;
-            let proven_count = state.dag.nodes.values().filter(|n| n.status == ProofStatus::Proven).count();
-            let trace_file = state.flight_recorder.get_path().to_string_lossy().to_string();
+            let proven_count = state
+                .dag
+                .nodes
+                .values()
+                .filter(|n| n.status == ProofStatus::Proven)
+                .count();
+            let trace_file = state
+                .flight_recorder
+                .get_path()
+                .to_string_lossy()
+                .to_string();
 
             JsonRpcResponse {
                 jsonrpc: "2.0".to_string(),
@@ -696,7 +1029,11 @@ async fn process_json_rpc(
             jsonrpc: "2.0".to_string(),
             id,
             result: None,
-            error: Some(serde_json::json!({ "code": -32601, "message": format!("Method not found: {}", method) })),
+            error: Some(
+                serde_json::json!({ "code": -32601, "message": format!("Method not found: {}", method) }),
+            ),
         },
-    }
+    };
+
+    (resp, registered_worker, unregistered_worker)
 }

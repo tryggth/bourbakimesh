@@ -1,7 +1,7 @@
 //! Calculus of Inductive Constructions (CIC) Core AST & De Bruijn Terms.
 
-use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// Universe level for CIC Sorts.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -87,7 +87,10 @@ impl Level {
                 Box::new(l1.instantiate_params(subst)),
                 Box::new(l2.instantiate_params(subst)),
             ),
-            Level::Param(p) => subst.get(p).cloned().unwrap_or_else(|| Level::Param(p.clone())),
+            Level::Param(p) => subst
+                .get(p)
+                .cloned()
+                .unwrap_or_else(|| Level::Param(p.clone())),
         }
     }
 }
